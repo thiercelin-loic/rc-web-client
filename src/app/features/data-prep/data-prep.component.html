@@ -1,0 +1,1690 @@
+<div class="rc-workspace-grid rc-dataprep-grid">
+  <!-- Mobile Tab Bar -->
+  <nav
+    class="d-md-none border-bottom px-2 bg-body-tertiary"
+    aria-label="Mobile Data Prep Navigation"
+  >
+    <ul
+      class="list-unstyled d-flex align-items-center gap-1 mb-0"
+      role="tablist"
+    >
+      <li
+        class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+        [class.active]="activeMobileTab() === 'data'"
+        role="presentation"
+      >
+        <button
+          type="button"
+          role="tab"
+          class="rc-page-tab"
+          [class.active]="activeMobileTab() === 'data'"
+          [attr.aria-selected]="activeMobileTab() === 'data'"
+          (click)="activeMobileTab.set('data')"
+          id="mobile-tab-data"
+        >
+          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            <span>Data Preview</span>
+          </span>
+        </button>
+      </li>
+      <li
+        class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+        [class.active]="activeMobileTab() === 'tools'"
+        role="presentation"
+      >
+        <button
+          type="button"
+          role="tab"
+          class="rc-page-tab"
+          [class.active]="activeMobileTab() === 'tools'"
+          [attr.aria-selected]="activeMobileTab() === 'tools'"
+          (click)="activeMobileTab.set('tools')"
+          id="mobile-tab-tools"
+        >
+          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="21" x2="4" y2="14"></line>
+              <line x1="4" y1="10" x2="4" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12" y2="3"></line>
+              <line x1="20" y1="21" x2="20" y2="16"></line>
+              <line x1="20" y1="12" x2="20" y2="3"></line>
+            </svg>
+            <span>Tools &amp; Steps</span>
+          </span>
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Left Main Canvas Container -->
+  <div
+    class="rc-canvas-container p-0 d-flex flex-column"
+    [class.d-none]="activeMobileTab() !== 'data'"
+    [class.d-md-flex]="true"
+  >
+    <!-- Standardized Workspace Header -->
+    <div class="rc-page-header rc-workspace-header">
+      <div>
+        <h1 class="h5 fw-bold mb-0">Data Preparation</h1>
+        <p class=" text-muted mb-0">
+          R-Query ingestion pipelines and stream transformations.
+        </p>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'incrementalRefresh'"
+          (click)="toggleToolPanel('incrementalRefresh')"
+          id="data-prep-range-params-btn"
+          title="Configure RangeStart and RangeEnd Incremental Refresh Parameters"
+          aria-label="Incremental Refresh Parameters"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span>RangeStart / RangeEnd</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          (click)="onRunIncrementalRefresh()"
+          id="data-prep-refresh-btn"
+          title="Run incremental refresh across watermark partition"
+          aria-label="Run Incremental Refresh"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+          </svg>
+          <span>Run Incremental Refresh</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Top R-Query Ribbon -->
+    <header
+      class="rc-rquery-ribbon"
+      aria-label="R-Query Transformation Ribbon"
+    >
+      <div class="ribbon-action-group">
+        <input
+          #sourceFileInput
+          type="file"
+          accept=".csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro"
+          class="d-none"
+          (change)="onSourceFileSelected($event)"
+          aria-label="Upload dataset file"
+        />
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          (click)="onAddSource(sourceFileInput)"
+          title="Connect New Structured Stream or File (CSV, TSV, XLSX, Parquet, JSON)"
+          id="data-prep-add-source-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Add Source</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'filter'"
+          (click)="onAddFilter()"
+          title="Add FilterRowsStep"
+          id="data-prep-filter-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+          </svg>
+          <span>Filter</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'changeType'"
+          (click)="onChangeType()"
+          title="Add ChangeTypeStep or Detect Data Type"
+          id="data-prep-change-type-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <polyline points="1 20 1 14 7 14"></polyline>
+            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+          </svg>
+          <span>Change Type</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'unpivot'"
+          (click)="onUnpivot()"
+          title="Add UnpivotColumnsStep or UnpivotOtherColumnsStep"
+          id="data-prep-unpivot-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="16 3 21 3 21 8"></polyline>
+            <line x1="4" y1="20" x2="21" y2="3"></line>
+            <polyline points="21 16 21 21 16 21"></polyline>
+            <line x1="15" y1="15" x2="21" y2="21"></line>
+            <line x1="4" y1="4" x2="9" y2="9"></line>
+          </svg>
+          <span>Unpivot</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'groupBy'"
+          (click)="onGroupBy()"
+          title="Add GroupRowsStep"
+          id="data-prep-groupby-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="18" y1="20" x2="18" y2="10"></line>
+            <line x1="12" y1="20" x2="12" y2="4"></line>
+            <line x1="6" y1="20" x2="6" y2="14"></line>
+          </svg>
+          <span>Group By</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'customColumn'"
+          (click)="onCustomColumn()"
+          title="Add Custom Column or Surrogate Key Index"
+          id="data-prep-custom-column-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>Custom Column</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'mergeQueries'"
+          (click)="onMergeQueries()"
+          title="Merge Queries (Join &amp; Expand or Aggregate)"
+          id="data-prep-merge-queries-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="18" cy="18" r="3"></circle>
+            <circle cx="6" cy="6" r="3"></circle>
+            <path d="M13 6h3a2 2 0 0 1 2 2v7"></path>
+            <line x1="6" y1="9" x2="6" y2="21"></line>
+          </svg>
+          <span>Merge Queries</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'shaping'"
+          (click)="onTableShaping()"
+          title="Table Shaping (Promote Headers, Transpose, Split/Merge Columns, Deduplicate)"
+          id="data-prep-shaping-btn"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="3" y1="9" x2="21" y2="9"></line>
+            <line x1="3" y1="15" x2="21" y2="15"></line>
+            <line x1="9" y1="9" x2="9" y2="21"></line>
+          </svg>
+          <span>Table Shaping</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Interactive R-Query Ribbon Configuration Bar -->
+    @if (activeToolPanel(); as panel) {
+      <section
+        class="rc-rquery-config-bar border-bottom px-3 py-2 bg-body-tertiary"
+        aria-label="R-Query Transformation Parameters"
+      >
+        @if (panel === 'filter') {
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="form-label  mb-1" for="filter-col-select">Column</label>
+              <select
+                id="filter-col-select"
+                class="form-select form-select-sm"
+                [value]="filterColumn()"
+                (change)="filterColumn.set($any($event.target).value)"
+              >
+                @for (col of columns(); track col.name) {
+                  <option [value]="col.name">{{ col.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="filter-op-select">Operator</label>
+              <select
+                id="filter-op-select"
+                class="form-select form-select-sm"
+                [value]="filterOperator()"
+                (change)="filterOperator.set($any($event.target).value)"
+              >
+                @for (op of filterOperators; track op.id) {
+                  <option [value]="op.id">{{ op.label }}</option>
+                }
+              </select>
+            </div>
+            @if (filterOperator() !== 'notEmpty') {
+              <div>
+                <label class="form-label  mb-1" for="filter-val-input">Value</label>
+                <input
+                  id="filter-val-input"
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Compare value..."
+                  [value]="filterValue()"
+                  (input)="filterValue.set($any($event.target).value)"
+                />
+              </div>
+            }
+            @if (filterOperator() === 'between') {
+              <div>
+                <label class="form-label  mb-1" for="filter-val-to-input">End (Exclusive)</label>
+                <input
+                  id="filter-val-to-input"
+                  type="text"
+                  class="form-control form-control-sm"
+                  placeholder="Upper bound..."
+                  [value]="filterValueTo()"
+                  (input)="filterValueTo.set($any($event.target).value)"
+                />
+              </div>
+            }
+            <div class="d-flex gap-1">
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary"
+                (click)="applyFilterStep()"
+                id="apply-filter-step-btn"
+              >
+                Apply Filter
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="activeToolPanel.set(null)"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (panel === 'changeType') {
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="form-label  mb-1" for="changetype-col-select">Column</label>
+              <select
+                id="changetype-col-select"
+                class="form-select form-select-sm"
+                [value]="changeTypeColumn()"
+                (change)="changeTypeColumn.set($any($event.target).value)"
+              >
+                @for (col of columns(); track col.name) {
+                  <option [value]="col.name">{{ col.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="changetype-target-select">Target Type</label>
+              <select
+                id="changetype-target-select"
+                class="form-select form-select-sm"
+                [value]="changeTypeTarget()"
+                (change)="changeTypeTarget.set($any($event.target).value)"
+              >
+                <option value="String">Text (UTF8_STRING)</option>
+                <option value="Int64">Whole Number (INT64)</option>
+                <option value="Float64">Decimal Number (FLOAT64)</option>
+                <option value="Currency">Currency (CURRENCY)</option>
+                <option value="Date">Date (ISO_DATE)</option>
+                <option value="DateTime">Date/Time (ISO_DATETIME)</option>
+                <option value="Boolean">True/False (BOOLEAN)</option>
+              </select>
+            </div>
+            <div class="d-flex gap-1">
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary"
+                (click)="applyChangeTypeStep()"
+                id="apply-change-type-btn"
+              >
+                Apply Type
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="applyDetectDataTypes()"
+                id="detect-all-types-btn"
+              >
+                Detect All Data Types
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="activeToolPanel.set(null)"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (panel === 'unpivot') {
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="form-label  mb-1" for="unpivot-mode-select">Mode</label>
+              <select
+                id="unpivot-mode-select"
+                class="form-select form-select-sm"
+                [value]="unpivotMode()"
+                (change)="unpivotMode.set($any($event.target).value)"
+              >
+                <option value="selected">Unpivot Selected Columns</option>
+                <option value="other">Unpivot Other Columns (Keep Selected Anchored)</option>
+              </select>
+            </div>
+            <div class="d-flex flex-wrap gap-1 align-items-center">
+              @for (col of columns(); track col.name) {
+                <button
+                  type="button"
+                  class="rc-btn rc-btn-sm"
+                  [class.rc-btn-primary]="unpivotColumns().includes(col.name)"
+                  [class.rc-btn-outline]="!unpivotColumns().includes(col.name)"
+                  (click)="toggleUnpivotColumnSelection(col.name)"
+                >
+                  {{ col.name }}
+                </button>
+              }
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="unpivot-attr-input">Attribute Column</label>
+              <input
+                id="unpivot-attr-input"
+                type="text"
+                class="form-control form-control-sm"
+                [value]="unpivotAttrName()"
+                (input)="unpivotAttrName.set($any($event.target).value)"
+              />
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="unpivot-val-input">Value Column</label>
+              <input
+                id="unpivot-val-input"
+                type="text"
+                class="form-control form-control-sm"
+                [value]="unpivotValName()"
+                (input)="unpivotValName.set($any($event.target).value)"
+              />
+            </div>
+            <div class="d-flex gap-1">
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary"
+                (click)="applyUnpivotStep()"
+                id="apply-unpivot-btn"
+              >
+                Apply Unpivot
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="activeToolPanel.set(null)"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (panel === 'groupBy') {
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <span class="form-label  d-block mb-1">Group By Keys</span>
+              <div class="d-flex flex-wrap gap-1">
+                @for (col of columns(); track col.name) {
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-sm"
+                    [class.rc-btn-primary]="groupByColumns().includes(col.name)"
+                    [class.rc-btn-outline]="!groupByColumns().includes(col.name)"
+                    (click)="toggleGroupByColumnSelection(col.name)"
+                  >
+                    {{ col.name }}
+                  </button>
+                }
+              </div>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="groupby-fn-select">Operation</label>
+              <select
+                id="groupby-fn-select"
+                class="form-select form-select-sm"
+                [value]="groupByFunction()"
+                (change)="groupByFunction.set($any($event.target).value)"
+              >
+                <option value="SUM">Sum</option>
+                <option value="AVG">Average</option>
+                <option value="MIN">Min</option>
+                <option value="MAX">Max</option>
+                <option value="COUNT">Count Rows</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="groupby-src-select">Metric Column</label>
+              <select
+                id="groupby-src-select"
+                class="form-select form-select-sm"
+                [value]="groupBySourceColumn()"
+                (change)="groupBySourceColumn.set($any($event.target).value)"
+              >
+                @for (col of columns(); track col.name) {
+                  <option [value]="col.name">{{ col.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="groupby-out-input">New Column Name</label>
+              <input
+                id="groupby-out-input"
+                type="text"
+                class="form-control form-control-sm"
+                [value]="groupByOutputColumn()"
+                (input)="groupByOutputColumn.set($any($event.target).value)"
+              />
+            </div>
+            <div class="d-flex gap-1">
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary"
+                (click)="applyGroupByStep()"
+                id="apply-groupby-btn"
+              >
+                Apply Group By
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="activeToolPanel.set(null)"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (panel === 'customColumn') {
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="form-label  mb-1" for="custom-mode-select">Column Kind</label>
+              <select
+                id="custom-mode-select"
+                class="form-select form-select-sm"
+                [value]="customColumnMode()"
+                (change)="customColumnMode.set($any($event.target).value)"
+              >
+                <option value="expression">Custom Formula Expression</option>
+                <option value="index">Surrogate Key Index Column (1, 2, 3...)</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="custom-name-input">Column Name</label>
+              <input
+                id="custom-name-input"
+                type="text"
+                class="form-control form-control-sm"
+                [value]="customColumnName()"
+                (input)="customColumnName.set($any($event.target).value)"
+              />
+            </div>
+            @if (customColumnMode() === 'expression') {
+              <div class="flex-grow-1">
+                <label class="form-label  mb-1" for="custom-expr-input">
+                  M / R-Query Expression (e.g. <code>[qty] * [price]</code> or <code>if [qty] &gt; 5 then 'Bulk' else 'Single'</code>)
+                </label>
+                <input
+                  id="custom-expr-input"
+                  type="text"
+                  class="form-control form-control-sm font-monospace"
+                  placeholder="[colA] * [colB]"
+                  [value]="customColumnExpression()"
+                  (input)="customColumnExpression.set($any($event.target).value)"
+                />
+              </div>
+            } @else {
+              <div>
+                <label class="form-label  mb-1" for="index-seed-input">Start At</label>
+                <input
+                  id="index-seed-input"
+                  type="number"
+                  class="form-control form-control-sm"
+                  style="width: 80px;"
+                  [value]="indexInitialValue()"
+                  (input)="indexInitialValue.set(+$any($event.target).value)"
+                />
+              </div>
+              <div>
+                <label class="form-label  mb-1" for="index-step-input">Increment</label>
+                <input
+                  id="index-step-input"
+                  type="number"
+                  class="form-control form-control-sm"
+                  style="width: 80px;"
+                  [value]="indexIncrement()"
+                  (input)="indexIncrement.set(+$any($event.target).value)"
+                />
+              </div>
+            }
+            <div class="d-flex gap-1">
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary"
+                (click)="applyCustomColumnStep()"
+                id="apply-custom-col-btn"
+              >
+                Add Column
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="activeToolPanel.set(null)"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (panel === 'mergeQueries') {
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="form-label  mb-1" for="merge-target-select">Right Lookup Table</label>
+              <select
+                id="merge-target-select"
+                class="form-select form-select-sm"
+                [value]="mergeTargetSourceId()"
+                (change)="mergeTargetSourceId.set($any($event.target).value)"
+              >
+                @for (sib of siblingSources(); track sib.id) {
+                  <option [value]="sib.id">{{ sib.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="merge-key-select">Join Key</label>
+              <select
+                id="merge-key-select"
+                class="form-select form-select-sm"
+                [value]="mergeJoinKey()"
+                (change)="mergeJoinKey.set($any($event.target).value)"
+              >
+                @for (col of columns(); track col.name) {
+                  <option [value]="col.name">{{ col.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="merge-kind-select">Join Kind</label>
+              <select
+                id="merge-kind-select"
+                class="form-select form-select-sm"
+                [value]="mergeJoinType()"
+                (change)="mergeJoinType.set($any($event.target).value)"
+              >
+                <option value="LEFT">Left Outer</option>
+                <option value="INNER">Inner Join</option>
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="merge-action-select">Post-Join Mode</label>
+              <select
+                id="merge-action-select"
+                class="form-select form-select-sm"
+                [value]="mergePostAction()"
+                (change)="mergePostAction.set($any($event.target).value)"
+              >
+                <option value="expand">Expand Columns</option>
+                <option value="aggregate">Aggregate Matched Rows</option>
+              </select>
+            </div>
+            <div class="d-flex gap-1">
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary"
+                (click)="applyMergeQueriesStep()"
+                id="apply-merge-queries-btn"
+              >
+                Apply Merge
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="activeToolPanel.set(null)"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (panel === 'shaping') {
+          <div class="d-flex flex-wrap align-items-center gap-2">
+            <button
+              type="button"
+              class="rc-btn rc-btn-sm rc-btn-outline"
+              (click)="applyPromoteHeaders()"
+              id="promote-headers-btn"
+            >
+              Use First Row as Headers
+            </button>
+            <button
+              type="button"
+              class="rc-btn rc-btn-sm rc-btn-outline"
+              (click)="applyTranspose()"
+              id="transpose-table-btn"
+            >
+              Transpose
+            </button>
+            <button
+              type="button"
+              class="rc-btn rc-btn-sm rc-btn-outline"
+              (click)="applyRemoveDuplicates()"
+              id="remove-duplicates-btn"
+            >
+              Remove Duplicates
+            </button>
+            <div class="d-inline-flex align-items-center gap-1">
+              <input
+                type="number"
+                min="1"
+                class="form-control form-control-sm"
+                style="width: 64px;"
+                [value]="shapingRowCount()"
+                (input)="shapingRowCount.set(+$any($event.target).value)"
+                aria-label="Number of rows to remove"
+              />
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="applyRemoveTopRows()"
+              >
+                Remove Top N
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="applyRemoveBottomRows()"
+              >
+                Remove Bottom N
+              </button>
+            </div>
+            <div class="d-inline-flex align-items-center gap-1">
+              <select
+                class="form-select form-select-sm"
+                style="width: auto;"
+                [value]="bulkRenameOperation()"
+                (change)="bulkRenameOperation.set($any($event.target).value)"
+                aria-label="Bulk rename column operation"
+              >
+                <option value="UPPERCASE">UPPERCASE Headers</option>
+                <option value="LOWERCASE">lowercase Headers</option>
+                <option value="TRIM">Trim Headers</option>
+                <option value="CLEAN">Sanitize Identifiers</option>
+              </select>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="applyBulkRenameColumns()"
+                id="bulk-rename-cols-btn"
+              >
+                Format Headers
+              </button>
+            </div>
+            <div class="d-inline-flex align-items-center gap-1">
+              <select
+                class="form-select form-select-sm"
+                style="width: auto;"
+                [value]="splitColumnTarget()"
+                (change)="splitColumnTarget.set($any($event.target).value)"
+                aria-label="Column to split"
+              >
+                @for (col of columns(); track col.name) {
+                  <option [value]="col.name">{{ col.name }}</option>
+                }
+              </select>
+              <input
+                type="text"
+                class="form-control form-control-sm"
+                style="width: 56px;"
+                [value]="splitDelimiter()"
+                (input)="splitDelimiter.set($any($event.target).value)"
+                aria-label="Split delimiter"
+              />
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="applySplitColumn()"
+                id="split-col-btn"
+              >
+                Split Column
+              </button>
+            </div>
+          </div>
+        }
+
+        @if (panel === 'incrementalRefresh') {
+          <div class="d-flex flex-wrap align-items-end gap-2">
+            <div>
+              <label class="form-label  mb-1" for="ir-col-select">Date / Watermark Column</label>
+              <select
+                id="ir-col-select"
+                class="form-select form-select-sm"
+                [value]="partitionDateColumn()"
+                (change)="partitionDateColumn.set($any($event.target).value)"
+              >
+                <option value="">-- Select Date Column --</option>
+                @for (col of columns(); track col.name) {
+                  <option [value]="col.name">{{ col.name }}</option>
+                }
+              </select>
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="ir-start-input">RangeStart (Inclusive &gt;=)</label>
+              <input
+                id="ir-start-input"
+                type="text"
+                class="form-control form-control-sm font-monospace"
+                [value]="rangeStart()"
+                (input)="rangeStart.set($any($event.target).value)"
+              />
+            </div>
+            <div>
+              <label class="form-label  mb-1" for="ir-end-input">RangeEnd (Exclusive &lt;)</label>
+              <input
+                id="ir-end-input"
+                type="text"
+                class="form-control form-control-sm font-monospace"
+                [value]="rangeEnd()"
+                (input)="rangeEnd.set($any($event.target).value)"
+              />
+            </div>
+            <div class="d-flex gap-1">
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary"
+                (click)="onRunIncrementalRefresh(); activeToolPanel.set(null)"
+              >
+                Apply Partition Filter &amp; Refresh
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="activeToolPanel.set(null)"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        }
+      </section>
+    }
+
+    <!-- Split Stage: Datasets Navigation & Data Preview Grid -->
+    <div class="dataprep-stage-split">
+      <!-- Left Sources Explorer -->
+      <aside
+        class="dataprep-sources-pane"
+        aria-label="Ingestion Datasets Explorer"
+      >
+        <div class="sources-pane-header">
+          <h2 class="sources-title">Datasets</h2>
+          <p class=" text-muted mb-0">Active ingestion sources.</p>
+        </div>
+
+        <div class="sources-list" role="listbox" aria-label="Ingestion Datasets">
+          @for (src of sources(); track src.id) {
+            <div
+              class="source-item-row d-flex align-items-center gap-1"
+              role="option"
+              [attr.aria-selected]="selectedSourceId() === src.id"
+            >
+              <button
+                type="button"
+                class="source-item flex-grow-1"
+                [class.active]="selectedSourceId() === src.id"
+                (click)="onSelectSource(src)"
+                [id]="'source-' + src.id"
+              >
+                <span class="format-indicator" [class]="src.format.toLowerCase()">
+                  {{ src.format }}
+                </span>
+                <span
+                  class="src-name text-truncate"
+                  [class.fst-italic]="src.enableLoad === false"
+                  [title]="src.name + (src.enableLoad === false ? ' (Staging only - Load disabled)' : '')"
+                >
+                  {{ src.name }}
+                </span>
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-ghost px-1"
+                (click)="toggleSourceEnableLoad(src.id, $event)"
+                [title]="src.enableLoad === false ? 'Enable Load to Semantic Model' : 'Disable Load (Keep as Staging Query)'"
+                [attr.aria-label]="src.enableLoad === false ? 'Enable load for ' + src.name : 'Disable load for ' + src.name"
+              >
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  @if (src.enableLoad === false) {
+                    <line x1="1" y1="1" x2="23" y2="23"></line>
+                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+                  } @else {
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  }
+                </svg>
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-ghost px-1"
+                (click)="duplicateDataset(src, $event)"
+                [title]="'Duplicate dataset ' + src.name"
+                [attr.aria-label]="'Duplicate dataset ' + src.name"
+              >
+                <svg
+                  width="11"
+                  height="11"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+              </button>
+            </div>
+          } @empty {
+            <div class="p-3 text-center text-muted  d-flex flex-column align-items-center justify-content-center">
+              <span class="mb-2">No datasets connected</span>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="onAddSource(sourceFileInput)"
+              >
+                + Add Source
+              </button>
+            </div>
+          }
+        </div>
+      </aside>
+
+      <!-- Center Data Preview Pane -->
+      <main
+        class="dataprep-preview-pane"
+        aria-label="Dataset Tabular Preview"
+      >
+        <div class="preview-toolbar">
+          <div class="preview-info d-flex align-items-center">
+            @if (selectedSource(); as src) {
+              <span>Previewing:</span>
+              <strong class="ms-1">{{ src.name }}</strong>
+              <span class="text-muted ms-2">
+                ({{ rows().length }} Rows &bull; Step {{ selectedStepIndex() + 1 }} of {{ appliedSteps().length || 1 }})
+              </span>
+            } @else {
+              <span class="text-muted">No dataset selected</span>
+            }
+          </div>
+        </div>
+
+        <div class="table-container">
+          @if (rows().length > 0) {
+            <table class="rc-preview-table" aria-label="Active Ingestion Table">
+              <thead>
+                <tr>
+                  @for (col of columns(); track col.name) {
+                    <th scope="col" class="position-relative">
+                      <div class="col-th-inner">
+                        <span class="type-icon-tag" [class]="(col.icon || 'text').toLowerCase()">
+                          {{ col.icon || 'TEXT' }}
+                        </span>
+                        @if (editingColumnName() === col.name) {
+                          <input
+                            type="text"
+                            class="form-control form-control-sm py-0 px-1 font-monospace"
+                            style="width: 120px; font-size: 11px; height: 22px;"
+                            [value]="editingColumnValue()"
+                            (input)="editingColumnValue.set($any($event.target).value)"
+                            (keydown.enter)="saveColumnRename(col.name)"
+                            (keydown.escape)="cancelColumnRename()"
+                            (blur)="saveColumnRename(col.name)"
+                            (click)="$event.stopPropagation()"
+                            aria-label="Rename column name"
+                          />
+                        } @else {
+                          <span class="col-title text-truncate" [title]="col.name">
+                            {{ col.name }}
+                          </span>
+                        }
+                        <button
+                          type="button"
+                          class="col-menu-trigger"
+                          title="Inline Cleansing Actions"
+                          [attr.aria-label]="'Column actions for ' + col.name"
+                          (click)="toggleColumnMenu(col.name, $event)"
+                        >
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                          </svg>
+                        </button>
+                      </div>
+
+                      @if (activeColumnMenu() === col.name) {
+                        <div
+                          class="rc-visual-dropdown-menu col-dropdown-portal shadow-lg"
+                          (click)="$event.stopPropagation()"
+                          role="menu"
+                          [attr.aria-label]="'Actions for column ' + col.name"
+                        >
+                          <div class="dropdown-header  text-muted px-3 py-1">Type Conversion</div>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="changeColumnType(col.name, 'String')"
+                          >
+                            <span>Text (String)</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="changeColumnType(col.name, 'Float64')"
+                          >
+                            <span>Decimal (Float64)</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="changeColumnType(col.name, 'Int64')"
+                          >
+                            <span>Integer (Int64)</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="changeColumnType(col.name, 'Currency')"
+                          >
+                            <span>Currency (€)</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="changeColumnType(col.name, 'Date')"
+                          >
+                            <span>Date / Time</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="changeColumnType(col.name, 'Boolean')"
+                          >
+                            <span>Boolean (True/False)</span>
+                          </button>
+                          <div class="dropdown-divider my-1"></div>
+                          <div class="dropdown-header  text-muted px-3 py-1">Sort &amp; Fill</div>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="sortColumn(col.name, true)"
+                          >
+                            <span>Sort Ascending</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="sortColumn(col.name, false)"
+                          >
+                            <span>Sort Descending</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="fillDownColumn(col.name)"
+                          >
+                            <span>Fill Down</span>
+                          </button>
+                          <div class="dropdown-divider my-1"></div>
+                          <div class="dropdown-header  text-muted px-3 py-1">Transform &amp; Cleanse</div>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="filterOutNulls(col.name)"
+                          >
+                            <span>Remove Empty / Null Rows</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="cleanseColumnText(col.name, 'TRIM')"
+                          >
+                            <span>Trim Whitespace</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="cleanseColumnText(col.name, 'UPPERCASE')"
+                          >
+                            <span>UPPERCASE</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="cleanseColumnText(col.name, 'LOWERCASE')"
+                          >
+                            <span>lowercase</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="extractDigitsFromColumn(col.name)"
+                          >
+                            <span>Extract Digits (Text.Select)</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="startRenameColumn(col.name)"
+                          >
+                            <span>Rename Column...</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item d-flex align-items-center gap-2"
+                            (click)="removeOtherColumns(col.name)"
+                          >
+                            <span>Remove Other Columns</span>
+                          </button>
+                          <button
+                            type="button"
+                            class="rc-dropdown-item text-danger d-flex align-items-center gap-2"
+                            (click)="removeColumn(col.name)"
+                          >
+                            <span>Remove Column</span>
+                          </button>
+                        </div>
+                      }
+                    </th>
+                  }
+                </tr>
+              </thead>
+              <tbody>
+                @for (row of rows(); track $index) {
+                  <tr>
+                    @for (col of columns(); track col.name) {
+                      <td>
+                        @if (col.name === 'sale_id' || col.name === 'id') {
+                          <code>{{ formatCellValue(row, col.name) }}</code>
+                        } @else if (col.name === 'sku_code') {
+                          <strong>{{ formatCellValue(row, col.name) }}</strong>
+                        } @else {
+                          {{ formatCellValue(row, col.name) }}
+                        }
+                      </td>
+                    }
+                  </tr>
+                }
+              </tbody>
+            </table>
+          } @else {
+            <div class="empty-preview-container d-flex flex-column align-items-center justify-content-center p-5 text-center text-muted h-100">
+              <svg
+                width="36"
+                height="36"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+                class="mb-2 opacity-50"
+                aria-hidden="true"
+              >
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+              </svg>
+              <p class="mb-1 fw-semibold text-body">No data records in preview buffer</p>
+              <p class=" text-muted mb-3">Data should be provided by users. Connect a CSV, TSV, XLSX, Parquet, or JSON file to start data preparation.</p>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
+                (click)="onAddSource(sourceFileInput)"
+              >
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Add User Dataset</span>
+              </button>
+            </div>
+          }
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- Right Utility Dock (320px) -->
+  <div
+    class="rc-zone-utility d-flex flex-column"
+    [class.d-none]="activeMobileTab() !== 'tools'"
+    [class.d-md-flex]="true"
+    aria-label="Data Preparation Tools and Steps Dock"
+  >
+    <aside class="rc-tools-dock d-flex flex-column h-100">
+      <!-- Standardized Dock Header -->
+      <div class="rc-tools-dock-header">
+        <span class="rc-tools-dock-title">Tools</span>
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-ghost text-muted p-1 d-inline-flex align-items-center justify-content-center"
+          (click)="toggleCollapseAll()"
+          [title]="isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'"
+          [attr.aria-label]="isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'"
+          id="data-prep-collapse-all-btn"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="19" cy="12" r="1"></circle>
+            <circle cx="5" cy="12" r="1"></circle>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Accordion Container -->
+      <div
+        class="rc-tools-accordion flex-grow-1 overflow-y-auto"
+        role="region"
+        aria-label="Data Prep Tools Sections"
+      >
+        <!-- Section 1: Applied Steps -->
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.is-expanded]="isSectionExpanded('Steps')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
+            [attr.aria-expanded]="isSectionExpanded('Steps')"
+            aria-controls="tools-section-steps"
+            id="tools-header-steps"
+            (click)="toggleSection('Steps')"
+            title="Applied Steps"
+          >
+            <div class="rc-section-header-title-wrap text-truncate">
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Steps')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Applied Steps</span>
+            </div>
+            <span class="steps-count-badge">{{ appliedSteps().length }}</span>
+          </button>
+
+          @if (isSectionExpanded('Steps')) {
+            <div
+              id="tools-section-steps"
+              role="region"
+              aria-labelledby="tools-header-steps"
+              class="rc-tools-section-body"
+            >
+              <div class="steps-timeline">
+                @for (step of appliedSteps(); track step.id; let idx = $index) {
+                  <div
+                    class="step-card"
+                    [class.is-selected]="selectedStepIndex() === idx"
+                    [class.latest]="idx === appliedSteps().length - 1"
+                    (click)="onSelectStep(idx)"
+                    role="button"
+                    tabindex="0"
+                    (keydown.enter)="onSelectStep(idx)"
+                    [attr.aria-label]="'Select transformation step ' + (idx + 1) + ': ' + step.name"
+                  >
+                    <div class="step-icon-wrap" aria-hidden="true">
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.5"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                      </svg>
+                    </div>
+                    <div class="step-info text-start flex-grow-1">
+                      <span class="step-name text-truncate">{{ step.name }}</span>
+                      <span class="step-type text-truncate">{{ step.type }}</span>
+                    </div>
+                    @if (idx > 0) {
+                      <div class="step-actions d-inline-flex align-items-center gap-1">
+                        @if (idx > 1) {
+                          <button
+                            type="button"
+                            class="rc-btn rc-btn-sm rc-btn-ghost p-0 px-1"
+                            title="Move step earlier (Filter left, format right)"
+                            [attr.aria-label]="'Move step ' + step.name + ' up'"
+                            (click)="moveStep(idx, -1, $event)"
+                          >
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                              <polyline points="18 15 12 9 6 15"></polyline>
+                            </svg>
+                          </button>
+                        }
+                        <button
+                          type="button"
+                          class="rc-btn rc-btn-sm rc-btn-ghost text-danger p-0 px-1"
+                          title="Delete transformation step"
+                          [attr.aria-label]="'Delete step ' + step.name"
+                          (click)="removeStep(idx, $event)"
+                        >
+                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <line x1="18" y1="6" x2="6" y2="18"></line>
+                            <line x1="6" y1="6" x2="18" y2="18"></line>
+                          </svg>
+                        </button>
+                      </div>
+                    }
+                  </div>
+                } @empty {
+                  <div class="p-3 text-center text-muted ">
+                    No transformation steps recorded. Connect a dataset source to start.
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Section 2: Step Definition -->
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.is-expanded]="isSectionExpanded('Definition')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
+            [attr.aria-expanded]="isSectionExpanded('Definition')"
+            aria-controls="tools-section-definition"
+            id="tools-header-definition"
+            (click)="toggleSection('Definition')"
+            title="Step Definition"
+          >
+            <div class="rc-section-header-title-wrap text-truncate">
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Definition')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Step Definition</span>
+            </div>
+          </button>
+
+          @if (isSectionExpanded('Definition')) {
+            <div
+              id="tools-section-definition"
+              role="region"
+              aria-labelledby="tools-header-definition"
+              class="rc-tools-section-body"
+            >
+              @if (activeStep(); as step) {
+                <div class="d-flex align-items-center justify-content-between mb-2 gap-1">
+                  <div class="btn-group btn-group-sm" role="group" aria-label="Definition format">
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-sm"
+                      [class.rc-btn-primary]="definitionFormat() === 'json'"
+                      [class.rc-btn-outline]="definitionFormat() !== 'json'"
+                      (click)="definitionFormat.set('json')"
+                    >
+                      R-Query JSON
+                    </button>
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-sm"
+                      [class.rc-btn-primary]="definitionFormat() === 'm'"
+                      [class.rc-btn-outline]="definitionFormat() !== 'm'"
+                      (click)="definitionFormat.set('m')"
+                    >
+                      M Script (let..in)
+                    </button>
+                  </div>
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-sm rc-btn-outline py-0 px-2 d-inline-flex align-items-center gap-1"
+                    (click)="onCopyDefinition()"
+                    title="Copy step definition"
+                    aria-label="Copy step definition JSON"
+                  >
+                    <svg
+                      width="11"
+                      height="11"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
+
+                <div class="step-json-box">
+                  @if (definitionFormat() === 'm') {
+                    <pre class="json-code"><code>{{ activeMQueryScript() }}</code></pre>
+                  } @else {
+                    <pre class="json-code"><code>{{ activeStepDefinitionJson() }}</code></pre>
+                  }
+                </div>
+              } @else {
+                <div class="text-muted  py-2 px-1">No transformation step selected.</div>
+              }
+            </div>
+          }
+        </div>
+
+        <!-- Section 3: Quarantine Queue -->
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.is-expanded]="isSectionExpanded('Quarantine')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
+            [attr.aria-expanded]="isSectionExpanded('Quarantine')"
+            aria-controls="tools-section-quarantine"
+            id="tools-header-quarantine"
+            (click)="toggleSection('Quarantine')"
+            title="Quarantine Queue"
+          >
+            <div class="rc-section-header-title-wrap text-truncate">
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Quarantine')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Quarantine Queue</span>
+            </div>
+          </button>
+
+          @if (isSectionExpanded('Quarantine')) {
+            <div
+              id="tools-section-quarantine"
+              role="region"
+              aria-labelledby="tools-header-quarantine"
+              class="rc-tools-section-body"
+            >
+              <div class="quarantine-card">
+                <div class="q-header">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="q-icon"
+                    aria-hidden="true"
+                  >
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                  </svg>
+                  <span class="q-title">Isolation Monitor</span>
+                </div>
+                <p class="q-desc">
+                  Records failing datatype constraints are isolated in
+                  <code>quarantine_records</code> without halting the ingestion stream.
+                </p>
+                <div class="q-status-row">
+                  <span class="q-badge">{{ quarantineStats().rowsQuarantined }} Rows Quarantined</span>
+                  <span class="q-ok">{{ quarantineStats().status }}</span>
+                </div>
+                @if (quarantinedRecords().length > 0) {
+                  <div class="mt-2 pt-2 border-top ">
+                    @for (q of quarantinedRecords().slice(0, 3); track $index) {
+                      <div class="text-truncate" [title]="q.errorReason">
+                        Line {{ q.sourceLineNumber }}: {{ q.errorReason }}
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Dock Fixed Footer Action -->
+      <div class="apply-load-bar p-3 border-top bg-body">
+        <button
+          type="button"
+          class="rc-btn rc-btn-primary w-100 justify-content-center p-2"
+          (click)="onApplyAndLoad()"
+          id="data-prep-apply-load-btn"
+        >
+          <span>Apply &amp; Load to Cache</span>
+        </button>
+      </div>
+    </aside>
+  </div>
+</div>
