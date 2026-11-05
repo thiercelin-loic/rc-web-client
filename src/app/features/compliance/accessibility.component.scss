@@ -1,0 +1,46 @@
+:host {
+  display: block;
+  height: 100%;
+}
+
+.rc-a11y-code {
+  font-family: var(--rc-font-mono, monospace);
+  font-size: 0.85em;
+  background-color: var(--rc-surface-subtle);
+  color: var(--rc-text-primary);
+  border: 1px solid var(--rc-border-color);
+  padding: 1px 6px;
+  border-radius: var(--rc-radius-xs);
+}
+
+.rc-a11y-link {
+  color: var(--rc-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  font-weight: var(--rc-font-weight-semibold, 600);
+  transition: color var(--rc-transition-fast, 0.15s ease);
+
+  &:hover {
+    color: var(--rc-primary-dark, var(--rc-text-primary));
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--rc-primary);
+    outline-offset: 2px;
+    border-radius: var(--rc-radius-xs);
+  }
+}
+
+.rc-a11y-list {
+  padding-left: 1.25rem;
+  margin-bottom: 0;
+
+  li {
+    margin-bottom: 0.5rem;
+    line-height: var(--rc-line-height-base, 1.5);
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+}
