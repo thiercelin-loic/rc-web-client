@@ -1,0 +1,240 @@
+// ============================================================================
+// RAX Requests Studio Specific Styles
+// Shared workspace grid, headers, tabs, and 320px Tools dock live in src/styles/_workspace.scss
+// ============================================================================
+
+.rc-query-tabs-bar {
+  background-color: var(--rc-surface-subtle);
+  border-bottom: 1px solid var(--rc-card-border);
+  min-height: 41px;
+}
+
+.tab-close-btn {
+  border-radius: var(--rc-radius-xs, 3px);
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+
+  &:hover {
+    background-color: var(--rc-surface-hover);
+    color: var(--rc-text-primary) !important;
+  }
+}
+
+.rc-rax-workspace {
+  background-color: var(--rc-canvas-bg);
+  min-height: 0;
+}
+
+.rc-editor-section {
+  flex: 1 1 50%;
+  min-height: 180px;
+  background-color: var(--rc-card-bg);
+  border-bottom: 1px solid var(--rc-card-border);
+}
+
+.rc-editor-gutter {
+  width: 44px;
+  padding: 12px 8px 12px 0;
+  background-color: var(--rc-surface-subtle);
+  border-right: 1px solid var(--rc-card-border);
+  color: var(--rc-text-muted);
+  font-family: var(--rc-font-mono, monospace);
+  font-size: var(--rc-font-size-xs, 12px);
+  line-height: 20px;
+  overflow: hidden;
+
+  .gutter-line {
+    height: 20px;
+  }
+}
+
+.rc-code-textarea {
+  background-color: var(--rc-card-bg);
+  color: var(--rc-text-primary);
+  font-family: var(--rc-font-mono, monospace);
+  font-size: var(--rc-font-size-xs, 12px);
+  line-height: 20px;
+  padding: 12px;
+  resize: none;
+  outline: none;
+  tab-size: 2;
+
+  &::placeholder {
+    color: var(--rc-text-muted);
+    opacity: 0.7;
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+.rc-results-section {
+  flex: 1 1 50%;
+  min-height: 220px;
+  background-color: var(--rc-card-bg);
+  border-top: 1px solid var(--rc-card-border);
+  overflow: hidden;
+}
+
+.rc-results-tab-bar {
+  min-height: 36px;
+  background-color: var(--rc-surface-subtle);
+  border-bottom: 1px solid var(--rc-card-border);
+}
+
+.rc-results-panel {
+  background-color: var(--rc-card-bg);
+}
+
+.rc-data-table {
+  font-size: var(--rc-font-size-xs, 12px);
+  color: var(--rc-text-primary);
+  border-color: var(--rc-card-border);
+
+  th {
+    background-color: var(--rc-surface-subtle);
+    color: var(--rc-text-secondary);
+    font-weight: var(--rc-font-weight-semibold, 600);
+    border-color: var(--rc-card-border);
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    white-space: nowrap;
+  }
+
+  td {
+    border-color: var(--rc-card-border);
+    white-space: nowrap;
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--rc-text-primary);
+  }
+}
+
+.rc-empty-icon-wrap {
+  width: 44px;
+  height: 44px;
+  background-color: var(--rc-surface-hover);
+  color: var(--rc-text-muted);
+}
+
+.rc-sql-plan-code {
+  background-color: var(--rc-surface-subtle);
+  color: var(--rc-text-primary);
+  font-family: var(--rc-font-mono, monospace);
+  font-size: var(--rc-font-size-xs, 12px);
+  border: 1px solid var(--rc-card-border);
+  max-height: 200px;
+  overflow: auto;
+}
+
+.rc-shortcut-badge {
+  background: var(--rc-surface-hover);
+  color: var(--rc-text-secondary);
+  border: 1px solid var(--rc-card-border);
+  border-radius: var(--rc-radius-xs, 3px);
+  font-size: 10px;
+  padding: 1px 4px;
+}
+
+.rc-node-hover {
+  transition: background-color var(--rc-transition-fast);
+
+  &:hover {
+    background-color: var(--rc-surface-hover);
+  }
+}
+
+.rc-type-tag {
+  font-size: 10px;
+  color: var(--rc-text-muted);
+  background-color: var(--rc-surface-hover);
+  padding: 1px 4px;
+  border-radius: var(--rc-radius-xs, 3px);
+}
+
+.rc-snippet-card {
+  border: 1px solid var(--rc-card-border);
+  background-color: var(--rc-surface-subtle);
+  transition:
+    border-color var(--rc-transition-fast),
+    background-color var(--rc-transition-fast);
+
+  &:hover {
+    border-color: var(--rc-primary);
+    background-color: var(--rc-surface-hover);
+  }
+}
+
+.rc-snippet-preview {
+  max-height: 48px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.rc-find-replace-bar {
+  background-color: var(--rc-surface-subtle);
+  border-bottom: 1px solid var(--rc-card-border);
+}
+
+.rc-find-input {
+  max-width: 220px;
+  font-family: var(--rc-font-mono, monospace);
+  font-size: var(--rc-font-size-xs, 12px);
+}
+
+.rc-autocomplete-popup {
+  position: absolute;
+  top: 38px;
+  left: 12px;
+  z-index: 20;
+  min-width: 240px;
+  max-width: 360px;
+  background-color: var(--rc-card-bg);
+  border: 1px solid var(--rc-card-border);
+}
+
+.rc-autocomplete-option {
+  color: var(--rc-text-primary);
+  border-left: 3px solid transparent;
+
+  &.active,
+  &:hover {
+    background-color: var(--rc-surface-hover);
+    border-left-color: var(--rc-primary);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .rc-editor-section,
+  .rc-results-section {
+    flex-basis: auto;
+    min-height: 280px;
+  }
+
+  .rc-editor-gutter {
+    width: 34px;
+    padding-right: 4px;
+  }
+
+  .rc-code-textarea {
+    padding: 10px;
+  }
+
+  .rc-find-input {
+    max-width: 100%;
+    flex: 1 1 140px;
+  }
+}

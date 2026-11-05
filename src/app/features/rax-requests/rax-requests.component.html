@@ -1,0 +1,1407 @@
+<div class="rc-workspace-grid rc-rax-grid">
+  <!-- Mobile Tab Bar (below 992px) -->
+  <nav
+    class="d-md-none border-bottom px-2 bg-body-tertiary"
+    aria-label="Mobile RAX Navigation"
+  >
+    <ul
+      class="list-unstyled d-flex align-items-center gap-1 mb-0"
+      role="tablist"
+    >
+      <li
+        class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+        [class.active]="activeMobileTab() === 'editor'"
+        role="presentation"
+      >
+        <button
+          type="button"
+          role="tab"
+          class="rc-page-tab"
+          [class.active]="activeMobileTab() === 'editor'"
+          [attr.aria-selected]="activeMobileTab() === 'editor'"
+          (click)="activeMobileTab.set('editor')"
+          id="mobile-tab-editor"
+        >
+          <span
+            class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="16 18 22 12 16 6"></polyline>
+              <polyline points="8 6 2 12 8 18"></polyline>
+            </svg>
+            <span>Query Editor</span>
+          </span>
+        </button>
+      </li>
+      <li
+        class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+        [class.active]="activeMobileTab() === 'explorer'"
+        role="presentation"
+      >
+        <button
+          type="button"
+          role="tab"
+          class="rc-page-tab"
+          [class.active]="activeMobileTab() === 'explorer'"
+          [attr.aria-selected]="activeMobileTab() === 'explorer'"
+          (click)="activeMobileTab.set('explorer')"
+          id="mobile-tab-explorer"
+        >
+          <span
+            class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+            </svg>
+            <span>Model Explorer</span>
+          </span>
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Left Main Canvas Area (Editor & Results) -->
+  <div
+    class="rc-canvas-container p-0 d-flex flex-column"
+    [class.d-none]="activeMobileTab() !== 'editor'"
+    [class.d-md-flex]="true"
+    role="main"
+    aria-label="RAX Requests Studio"
+  >
+    <!-- Standardized Workspace Header -->
+    <div class="rc-page-header rc-workspace-header">
+      <div>
+        <h1 class="h5 fw-bold mb-0">RAX Requests</h1>
+        <p class="small text-muted mb-0">
+          Analytical query editor and execution workspace.
+        </p>
+      </div>
+
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <!-- Run Button -->
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
+          id="btn-run-query"
+          (click)="runQuery()"
+          [disabled]="activeTab().isExecuting"
+          title="Execute query (F5 or Ctrl+Enter)"
+          aria-label="Run query"
+        >
+          @if (activeTab().isExecuting) {
+            <span
+              class="spinner-border spinner-border-sm"
+              aria-hidden="true"
+            ></span>
+            <span>Running...</span>
+          } @else {
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+            <span>Run</span>
+            <kbd class="rc-shortcut-badge">F5</kbd>
+          }
+        </button>
+
+        <!-- Format Button -->
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          id="btn-format-query"
+          (click)="formatQuery()"
+          title="Format RAX query"
+          aria-label="Format query"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <line x1="21" y1="10" x2="7" y2="10"></line>
+            <line x1="21" y1="6" x2="3" y2="6"></line>
+            <line x1="21" y1="14" x2="3" y2="14"></line>
+            <line x1="21" y1="18" x2="7" y2="18"></line>
+          </svg>
+          <span>Format</span>
+        </button>
+
+        <!-- Validate Button -->
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          id="btn-validate-query"
+          (click)="validateQuery()"
+          title="Validate syntax"
+          aria-label="Validate syntax"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <span>Validate</span>
+        </button>
+
+        <!-- Find & Replace Toggle Button (Power BI DAX Query View Replace) -->
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          id="btn-find-replace"
+          (click)="toggleFindReplace()"
+          [attr.aria-expanded]="findReplaceOpen()"
+          title="Find and replace in query (Ctrl+H)"
+          aria-label="Find and replace"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <span>Replace</span>
+        </button>
+
+        <!-- CodeLens: Update Model (when DEFINE MEASURE or TMDL createOrReplace is present) -->
+        @if (hasModelDefinableContent()) {
+          <button
+            type="button"
+            class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+            id="btn-apply-model"
+            (click)="applyToModel()"
+            title="Apply measure definitions and descriptions to semantic model"
+            aria-label="Update model with measure definitions"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path
+                d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"
+              ></path>
+              <polyline points="17 21 17 13 7 13 7 21"></polyline>
+              <polyline points="7 3 7 8 15 8"></polyline>
+            </svg>
+            <span>Update Model</span>
+          </button>
+        }
+
+        <!-- Clear Button -->
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-ghost d-inline-flex align-items-center gap-2"
+          id="btn-clear-query"
+          (click)="clearEditor()"
+          title="Clear query editor"
+          aria-label="Clear query editor"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path
+              d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+            ></path>
+          </svg>
+          <span>Clear</span>
+        </button>
+
+        <!-- Save as Model Table & Export CSV Buttons (when results exist) -->
+        @if (activeTab().lastResult && activeTab().lastResult?.rows?.length) {
+          <button
+            type="button"
+            class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+            id="btn-materialize-table"
+            (click)="materializeResultAsTable()"
+            title="Save result grid as a calculated table in the semantic model"
+            aria-label="Save results as model table"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+              <line x1="3" y1="9" x2="21" y2="9"></line>
+              <line x1="9" y1="21" x2="9" y2="9"></line>
+            </svg>
+            <span>Save as Table</span>
+          </button>
+          <button
+            type="button"
+            class="rc-btn rc-btn-sm rc-btn-ghost d-inline-flex align-items-center gap-2"
+            id="btn-export-csv"
+            (click)="exportResultsCsv()"
+            title="Export results to CSV"
+            aria-label="Export results to CSV"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span>Export CSV</span>
+          </button>
+        }
+      </div>
+    </div>
+
+    <!-- Query Tabs Strip -->
+    <div
+      class="rc-query-tabs-bar border-bottom d-flex align-items-center justify-content-between px-2 bg-body-tertiary"
+      role="tablist"
+      aria-label="RAX Query Tabs"
+    >
+      <div
+        class="d-flex align-items-center gap-1 overflow-x-auto flex-grow-1 py-1"
+      >
+        @for (tab of tabs(); track tab.id) {
+          <div
+            class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+            [class.active]="tab.id === activeTabId()"
+            role="presentation"
+          >
+            <button
+              type="button"
+              role="tab"
+              class="rc-page-tab pe-1"
+              [class.active]="tab.id === activeTabId()"
+              [attr.aria-selected]="tab.id === activeTabId()"
+              (click)="selectTab(tab.id)"
+              [id]="'tab-' + tab.id"
+            >
+              <span
+                class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+              >
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                  ></path>
+                  <polyline points="14 2 14 8 20 8"></polyline>
+                  <line x1="16" y1="13" x2="8" y2="13"></line>
+                  <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+                <span>{{ tab.name }}</span>
+              </span>
+            </button>
+            @if (tabs().length > 1) {
+              <button
+                type="button"
+                class="rc-btn rc-btn-ghost rc-btn-sm p-1 me-1 text-muted tab-close-btn"
+                (click)="closeTab(tab.id, $event)"
+                [attr.aria-label]="'Close ' + tab.name"
+                title="Close tab"
+              >
+                <svg
+                  width="10"
+                  height="10"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            }
+          </div>
+        }
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-ghost d-inline-flex align-items-center gap-1 ms-1 text-muted"
+          id="btn-add-query-tab"
+          (click)="addNewTab()"
+          title="Add new query tab"
+          aria-label="Add new query tab"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2.5"
+            aria-hidden="true"
+          >
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+          <span>New Query</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Find & Replace Bar (Power BI DAX Query View Bulk Search & Replace) -->
+    @if (findReplaceOpen()) {
+      <div
+        class="rc-find-replace-bar border-bottom px-3 py-2 d-flex flex-wrap align-items-center gap-2 bg-body-tertiary"
+        role="region"
+        aria-label="Find and Replace"
+      >
+        <input
+          type="text"
+          class="form-control form-control-sm rc-find-input"
+          placeholder="Find text or table name..."
+          [value]="findText()"
+          (input)="findText.set($any($event.target).value)"
+          aria-label="Find text"
+        />
+        <input
+          type="text"
+          class="form-control form-control-sm rc-find-input"
+          placeholder="Replace with..."
+          [value]="replaceText()"
+          (input)="replaceText.set($any($event.target).value)"
+          aria-label="Replace with text"
+        />
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-primary"
+          id="btn-replace-all"
+          (click)="replaceAllInEditor()"
+          aria-label="Replace all occurrences"
+        >
+          Replace All
+        </button>
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-ghost text-muted"
+          (click)="toggleFindReplace()"
+          aria-label="Close find and replace bar"
+        >
+          Close
+        </button>
+      </div>
+    }
+
+    <!-- Main Workspace Stage (Split: Editor on top, Results below) -->
+    <div
+      class="rc-rax-workspace d-flex flex-column flex-grow-1 overflow-hidden"
+    >
+      <!-- Upper Editor Section -->
+      <section
+        class="rc-editor-section d-flex overflow-hidden"
+        aria-label="Query Code Editor"
+      >
+        <div
+          class="rc-editor-gutter text-end user-select-none"
+          aria-hidden="true"
+        >
+          @for (line of lineNumbers(); track line) {
+            <div class="gutter-line">{{ line }}</div>
+          }
+        </div>
+        <div class="rc-editor-input-wrapper flex-grow-1 position-relative">
+          <textarea
+            #queryEditor
+            id="rax-query-textarea"
+            class="rc-code-textarea w-100 h-100 border-0"
+            role="combobox"
+            aria-autocomplete="list"
+            [attr.aria-expanded]="
+              autocompleteOpen() && autocompleteSuggestions().length > 0
+            "
+            aria-controls="rax-autocomplete-listbox"
+            [value]="activeTab().content"
+            (input)="updateActiveContent($any($event.target).value)"
+            (keydown)="onEditorKeydown($event)"
+            spellcheck="false"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+            aria-label="RAX Query Code"
+            placeholder="Type your RAX or TMDL query here (e.g. EVALUATE INFO.VIEW.TABLES())..."
+          ></textarea>
+
+          @if (autocompleteOpen() && autocompleteSuggestions().length > 0) {
+            <ul
+              id="rax-autocomplete-listbox"
+              role="listbox"
+              aria-label="RAX Formula Suggestions"
+              class="rc-autocomplete-popup list-unstyled mb-0 shadow-sm rounded"
+            >
+              @for (
+                item of autocompleteSuggestions();
+                track item.label;
+                let idx = $index
+              ) {
+                <li
+                  role="option"
+                  [id]="'rax-ac-opt-' + idx"
+                  [attr.aria-selected]="idx === autocompleteIndex()"
+                  class="rc-autocomplete-option d-flex align-items-center justify-content-between px-2 py-1 cursor-pointer"
+                  [class.active]="idx === autocompleteIndex()"
+                  (mousedown)="
+                    $event.preventDefault(); applyAutocompleteSuggestion(item)
+                  "
+                >
+                  <span class="font-monospace small">{{ item.label }}</span>
+                  <span class="rc-type-tag">{{ item.kind }}</span>
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </section>
+
+      <!-- Bottom Results & Diagnostics Section -->
+      <section
+        class="rc-results-section d-flex flex-column"
+        aria-label="Query Results and Diagnostics"
+      >
+        <!-- Results Sub-tab Bar -->
+        <div
+          class="rc-results-tab-bar border-bottom d-flex align-items-center justify-content-between px-2 bg-body-tertiary"
+          role="tablist"
+          aria-label="Results Views"
+        >
+          <div class="d-flex align-items-center gap-1">
+            <div
+              class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+              [class.active]="bottomActiveTab() === 'results'"
+              role="presentation"
+            >
+              <button
+                type="button"
+                class="rc-page-tab"
+                [class.active]="bottomActiveTab() === 'results'"
+                role="tab"
+                [attr.aria-selected]="bottomActiveTab() === 'results'"
+                (click)="bottomActiveTab.set('results')"
+                id="tab-btn-results"
+              >
+                <span
+                  class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                  </svg>
+                  <span>Results</span>
+                  @if (
+                    activeTab().lastResult &&
+                    activeTab().lastResult?.rows?.length
+                  ) {
+                    <span
+                      class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
+                    >
+                      {{ activeTab().lastResult?.rows?.length }}
+                    </span>
+                  }
+                </span>
+              </button>
+            </div>
+
+            <div
+              class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+              [class.active]="bottomActiveTab() === 'problems'"
+              role="presentation"
+            >
+              <button
+                type="button"
+                class="rc-page-tab"
+                [class.active]="bottomActiveTab() === 'problems'"
+                role="tab"
+                [attr.aria-selected]="bottomActiveTab() === 'problems'"
+                (click)="bottomActiveTab.set('problems')"
+                id="tab-btn-problems"
+              >
+                <span
+                  class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="12" y1="8" x2="12" y2="12"></line>
+                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                  </svg>
+                  <span>Problems</span>
+                  <span
+                    class="badge rounded-pill"
+                    [class.bg-danger]="activeTab().diagnostics.length > 0"
+                    [class.bg-secondary-subtle]="
+                      activeTab().diagnostics.length === 0
+                    "
+                    [class.text-secondary-emphasis]="
+                      activeTab().diagnostics.length === 0
+                    "
+                  >
+                    {{ activeTab().diagnostics.length }}
+                  </span>
+                </span>
+              </button>
+            </div>
+
+            <div
+              class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+              [class.active]="bottomActiveTab() === 'plan'"
+              role="presentation"
+            >
+              <button
+                type="button"
+                class="rc-page-tab"
+                [class.active]="bottomActiveTab() === 'plan'"
+                role="tab"
+                [attr.aria-selected]="bottomActiveTab() === 'plan'"
+                (click)="bottomActiveTab.set('plan')"
+                id="tab-btn-plan"
+              >
+                <span
+                  class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+                >
+                  <svg
+                    width="13"
+                    height="13"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <polyline points="16 18 22 12 16 6"></polyline>
+                    <polyline points="8 6 2 12 8 18"></polyline>
+                  </svg>
+                  <span>Engine & Plan</span>
+                  @if (activeTab().lastResult) {
+                    <span
+                      class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
+                    >
+                      {{ activeTab().lastResult?.routedEngine }}
+                    </span>
+                  }
+                </span>
+              </button>
+            </div>
+          </div>
+
+          <div class="rc-results-status small text-muted text-truncate px-2">
+            <span>{{ activeTab().statusText }}</span>
+          </div>
+        </div>
+
+        <!-- Sub-panel Content -->
+        <div class="rc-results-panel flex-grow-1 overflow-auto">
+          <!-- Tab Panel: Results -->
+          @if (bottomActiveTab() === "results") {
+            <div
+              class="h-100 p-2"
+              role="tabpanel"
+              aria-labelledby="tab-btn-results"
+            >
+              @if (activeTab().isExecuting) {
+                <div
+                  class="d-flex flex-column align-items-center justify-content-center p-4 text-muted"
+                >
+                  <span
+                    class="spinner-border text-primary mb-2"
+                    aria-hidden="true"
+                  ></span>
+                  <p class="small mb-0">
+                    Executing RAX expression across analytical engine...
+                  </p>
+                </div>
+              } @else if (
+                activeTab().lastResult && activeTab().lastResult?.rows?.length
+              ) {
+                <div class="table-responsive h-100">
+                  <table
+                    class="table table-sm table-hover table-bordered rc-data-table mb-0"
+                    aria-label="Query Result Grid"
+                  >
+                    <thead>
+                      <tr>
+                        <th
+                          class="row-num-header text-center"
+                          style="width: 40px"
+                        >
+                          #
+                        </th>
+                        @for (col of resultColumns(); track col) {
+                          <th>{{ col }}</th>
+                        }
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (
+                        row of activeTab().lastResult?.rows;
+                        track $index;
+                        let rIdx = $index
+                      ) {
+                        <tr>
+                          <td class="row-num-cell text-center text-muted small">
+                            {{ rIdx + 1 }}
+                          </td>
+                          @for (col of resultColumns(); track col) {
+                            <td [title]="row[col]">{{ row[col] }}</td>
+                          }
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="rc-card rc-empty-hero my-3 p-4 text-center">
+                  <div
+                    class="mb-2 mx-auto d-flex align-items-center justify-content-center rounded-circle rc-empty-icon-wrap"
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      aria-hidden="true"
+                    >
+                      <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                    </svg>
+                  </div>
+                  <h3 class="h6 fw-bold mb-1">No Query Results</h3>
+                  <p
+                    class="small text-muted mx-auto mb-0"
+                    style="max-width: 420px"
+                  >
+                    Write an expression and click <strong>Run (F5)</strong> or
+                    select a template from the Model Explorer to execute.
+                  </p>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Tab Panel: Problems -->
+          @if (bottomActiveTab() === "problems") {
+            <div
+              class="h-100 p-2"
+              role="tabpanel"
+              aria-labelledby="tab-btn-problems"
+            >
+              @if (activeTab().diagnostics.length > 0) {
+                <div class="table-responsive h-100">
+                  <table
+                    class="table table-sm table-hover table-bordered rc-data-table mb-0"
+                    aria-label="Syntax Diagnostics"
+                  >
+                    <thead>
+                      <tr>
+                        <th style="width: 80px">Severity</th>
+                        <th style="width: 50px">Line</th>
+                        <th style="width: 50px">Col</th>
+                        <th style="width: 120px">Code</th>
+                        <th>Message</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (
+                        diag of activeTab().diagnostics;
+                        track diag.message
+                      ) {
+                        <tr [class.table-danger]="diag.severity === 'error'">
+                          <td>
+                            <span
+                              class="badge"
+                              [class.bg-danger]="diag.severity === 'error'"
+                              [class.bg-warning]="diag.severity === 'warning'"
+                              [class.bg-info]="diag.severity === 'info'"
+                            >
+                              {{ diag.severity }}
+                            </span>
+                          </td>
+                          <td>{{ diag.line }}</td>
+                          <td>{{ diag.startColumn }}</td>
+                          <td>
+                            <code>{{ diag.errorCode }}</code>
+                          </td>
+                          <td>{{ diag.message }}</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div class="rc-card rc-empty-hero my-3 p-4 text-center">
+                  <div
+                    class="mb-2 mx-auto d-flex align-items-center justify-content-center rounded-circle rc-empty-icon-wrap text-success"
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      aria-hidden="true"
+                    >
+                      <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                      <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                  </div>
+                  <h3 class="h6 fw-bold mb-1">Zero Problems Detected</h3>
+                  <p
+                    class="small text-muted mx-auto mb-0"
+                    style="max-width: 420px"
+                  >
+                    The lexical syntax checker reports no unbalanced delimiters
+                    or token errors.
+                  </p>
+                </div>
+              }
+            </div>
+          }
+
+          <!-- Tab Panel: Engine & Plan -->
+          @if (bottomActiveTab() === "plan") {
+            <div
+              class="h-100 p-3"
+              role="tabpanel"
+              aria-labelledby="tab-btn-plan"
+            >
+              @if (activeTab().lastResult) {
+                <div class="d-flex flex-column gap-2">
+                  <div class="d-flex flex-wrap align-items-center gap-2">
+                    <span class="badge bg-primary-subtle text-primary-emphasis">
+                      Engine: {{ activeTab().lastResult?.routedEngine }}
+                    </span>
+                    <span
+                      class="badge bg-secondary-subtle text-secondary-emphasis"
+                    >
+                      Time: {{ activeTab().lastResult?.executionTimeMs }} ms
+                    </span>
+                    <span
+                      class="badge bg-secondary-subtle text-secondary-emphasis"
+                    >
+                      Cache Hit:
+                      {{ activeTab().lastResult?.cacheHit ? "Yes" : "No" }}
+                    </span>
+                  </div>
+                  <pre
+                    class="rc-sql-plan-code p-2 rounded mb-0"
+                  ><code>{{ activeTab().lastResult?.executedSql }}</code></pre>
+                </div>
+              } @else {
+                <div class="rc-card rc-empty-hero my-3 p-4 text-center">
+                  <div
+                    class="mb-2 mx-auto d-flex align-items-center justify-content-center rounded-circle rc-empty-icon-wrap"
+                  >
+                    <svg
+                      width="24"
+                      height="24"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      aria-hidden="true"
+                    >
+                      <polyline points="16 18 22 12 16 6"></polyline>
+                      <polyline points="8 6 2 12 8 18"></polyline>
+                    </svg>
+                  </div>
+                  <h3 class="h6 fw-bold mb-1">No Execution Plan</h3>
+                  <p
+                    class="small text-muted mx-auto mb-0"
+                    style="max-width: 420px"
+                  >
+                    Execute a query to inspect the pushdown SQL or columnar
+                    compilation plan.
+                  </p>
+                </div>
+              }
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Right Utility Dock (320px Standardized Tools Dock) -->
+  <aside
+    class="rc-zone-utility p-0 d-flex flex-column justify-content-between"
+    [class.d-none]="activeMobileTab() !== 'explorer'"
+    [class.d-md-flex]="true"
+    aria-label="RAX Model Explorer Dock"
+  >
+    <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+      <!-- Dock Header (Matches Report Builder & Model View) -->
+      <div class="rc-tools-dock-header">
+        <span class="rc-tools-dock-title">Model Explorer</span>
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-ghost text-muted p-1 d-inline-flex align-items-center justify-content-center"
+          (click)="toggleCollapseAll()"
+          [title]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
+          [attr.aria-label]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="1.5"></circle>
+            <circle cx="19" cy="12" r="1.5"></circle>
+            <circle cx="5" cy="12" r="1.5"></circle>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Search Filter Input -->
+      <div class="p-2 border-bottom bg-body-tertiary">
+        <div class="input-group input-group-sm">
+          <span class="input-group-text bg-transparent border-end-0 text-muted">
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </span>
+          <input
+            type="search"
+            class="form-control form-control-sm border-start-0 ps-0"
+            placeholder="Search schema..."
+            [value]="sidebarFilter()"
+            (input)="sidebarFilter.set($any($event.target).value)"
+            aria-label="Filter tables and measures"
+          />
+        </div>
+      </div>
+
+      <!-- Vertical Accordion Sections (Matches IDE Explorer in Report Builder & Model View) -->
+      <div class="rc-tools-accordion flex-grow-1 overflow-y-auto">
+        <!-- Section 1: Tables -->
+        <div class="rc-tools-section" role="region" aria-label="Tables Section">
+          <button
+            type="button"
+            class="rc-tools-section-header d-flex align-items-center justify-content-between"
+            (click)="toggleSection('Tables')"
+            [attr.aria-expanded]="expandedSections().Tables"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="expandedSections().Tables"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Tables</span>
+            </div>
+            <span
+              class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
+            >
+              {{ filteredTables().length }}
+            </span>
+          </button>
+
+          @if (expandedSections().Tables) {
+            <div class="rc-tools-section-body p-2">
+              <div class="d-flex flex-column gap-1">
+                @for (table of filteredTables(); track table.id) {
+                  <div class="rc-tree-node rounded">
+                    <div
+                      class="d-flex align-items-center justify-content-between p-1 rounded rc-node-hover cursor-pointer"
+                      (click)="toggleTableExpand(table.name)"
+                      (keydown.enter)="
+                        $event.preventDefault(); toggleTableExpand(table.name)
+                      "
+                      (keydown.space)="
+                        $event.preventDefault(); toggleTableExpand(table.name)
+                      "
+                      role="button"
+                      [attr.aria-expanded]="expandedTables()[table.name]"
+                      tabindex="0"
+                    >
+                      <div
+                        class="d-flex align-items-center gap-2 text-truncate"
+                      >
+                        <svg
+                          class="rc-section-chevron"
+                          [class.is-rotated]="expandedTables()[table.name]"
+                          width="10"
+                          height="10"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <polyline points="9 18 15 12 9 6"></polyline>
+                        </svg>
+                        <svg
+                          width="13"
+                          height="13"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2"
+                          class="text-muted"
+                          aria-hidden="true"
+                        >
+                          <rect
+                            x="3"
+                            y="3"
+                            width="18"
+                            height="18"
+                            rx="2"
+                          ></rect>
+                          <line x1="3" y1="9" x2="21" y2="9"></line>
+                          <line x1="9" y1="21" x2="9" y2="9"></line>
+                        </svg>
+                        <span
+                          class="small fw-semibold text-truncate"
+                          [title]="table.name"
+                        >
+                          {{ table.name }}
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-ghost rc-btn-sm p-0 px-1 text-muted"
+                        (click)="
+                          insertTextAtCursor(table.name);
+                          $event.stopPropagation()
+                        "
+                        title="Insert table name"
+                        aria-label="Insert table name"
+                      >
+                        <svg
+                          width="11"
+                          height="11"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="2.5"
+                          aria-hidden="true"
+                        >
+                          <line x1="12" y1="5" x2="12" y2="19"></line>
+                          <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                      </button>
+                    </div>
+
+                    @if (expandedTables()[table.name]) {
+                      <div class="ps-4 pe-1 py-1 d-flex flex-column gap-1">
+                        @for (col of table.columns; track col.name) {
+                          <div
+                            class="d-flex align-items-center justify-content-between p-1 rounded rc-node-hover cursor-pointer"
+                            (click)="insertTableColumn(table, col.name)"
+                            (keydown.enter)="
+                              $event.preventDefault();
+                              insertTableColumn(table, col.name)
+                            "
+                            (keydown.space)="
+                              $event.preventDefault();
+                              insertTableColumn(table, col.name)
+                            "
+                            title="Click to insert {{ table.name }}[{{
+                              col.name
+                            }}]"
+                            role="button"
+                            tabindex="0"
+                          >
+                            <span class="small text-truncate text-muted">{{
+                              col.name
+                            }}</span>
+                            <span class="rc-type-tag font-monospace">{{
+                              col.dataType.substring(0, 3)
+                            }}</span>
+                          </div>
+                        }
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Section 2: Measures -->
+        <div
+          class="rc-tools-section"
+          role="region"
+          aria-label="Measures Section"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header d-flex align-items-center justify-content-between"
+            (click)="toggleSection('Measures')"
+            [attr.aria-expanded]="expandedSections().Measures"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="expandedSections().Measures"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Measures</span>
+            </div>
+            <span
+              class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
+            >
+              {{ filteredMeasures().length }}
+            </span>
+          </button>
+
+          @if (expandedSections().Measures) {
+            <div class="rc-tools-section-body p-2">
+              <div class="d-flex align-items-center gap-1 mb-2">
+                <button
+                  type="button"
+                  class="rc-btn rc-btn-sm rc-btn-outline flex-grow-1 small py-1 px-2"
+                  id="btn-define-all-measures"
+                  (click)="defineAllMeasures($event)"
+                  title="Define all measures of this model in the query editor"
+                  aria-label="Define all measures of this model"
+                >
+                  Define All
+                </button>
+                <button
+                  type="button"
+                  class="rc-btn rc-btn-sm rc-btn-outline flex-grow-1 small py-1 px-2"
+                  id="btn-generate-tmdl"
+                  (click)="generateModelTmdl($event)"
+                  title="Extract TMDL script with descriptions for all measures"
+                  aria-label="Extract TMDL script for measures"
+                >
+                  Extract TMDL
+                </button>
+              </div>
+              <div class="d-flex flex-column gap-1">
+                @for (measure of filteredMeasures(); track measure.id) {
+                  <div
+                    class="d-flex align-items-center justify-content-between p-1 rounded rc-node-hover cursor-pointer"
+                    (click)="insertMeasure(measure)"
+                    (keydown.enter)="
+                      $event.preventDefault(); insertMeasure(measure)
+                    "
+                    (keydown.space)="
+                      $event.preventDefault(); insertMeasure(measure)
+                    "
+                    [title]="
+                      measure.description
+                        ? measure.label + ' — ' + measure.description
+                        : 'Click to insert [' + measure.label + ']'
+                    "
+                    role="button"
+                    tabindex="0"
+                  >
+                    <div class="d-flex align-items-center gap-2 text-truncate">
+                      <svg
+                        width="13"
+                        height="13"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        class="text-muted"
+                        aria-hidden="true"
+                      >
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+                        <path
+                          d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
+                        ></path>
+                      </svg>
+                      <span class="small fw-semibold text-truncate">{{
+                        measure.label
+                      }}</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-ghost rc-btn-sm p-0 px-1 text-muted"
+                      (click)="quickEvaluateMeasure(measure, $event)"
+                      title="Quick Evaluate {{ measure.label }}"
+                      aria-label="Quick Evaluate {{ measure.label }}"
+                    >
+                      <svg
+                        width="10"
+                        height="10"
+                        viewBox="0 0 24 24"
+                        fill="currentColor"
+                        aria-hidden="true"
+                      >
+                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                      </svg>
+                    </button>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Section 3: Templates & Snippets -->
+        <div
+          class="rc-tools-section"
+          role="region"
+          aria-label="Templates Section"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header d-flex align-items-center justify-content-between"
+            (click)="toggleSection('Templates')"
+            [attr.aria-expanded]="expandedSections().Templates"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="expandedSections().Templates"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Templates & Snippets</span>
+            </div>
+            <span
+              class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
+            >
+              {{ quickSnippets.length }}
+            </span>
+          </button>
+
+          @if (expandedSections().Templates) {
+            <div class="rc-tools-section-body p-2">
+              <div class="d-flex flex-column gap-1">
+                @for (snippet of quickSnippets; track snippet.label) {
+                  <div
+                    class="d-flex flex-column p-2 rounded rc-snippet-card cursor-pointer"
+                    (click)="applySnippet(snippet)"
+                    (keydown.enter)="
+                      $event.preventDefault(); applySnippet(snippet)
+                    "
+                    (keydown.space)="
+                      $event.preventDefault(); applySnippet(snippet)
+                    "
+                    role="button"
+                    tabindex="0"
+                    [title]="'Click to load: ' + snippet.label"
+                  >
+                    <div
+                      class="d-flex align-items-center justify-content-between mb-1"
+                    >
+                      <span class="small fw-semibold text-truncate">{{
+                        snippet.label
+                      }}</span>
+                      <span
+                        class="badge bg-secondary-subtle text-secondary-emphasis"
+                        style="font-size: 10px"
+                        >{{ snippet.category }}</span
+                      >
+                    </div>
+                    <pre
+                      class="small text-muted font-monospace mb-0 rc-snippet-preview"
+                    ><code>{{ snippet.code }}</code></pre>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Section 4: Schema Functions (INFO.*) -->
+        <div
+          class="rc-tools-section"
+          role="region"
+          aria-label="Schema Functions Section"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header d-flex align-items-center justify-content-between"
+            (click)="toggleSection('SchemaFunctions')"
+            [attr.aria-expanded]="expandedSections().SchemaFunctions"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="expandedSections().SchemaFunctions"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Schema Functions</span>
+            </div>
+            <span
+              class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
+              >{{ schemaFunctionButtons.length }}</span
+            >
+          </button>
+
+          @if (expandedSections().SchemaFunctions) {
+            <div class="rc-tools-section-body p-2">
+              <div class="d-flex flex-column gap-1">
+                @for (fn of schemaFunctionButtons; track fn) {
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-sm rc-btn-outline w-100 text-start font-monospace small py-1 px-2 mb-1"
+                    (click)="insertTextAtCursor('EVALUATE\n' + fn)"
+                  >
+                    {{ fn }}
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>
