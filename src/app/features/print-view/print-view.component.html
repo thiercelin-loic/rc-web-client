@@ -1,0 +1,17 @@
+<div class="rc-canvas-container p-4 bg-white text-dark">
+  <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+    <div>
+      <div class="text-uppercase fw-bold small">RollerCoaster</div>
+      <h1 class="h4 fw-bold mb-0">
+        Report Export: {{ reportId() || 'workspace-report' }}
+      </h1>
+    </div>
+    <span class="small fw-semibold text-success">
+      {{ renderComplete() ? 'Ready for Export' : 'Rendering Canvas...' }}
+    </span>
+  </div>
+
+  <div class="border rounded p-4 text-center text-muted">
+    No report data is available for export.
+  </div>
+</div>
