@@ -1,0 +1,791 @@
+<div class="rc-workspace-grid rc-model-grid">
+  <!-- Mobile Tab Bar -->
+  <nav
+    class="d-md-none border-bottom px-2 bg-body-tertiary"
+    aria-label="Mobile Model Navigation"
+  >
+    <ul
+      class="list-unstyled d-flex align-items-center gap-1 mb-0"
+      role="tablist"
+    >
+      <li
+        class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+        [class.active]="activeMobileTab() === 'model'"
+        role="presentation"
+      >
+        <button
+          type="button"
+          role="tab"
+          class="rc-page-tab"
+          [class.active]="activeMobileTab() === 'model'"
+          [attr.aria-selected]="activeMobileTab() === 'model'"
+          (click)="activeMobileTab.set('model')"
+          id="mobile-tab-model"
+        >
+          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="3" y="3" width="7" height="7"></rect>
+              <rect x="14" y="3" width="7" height="7"></rect>
+              <rect x="14" y="14" width="7" height="7"></rect>
+              <rect x="3" y="14" width="7" height="7"></rect>
+            </svg>
+            <span>Model Diagram</span>
+          </span>
+        </button>
+      </li>
+      <li
+        class="rc-page-tab-group position-relative d-inline-flex align-items-center"
+        [class.active]="activeMobileTab() === 'properties'"
+        role="presentation"
+      >
+        <button
+          type="button"
+          role="tab"
+          class="rc-page-tab"
+          [class.active]="activeMobileTab() === 'properties'"
+          [attr.aria-selected]="activeMobileTab() === 'properties'"
+          (click)="activeMobileTab.set('properties')"
+          id="mobile-tab-properties"
+        >
+          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="4" y1="21" x2="4" y2="14"></line>
+              <line x1="4" y1="10" x2="4" y2="3"></line>
+              <line x1="12" y1="21" x2="12" y2="12"></line>
+              <line x1="12" y1="8" x2="12" y2="3"></line>
+              <line x1="20" y1="21" x2="20" y2="16"></line>
+              <line x1="20" y1="12" x2="20" y2="3"></line>
+              <line x1="1" y1="14" x2="7" y2="14"></line>
+              <line x1="9" y1="8" x2="15" y2="8"></line>
+              <line x1="17" y1="16" x2="23" y2="16"></line>
+            </svg>
+            <span>Properties</span>
+          </span>
+        </button>
+      </li>
+    </ul>
+  </nav>
+
+  <!-- Left Main Canvas Area -->
+  <div
+    class="rc-canvas-container p-0 d-flex flex-column"
+    [class.d-none]="activeMobileTab() !== 'model'"
+    [class.d-md-flex]="true"
+  >
+    <!-- Standardized Workspace Header -->
+    <div class="rc-page-header rc-workspace-header">
+      <div>
+        <h1 class="h5 fw-bold mb-0">Model View</h1>
+        <p class="small text-muted mb-0">
+          Star schema relationships and entity mappings.
+        </p>
+      </div>
+
+      <div class="d-flex align-items-center gap-2">
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          (click)="onValidateDag()"
+          id="model-view-verify-dag-btn"
+          aria-label="Verify schema consistency"
+          title="Verify DAG and star schema consistency"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Verify Schema</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Interactive DAG Canvas Surface -->
+    <main
+      class="dag-interactive-surface flex-grow-1"
+      tabindex="-1"
+      role="region"
+      aria-label="Interactive Entity Relationship Diagram"
+    >
+      <div
+        class="dag-canvas-stage"
+        [style.width.px]="dagCanvasBounds().width"
+        [style.height.px]="dagCanvasBounds().height"
+      >
+        @if (tables().length === 0) {
+          <div
+            class="d-flex flex-column align-items-center justify-content-center h-100 text-center p-4"
+            style="min-height: 360px"
+          >
+            <div class="fw-semibold text-body-secondary mb-1">
+              No semantic model entities defined
+            </div>
+            <p class="rc-text-xs text-muted mb-0" style="max-width: 360px">
+              Import or prepare user datasets in Data Preparation or Table View to populate your schema diagram.
+            </p>
+          </div>
+        }
+        <!-- Dynamic Relationship Connectors SVG Overlay -->
+        <svg
+          class="dag-relationships-overlay"
+          aria-hidden="true"
+          [attr.width]="dagCanvasBounds().width"
+          [attr.height]="dagCanvasBounds().height"
+        >
+          @for (item of renderedRelationships(); track item.rel.name) {
+            <g
+              class="rel-path-group"
+              [class.active]="selectedRel().name === item.rel.name"
+              [class.inactive]="item.rel.isActive === false"
+              (click)="onSelectRelationship(item.rel)"
+              (keydown.enter)="onSelectRelationship(item.rel)"
+              tabindex="0"
+              role="button"
+              [attr.aria-label]="'Select ' + item.rel.name + ' relationship'"
+            >
+              <path class="rel-path" [attr.d]="item.pathD" />
+              <text
+                [attr.x]="item.labelX"
+                [attr.y]="item.labelY"
+                class="rel-label"
+              >
+                {{ item.labelText }}
+              </text>
+            </g>
+          }
+        </svg>
+
+        <!-- Entity Table Nodes -->
+        @for (table of tables(); track table.name) {
+          <article
+            class="table-card"
+            [class.active]="selectedTable() === table.name"
+            [class.fact-card]="table.role === 'FACT'"
+            [style.top.px]="table.position.y"
+            [style.left.px]="table.position.x"
+            (click)="onSelectTable(table.name)"
+            (keydown.enter)="onSelectTable(table.name)"
+            tabindex="0"
+            role="button"
+            [attr.aria-label]="table.name + ' table entity'"
+          >
+            <div class="table-header">
+              <div class="d-flex align-items-center gap-2 text-truncate">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  class="flex-shrink-0 rc-accent-text"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                  <line x1="3" y1="9" x2="21" y2="9"></line>
+                  <line x1="9" y1="21" x2="9" y2="9"></line>
+                </svg>
+                <span class="table-name font-monospace fw-semibold text-truncate">{{
+                  table.name
+                }}</span>
+              </div>
+              <span class="rc-text-xs font-monospace text-muted flex-shrink-0">{{
+                table.columns.length
+              }}</span>
+            </div>
+
+            <div class="table-cols">
+              @for (col of table.columns; track col.name) {
+                <div
+                  class="col-item"
+                  [class.key]="col.isPrimaryKey || col.isForeignKey"
+                >
+                  <span
+                    class="d-inline-flex align-items-center gap-1 text-truncate"
+                  >
+                    @if (col.isPrimaryKey) {
+                      <svg
+                        class="rc-key-icon flex-shrink-0 rc-accent-text"
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2.2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <circle cx="7.5" cy="15.5" r="4.5"></circle>
+                        <path d="m21 3-9.5 9.5"></path>
+                        <path d="m15.5 7.5 3 3"></path>
+                      </svg>
+                    } @else if (col.isForeignKey) {
+                      <svg
+                        class="rc-key-icon flex-shrink-0 text-secondary"
+                        width="10"
+                        height="10"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path
+                          d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                        ></path>
+                        <path
+                          d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                        ></path>
+                      </svg>
+                    }
+                    <span class="col-name font-monospace text-truncate">{{
+                      col.name
+                    }}</span>
+                  </span>
+                  <span class="type-tag">{{ col.dataType }}</span>
+                </div>
+              }
+            </div>
+          </article>
+        }
+      </div>
+    </main>
+  </div>
+
+  <!-- Right Utility Dock (320px Standardized Tools Dock from src/styles/_workspace.scss) -->
+  <aside
+    class="rc-zone-utility p-0 d-flex flex-column justify-content-between"
+    [class.d-none]="activeMobileTab() !== 'properties'"
+    [class.d-md-flex]="true"
+    aria-label="Model Tools and Inspector Dock"
+  >
+    <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+      <div class="rc-tools-dock-header">
+        <span class="rc-tools-dock-title">Tools</span>
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-ghost text-muted p-1 d-inline-flex align-items-center justify-content-center"
+          (click)="toggleCollapseAll()"
+          [title]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
+          [attr.aria-label]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
+          id="model-view-collapse-all-btn"
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="19" cy="12" r="1"></circle>
+            <circle cx="5" cy="12" r="1"></circle>
+          </svg>
+        </button>
+      </div>
+
+      <div
+        class="rc-tools-accordion flex-grow-1 overflow-y-auto"
+        role="region"
+        aria-label="Model Tools Sections"
+      >
+        <!-- Section 1: Relationship Inspector -->
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.is-expanded]="
+            isSectionExpanded('Inspector') || isSectionExpanded('Properties')
+          "
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
+            [attr.aria-expanded]="
+              isSectionExpanded('Inspector') || isSectionExpanded('Properties')
+            "
+            aria-controls="tools-section-inspector"
+            id="tools-header-inspector"
+            (click)="toggleSection('Inspector')"
+            title="Relationship Inspector"
+          >
+            <div class="rc-section-header-title-wrap text-truncate">
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="
+                  isSectionExpanded('Inspector') ||
+                  isSectionExpanded('Properties')
+                "
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Relationship Inspector</span>
+            </div>
+          </button>
+
+          @if (
+            isSectionExpanded("Inspector") || isSectionExpanded("Properties")
+          ) {
+            <div
+              id="tools-section-inspector"
+              role="region"
+              aria-labelledby="tools-header-inspector"
+              class="rc-tools-section-body"
+            >
+              <!-- Card 1: Relationship Properties -->
+              <div class="p-3 mb-3 rc-format-panel">
+                <div class="mb-2">
+                  <div class="rc-tools-heading">Relationship</div>
+                  <p class="rc-text-xs text-muted mb-0">
+                    Dimensional link mapping and cardinality.
+                  </p>
+                </div>
+
+                <div class="mb-2 pb-2 border-bottom rc-tools-divider">
+                  <span class="rc-dock-label">Relationship Name</span>
+                  <div
+                    class="rc-readonly-field"
+                    [title]="selectedRel().name || 'No relationship selected'"
+                  >
+                    {{ selectedRel().name || 'No relationship selected' }}
+                  </div>
+                </div>
+
+                <div class="mb-2 pb-2 border-bottom rc-tools-divider">
+                  <span class="rc-dock-label">From</span>
+                  <div
+                    class="rc-readonly-field is-accent"
+                    [title]="
+                      selectedRel().fromTable
+                        ? selectedRel().fromTable + '[' + selectedRel().fromCol + ']'
+                        : '—'
+                    "
+                  >
+                    {{
+                      selectedRel().fromTable
+                        ? selectedRel().fromTable + '[' + selectedRel().fromCol + ']'
+                        : '—'
+                    }}
+                  </div>
+                </div>
+
+                <div class="mb-2 pb-2 border-bottom rc-tools-divider">
+                  <span class="rc-dock-label">To</span>
+                  <div
+                    class="rc-readonly-field is-accent"
+                    [title]="
+                      selectedRel().toTable
+                        ? selectedRel().toTable + '[' + selectedRel().toCol + ']'
+                        : '—'
+                    "
+                  >
+                    {{
+                      selectedRel().toTable
+                        ? selectedRel().toTable + '[' + selectedRel().toCol + ']'
+                        : '—'
+                    }}
+                  </div>
+                </div>
+
+                <div class="mb-2">
+                  <label for="cardinality-select" class="rc-dock-label">
+                    Cardinality
+                  </label>
+                  <select
+                    id="cardinality-select"
+                    class="form-select form-select-sm"
+                    [ngModel]="selectedRel().cardinality"
+                    (ngModelChange)="updateCardinality($event)"
+                  >
+                    <option value="ManyToOne">Many to One (* : 1)</option>
+                    <option value="OneToOne">One to One (1 : 1)</option>
+                    <option value="ManyToMany">Many to Many (* : *)</option>
+                  </select>
+                </div>
+
+                <div class="mb-2">
+                  <label for="crossfilter-select" class="rc-dock-label">
+                    Cross-Filter Direction
+                  </label>
+                  <select
+                    id="crossfilter-select"
+                    class="form-select form-select-sm"
+                    [ngModel]="selectedRel().crossFilter"
+                    (ngModelChange)="updateCrossFilter($event)"
+                  >
+                    <option value="Single">Single Direction (&rarr;)</option>
+                    <option value="Both">Bi-Directional (&harr;)</option>
+                  </select>
+                </div>
+
+                <div
+                  class="form-check form-switch mb-0 pt-2 border-top rc-tools-divider"
+                >
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="rel-active-toggle"
+                    [checked]="selectedRel().isActive !== false"
+                    (change)="toggleRelActive()"
+                  />
+                  <label
+                    class="form-check-label fw-semibold rc-text-xs"
+                    for="rel-active-toggle"
+                  >
+                    Active Relationship
+                  </label>
+                </div>
+              </div>
+
+              <!-- Card 2: Active Entity Properties -->
+              <div class="p-3 rc-format-panel">
+                <div class="mb-2">
+                  <div class="rc-tools-heading">Active Entity</div>
+                  <p class="rc-text-xs text-muted mb-0">
+                    Selected table structure and key column.
+                  </p>
+                </div>
+
+                <div class="mb-2 pb-2 border-bottom rc-tools-divider">
+                  <span class="rc-dock-label">Table</span>
+                  <div
+                    class="rc-readonly-field"
+                    [title]="activeTable()?.name || 'No entity selected'"
+                  >
+                    {{ activeTable()?.name || 'No entity selected' }}
+                  </div>
+                </div>
+
+                <div class="rc-meta-row border-bottom rc-tools-divider">
+                  <span class="rc-text-xs text-muted">Role:</span>
+                  <span class="font-monospace rc-text-xs fw-semibold text-secondary">
+                    {{ activeTable()?.role || '—' }}
+                  </span>
+                </div>
+
+                <div class="rc-meta-row border-bottom rc-tools-divider">
+                  <span class="rc-text-xs text-muted">Columns:</span>
+                  <span
+                    class="font-monospace rc-text-xs fw-semibold text-secondary"
+                  >
+                    {{ activeTable()?.columns?.length ?? 0 }} cols
+                  </span>
+                </div>
+
+                <div class="pt-2">
+                  <span class="rc-dock-label">Primary Key</span>
+                  <div class="rc-readonly-field is-accent">
+                    {{ getTablePrimaryKey(activeTable()) }}
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Section 2: Model Entities (Standardized Datasets Tree matching Report Builder) -->
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.is-expanded]="isSectionExpanded('Entities')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
+            [attr.aria-expanded]="isSectionExpanded('Entities')"
+            aria-controls="tools-section-entities"
+            id="tools-header-entities"
+            (click)="toggleSection('Entities')"
+            title="Model Entities"
+          >
+            <div class="rc-section-header-title-wrap text-truncate">
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Entities')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Model Entities</span>
+            </div>
+          </button>
+
+          @if (isSectionExpanded("Entities")) {
+            <div
+              id="tools-section-entities"
+              role="region"
+              aria-labelledby="tools-header-entities"
+              class="rc-tools-section-body"
+            >
+              <div class="p-3 rc-format-panel">
+                <div class="rc-tools-heading mb-2">
+                  Datasets ({{ tables().length }})
+                </div>
+                <div class="d-flex flex-column gap-2">
+                  @for (table of tables(); track table.name) {
+                    <div
+                      class="rc-dataset-tree-item"
+                      [class.active]="selectedTable() === table.name"
+                    >
+                      <button
+                        type="button"
+                        class="rc-dataset-tree-toggle"
+                        (click)="onSelectTable(table.name)"
+                        [title]="'Select table ' + table.name"
+                        [attr.aria-label]="'Select table ' + table.name"
+                      >
+                        <span
+                          class="fw-semibold font-monospace text-truncate d-flex align-items-center gap-2"
+                        >
+                          <svg
+                            class="rc-section-chevron"
+                            [class.is-rotated]="isEntityExpanded(table.name)"
+                            (click)="toggleEntityExpanded(table.name, $event)"
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2.5"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <polyline points="9 18 15 12 9 6"></polyline>
+                          </svg>
+                          <svg
+                            width="12"
+                            height="12"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            class="flex-shrink-0 rc-accent-text"
+                            aria-hidden="true"
+                          >
+                            <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                            <line x1="3" y1="9" x2="21" y2="9"></line>
+                            <line x1="9" y1="21" x2="9" y2="9"></line>
+                          </svg>
+                          <span class="text-truncate">{{ table.name }}</span>
+                        </span>
+                        <span
+                          class="text-muted font-monospace rc-text-xs flex-shrink-0"
+                        >
+                          {{ table.columns.length }} cols
+                        </span>
+                      </button>
+
+                      @if (isEntityExpanded(table.name)) {
+                        <div class="rc-dataset-tree-cols">
+                          @for (col of table.columns; track col.name) {
+                            <div
+                              class="d-flex justify-content-between align-items-center pe-1 rc-text-xs"
+                            >
+                              <span
+                                class="d-inline-flex align-items-center gap-1 text-truncate"
+                              >
+                                @if (col.isPrimaryKey) {
+                                  <svg
+                                    class="rc-key-icon flex-shrink-0 rc-accent-text"
+                                    width="10"
+                                    height="10"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2.2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <circle cx="7.5" cy="15.5" r="4.5"></circle>
+                                    <path d="m21 3-9.5 9.5"></path>
+                                    <path d="m15.5 7.5 3 3"></path>
+                                  </svg>
+                                } @else if (col.isForeignKey) {
+                                  <svg
+                                    class="rc-key-icon flex-shrink-0 text-secondary"
+                                    width="10"
+                                    height="10"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    stroke-linejoin="round"
+                                    aria-hidden="true"
+                                  >
+                                    <path
+                                      d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"
+                                    ></path>
+                                    <path
+                                      d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"
+                                    ></path>
+                                  </svg>
+                                }
+                                <span
+                                  class="font-monospace text-truncate text-secondary"
+                                  >{{ col.name }}</span
+                                >
+                              </span>
+                              <span
+                                class="font-monospace text-muted flex-shrink-0 rc-text-2xs"
+                                >{{ col.dataType }}</span
+                              >
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <!-- Section 3: RSDL Definition -->
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.is-expanded]="isSectionExpanded('Definition')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
+            [attr.aria-expanded]="isSectionExpanded('Definition')"
+            aria-controls="tools-section-definition"
+            id="tools-header-definition"
+            (click)="toggleSection('Definition')"
+            title="RSDL Definition"
+          >
+            <div class="rc-section-header-title-wrap text-truncate">
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Definition')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">RSDL Definition</span>
+            </div>
+          </button>
+
+          @if (isSectionExpanded('Definition')) {
+            <div
+              id="tools-section-definition"
+              role="region"
+              aria-labelledby="tools-header-definition"
+              class="rc-tools-section-body"
+            >
+              <div class="p-3 rc-format-panel">
+                <div
+                  class="d-flex justify-content-between align-items-center mb-2"
+                >
+                  <div class="rc-tools-heading">RSDL Preview</div>
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-ghost rc-btn-xs text-muted d-inline-flex align-items-center gap-1"
+                    (click)="copyRsdlToClipboard()"
+                    title="Copy RSDL snippet"
+                    aria-label="Copy RSDL definition to clipboard"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <rect
+                        x="9"
+                        y="9"
+                        width="13"
+                        height="13"
+                        rx="2"
+                        ry="2"
+                      ></rect>
+                      <path
+                        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                      ></path>
+                    </svg>
+                    <span>Copy</span>
+                  </button>
+                </div>
+                <pre class="rc-code-block mb-0 w-100"><code>{{ activeRsdl() }}</code></pre>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </aside>
+</div>

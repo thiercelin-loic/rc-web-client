@@ -1,0 +1,156 @@
+// ============================================================================
+// Model View Specific Styles (DAG Canvas Surface, Entity Nodes & SVG Links)
+// Shared workspace grid, headers, tabs, and 320px Tools dock live in src/styles/_workspace.scss
+// ============================================================================
+
+.dag-interactive-surface {
+  position: relative;
+  background-image: radial-gradient(
+    var(--rc-border-color) 1px,
+    transparent 1px
+  );
+  background-size: 20px 20px;
+  overflow: auto;
+  min-height: 520px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rc-card-border) transparent;
+}
+
+.dag-canvas-stage {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+.dag-relationships-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.rel-path-group {
+  pointer-events: all;
+  cursor: pointer;
+
+  .rel-path {
+    fill: none;
+    stroke: var(--rc-border-strong);
+    stroke-width: 2;
+    stroke-dasharray: 4 3;
+    transition: all var(--rc-transition-fast);
+  }
+
+  .rel-label {
+    font-family: var(--rc-font-mono);
+    font-size: var(--rc-font-size-2xs);
+    font-weight: var(--rc-font-weight-semibold);
+    fill: var(--rc-text-muted);
+    text-anchor: middle;
+    transition: fill var(--rc-transition-fast);
+  }
+
+  &.inactive {
+    opacity: 0.55;
+  }
+
+  &:hover,
+  &.active {
+    opacity: 1;
+
+    .rel-path {
+      stroke: var(--rc-primary);
+      stroke-width: 2.5;
+      stroke-dasharray: none;
+      filter: drop-shadow(0 0 4px var(--rc-primary-glow));
+    }
+
+    .rel-label {
+      fill: var(--rc-accent-text);
+      font-weight: var(--rc-font-weight-bold);
+    }
+  }
+}
+
+.table-card {
+  position: absolute;
+  width: 220px;
+  background: var(--rc-card-bg);
+  border: 1px solid var(--rc-card-border);
+  border-radius: var(--rc-radius-md);
+  box-shadow: var(--rc-shadow-sm);
+  cursor: pointer;
+  z-index: 10;
+  transition:
+    transform var(--rc-transition-fast),
+    box-shadow var(--rc-transition-fast),
+    border-color var(--rc-transition-fast);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--rc-shadow-md);
+    border-color: var(--rc-border-strong);
+  }
+
+  &.active {
+    border-color: var(--rc-primary);
+    box-shadow: 0 0 0 2px var(--rc-primary-glow);
+  }
+}
+
+@media (max-width: 767.98px) {
+  .dag-interactive-surface {
+    min-height: 420px;
+  }
+}
+
+.table-header {
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--rc-surface-subtle);
+  border-bottom: 1px solid var(--rc-card-border);
+  border-radius: calc(var(--rc-radius-md) - 1px)
+    calc(var(--rc-radius-md) - 1px) 0 0;
+  color: var(--rc-text-primary);
+
+  .table-name {
+    font-size: var(--rc-font-size-sm);
+    letter-spacing: -0.01em;
+  }
+}
+
+.table-cols {
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.col-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 6px;
+  min-height: 19px;
+  font-size: var(--rc-font-size-sm);
+  color: var(--rc-text-primary);
+
+  &.key {
+    font-weight: var(--rc-font-weight-semibold);
+    color: var(--rc-accent-text);
+  }
+
+  .col-name {
+    font-size: var(--rc-font-size-xs);
+  }
+
+  .type-tag {
+    font-size: var(--rc-font-size-2xs);
+    font-family: var(--rc-font-mono);
+    color: var(--rc-text-muted);
+    flex-shrink: 0;
+  }
+}
