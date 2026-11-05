@@ -1,0 +1,94 @@
+:host {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.rc-table-tools-ribbon {
+  background-color: var(--rc-card-bg);
+  border-color: var(--rc-card-border) !important;
+  min-height: 38px;
+}
+
+.rc-ribbon-btn {
+  background-color: var(--rc-surface-subtle);
+  border: 1px solid var(--rc-card-border);
+  color: var(--rc-text-primary);
+  font-family: var(--rc-font-sans);
+  border-radius: var(--rc-radius-xs);
+  transition:
+    background-color var(--rc-transition-fast),
+    border-color var(--rc-transition-fast),
+    color var(--rc-transition-fast);
+
+  &:hover {
+    background-color: var(--rc-surface-hover);
+    border-color: var(--rc-border-strong);
+    color: var(--rc-text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--rc-primary);
+    outline-offset: -1px;
+  }
+}
+
+.rc-table-formula-strip {
+  background-color: var(--rc-card-bg);
+  border-color: var(--rc-card-border) !important;
+  min-height: 40px;
+}
+
+.rc-formula-input {
+  transition:
+    border-color var(--rc-transition-fast),
+    box-shadow var(--rc-transition-fast);
+
+  &:focus {
+    border-color: var(--rc-primary) !important;
+    box-shadow: 0 0 0 2px var(--rc-primary-glow) !important;
+  }
+}
+
+.rc-table-data-wrapper {
+  background-color: var(--rc-canvas-bg);
+  scrollbar-width: thin;
+  scrollbar-color: var(--rc-card-border) transparent;
+}
+
+.rc-data-table {
+  color: var(--rc-text-primary);
+
+  th {
+    border-color: var(--rc-card-border) !important;
+    color: var(--rc-text-primary);
+  }
+
+  td {
+    border-color: var(--rc-card-border) !important;
+  }
+}
+
+.rc-th-cell {
+  transition: background-color var(--rc-transition-fast);
+
+  &:hover {
+    background-color: var(--rc-surface-hover) !important;
+  }
+
+  &.is-sorted {
+    background-color: var(--rc-surface-subtle) !important;
+  }
+}
+
+.rc-table-row {
+  transition: background-color var(--rc-transition-fast);
+
+  &:hover td {
+    background-color: var(--rc-surface-hover) !important;
+  }
+}
+
+.rc-table-status-bar {
+  border-color: var(--rc-card-border) !important;
+}
