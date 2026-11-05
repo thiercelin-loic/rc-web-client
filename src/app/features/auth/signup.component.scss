@@ -1,0 +1,116 @@
+:host {
+  display: block;
+  width: 100%;
+  min-height: 100vh;
+}
+
+.rc-auth-container {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(15, 23, 42, 0.55) 0%,
+      rgba(15, 23, 42, 0.75) 100%
+    ),
+    url(/assets/auth-bg.jpg) center center/cover no-repeat fixed;
+  align-items: stretch;
+  justify-content: flex-start;
+}
+
+.rc-auth-card {
+  width: 100%;
+  max-width: 440px;
+  background: var(--rc-card-bg);
+  border: 1px solid var(--rc-card-border);
+  border-radius: var(--rc-radius-md);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  overflow-y: auto;
+  max-height: 100vh;
+  transition:
+    border-color var(--rc-transition-fast),
+    box-shadow var(--rc-transition-fast);
+}
+
+.rc-auth-header {
+  background: linear-gradient(
+    180deg,
+    var(--rc-surface-subtle) 0%,
+    transparent 100%
+  );
+  border-bottom: 1px solid var(--rc-border-color);
+  padding: 1.5rem 1.75rem 1.25rem;
+  text-align: center;
+}
+
+.rc-auth-body {
+  padding: 1.75rem;
+}
+
+.rc-auth-footer {
+  padding: 1rem 1.75rem;
+  background: var(--rc-surface-subtle);
+  border-top: 1px solid var(--rc-border-color);
+  text-align: center;
+}
+
+.rc-password-wrapper {
+  position: relative;
+}
+
+.rc-password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--rc-text-secondary);
+  padding: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+
+  &:hover {
+    color: var(--rc-text-primary);
+  }
+}
+
+.rc-password-meter {
+  height: 4px;
+  border-radius: 2px;
+  background: var(--rc-border-strong);
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.rc-password-meter-fill {
+  height: 100%;
+  transition:
+    width 0.3s ease,
+    background-color 0.3s ease;
+}
+
+@media (max-width: 575.98px) {
+  .rc-auth-container {
+    align-items: flex-start;
+    padding: 0.75rem;
+    background-attachment: scroll;
+  }
+
+  .rc-auth-card {
+    max-width: 100%;
+    border-radius: var(--rc-radius-sm);
+  }
+
+  .rc-auth-header,
+  .rc-auth-body,
+  .rc-auth-footer {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}

@@ -1,0 +1,505 @@
+<div
+  class="rc-auth-container position-relative"
+  [style.background]="background"
+>
+  <div class="rc-auth-card">
+    <header class="rc-auth-header">
+      <div class="d-flex align-items-center justify-content-center gap-2 mb-2">
+        <img
+          src="assets/icon.svg"
+          alt="RollerCoaster Logo"
+          width="32"
+          height="32"
+        />
+        <h1
+          class="fw-bold fs-3 mb-0"
+          style="letter-spacing: -0.5px; color: var(--rc-text-primary)"
+        >
+          RollerCoaster
+        </h1>
+      </div>
+      <p class="small text-muted mb-0">Create your account</p>
+    </header>
+
+    <main class="rc-auth-body">
+      @if (errorMessage()) {
+        <div
+          class="alert alert-danger py-2 px-3 small d-flex align-items-center gap-2 mb-3"
+          role="alert"
+          aria-live="polite"
+          id="signup-error-alert"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          <span>{{ errorMessage() }}</span>
+        </div>
+      }
+
+      @if (successMessage()) {
+        <div
+          class="alert alert-success py-2 px-3 small d-flex align-items-center gap-2 mb-3"
+          role="status"
+          id="signup-success-alert"
+        >
+          <svg
+            width="16"
+            height="16"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+          </svg>
+          <span>{{ successMessage() }}</span>
+        </div>
+      }
+
+      <form (ngSubmit)="onSubmit()" id="signup-form">
+        <div class="mb-3">
+          <label for="signup-fullname-input" class="form-label fw-bold mb-1">
+            Full Name
+          </label>
+          <div class="input-group">
+            <span
+              class="input-group-text"
+              style="
+                background: var(--rc-surface-subtle);
+                color: var(--rc-text-secondary);
+                border-color: var(--rc-border-strong);
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </span>
+            <input
+              id="signup-fullname-input"
+              name="fullName"
+              type="text"
+              class="form-control form-control-sm"
+              placeholder="e.g. Marie Curie"
+              [ngModel]="fullName()"
+              (ngModelChange)="fullName.set($event)"
+              required
+              autocomplete="name"
+              [disabled]="isSubmitting()"
+            />
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="signup-username-input" class="form-label fw-bold mb-1">
+            Username
+          </label>
+          <div class="input-group">
+            <span
+              class="input-group-text"
+              style="
+                background: var(--rc-surface-subtle);
+                color: var(--rc-text-secondary);
+                border-color: var(--rc-border-strong);
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="4"></circle>
+                <path d="M16 8v5a3 3 0 0 0 6 0v-1a10 10 0 1 0-4 8"></path>
+              </svg>
+            </span>
+            <input
+              id="signup-username-input"
+              name="username"
+              type="text"
+              class="form-control form-control-sm"
+              placeholder="e.g. mcurie"
+              [ngModel]="username()"
+              (ngModelChange)="username.set($event)"
+              required
+              autocomplete="username"
+              [disabled]="isSubmitting()"
+            />
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label for="signup-email-input" class="form-label fw-bold mb-1">
+            Email
+          </label>
+          <div class="input-group">
+            <span
+              class="input-group-text"
+              style="
+                background: var(--rc-surface-subtle);
+                color: var(--rc-text-secondary);
+                border-color: var(--rc-border-strong);
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+              </svg>
+            </span>
+            <input
+              id="signup-email-input"
+              name="email"
+              type="email"
+              class="form-control form-control-sm"
+              placeholder="e.g. mcurie@enterprise.eu"
+              [ngModel]="email()"
+              (ngModelChange)="email.set($event)"
+              required
+              autocomplete="email"
+              [disabled]="isSubmitting()"
+            />
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label for="signup-password-input" class="form-label fw-bold mb-0">
+              Password
+            </label>
+          </div>
+          <div class="input-group rc-password-wrapper">
+            <span
+              class="input-group-text"
+              style="
+                background: var(--rc-surface-subtle);
+                color: var(--rc-text-secondary);
+                border-color: var(--rc-border-strong);
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </span>
+            <input
+              id="signup-password-input"
+              name="password"
+              [type]="showPassword() ? 'text' : 'password'"
+              class="form-control form-control-sm pe-5"
+              placeholder="Min 6 characters"
+              [ngModel]="password()"
+              (ngModelChange)="password.set($event)"
+              required
+              autocomplete="new-password"
+              [disabled]="isSubmitting()"
+            />
+            <button
+              type="button"
+              class="rc-password-toggle"
+              (click)="togglePasswordVisibility()"
+              [attr.aria-label]="
+                showPassword() ? 'Hide password' : 'Show password'
+              "
+              id="signup-password-toggle-btn"
+            >
+              @if (showPassword()) {
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                  ></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              } @else {
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <label
+              for="signup-confirm-password-input"
+              class="form-label fw-bold mb-0"
+            >
+              Confirm Password
+            </label>
+          </div>
+          <div class="input-group rc-password-wrapper">
+            <span
+              class="input-group-text"
+              style="
+                background: var(--rc-surface-subtle);
+                color: var(--rc-text-secondary);
+                border-color: var(--rc-border-strong);
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10"></path>
+                <path d="m9 12 2 2 4-4"></path>
+              </svg>
+            </span>
+            <input
+              id="signup-confirm-password-input"
+              name="confirmPassword"
+              [type]="showConfirmPassword() ? 'text' : 'password'"
+              class="form-control form-control-sm pe-5"
+              placeholder="Re-type password"
+              [ngModel]="confirmPassword()"
+              (ngModelChange)="confirmPassword.set($event)"
+              required
+              autocomplete="new-password"
+              [disabled]="isSubmitting()"
+            />
+            <button
+              type="button"
+              class="rc-password-toggle"
+              (click)="toggleConfirmPasswordVisibility()"
+              [attr.aria-label]="
+                showConfirmPassword() ? 'Hide password' : 'Show password'
+              "
+              id="signup-confirm-password-toggle-btn"
+            >
+              @if (showConfirmPassword()) {
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path
+                    d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"
+                  ></path>
+                  <line x1="1" y1="1" x2="23" y2="23"></line>
+                </svg>
+              } @else {
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
+                  <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                  <circle cx="12" cy="12" r="3"></circle>
+                </svg>
+              }
+            </button>
+          </div>
+        </div>
+
+        @if (password().length > 0) {
+          <div class="mb-3">
+            <div class="rc-password-meter">
+              <div
+                class="rc-password-meter-fill"
+                [style.width]="passwordStrength().percent + '%'"
+                [style.background-color]="passwordStrength().color"
+              ></div>
+            </div>
+            <div
+              class="d-flex justify-content-between mt-1"
+              style="font-size: 11px"
+            >
+              <span class="text-muted">Password Strength:</span>
+              <span [style.color]="passwordStrength().color" class="fw-bold">
+                {{ passwordStrength().label }}
+              </span>
+            </div>
+          </div>
+        }
+
+        <div class="mb-3">
+          <label for="signup-role-select" class="form-label fw-bold mb-1">
+            Requested Platform Role
+          </label>
+          <div class="input-group">
+            <span
+              class="input-group-text"
+              style="
+                background: var(--rc-surface-subtle);
+                color: var(--rc-text-secondary);
+                border-color: var(--rc-border-strong);
+              "
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </span>
+            <select
+              id="signup-role-select"
+              name="role"
+              class="form-select form-select-sm"
+              [ngModel]="role()"
+              (ngModelChange)="role.set($event)"
+              [disabled]="isSubmitting()"
+            >
+              <option value="ROLE_OPERATOR">Operator (Report Creator)</option>
+              <option value="ROLE_USER">Analyst (Data Explorer)</option>
+              <option value="ROLE_ADMIN">Administrator (Tenant Admin)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-check mb-3">
+          <input
+            id="signup-gdpr-consent"
+            type="checkbox"
+            class="form-check-input"
+            [ngModel]="consentGiven()"
+            (ngModelChange)="consentGiven.set($event)"
+            name="consent"
+            required
+            [disabled]="isSubmitting()"
+          />
+          <label
+            for="signup-gdpr-consent"
+            class="form-check-label small text-muted"
+          >
+            I agree to the Terms of Service and Privacy Policy (GDPR compliant).
+          </label>
+        </div>
+
+        <button
+          id="signup-submit-btn"
+          type="submit"
+          class="rc-btn rc-btn-primary w-100 py-2 d-flex align-items-center justify-content-center gap-2"
+          [disabled]="isSubmitting() || !isFormValid()"
+        >
+          @if (isSubmitting()) {
+            <span
+              class="spinner-border spinner-border-sm"
+              role="status"
+              aria-hidden="true"
+            ></span>
+            <span>Creating Account...</span>
+          } @else {
+            <span>Complete Registration</span>
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+              <polyline points="12 5 19 12 12 19"></polyline>
+            </svg>
+          }
+        </button>
+      </form>
+    </main>
+
+    <footer class="rc-auth-footer position-absolute bottom-0 w-100">
+      <p class="medium mb-0 text-muted">
+        Already have an account?
+        <a
+          routerLink="/login"
+          class="fw-bold text-decoration-none ms-1"
+          style="color: var(--rc-primary-dark)"
+          id="signup-to-login-link"
+        >
+          Sign In &rarr;
+        </a>
+      </p>
+    </footer>
+  </div>
+</div>
