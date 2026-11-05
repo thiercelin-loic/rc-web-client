@@ -1,0 +1,331 @@
+// ============================================================================
+// Report Builder View-Specific Styles
+// Shared workspace grid, headers, tabs, and 320px Tools dock live in src/styles/_workspace.scss
+// ============================================================================
+
+.rc-report-page-sheet {
+  background: var(--rc-card-bg);
+  border: 1px solid var(--rc-card-border);
+  border-radius: var(--rc-radius-md);
+  box-shadow: var(--rc-shadow-sm);
+  padding: 1.5rem;
+  transition:
+    max-width var(--rc-transition-base),
+    min-height var(--rc-transition-base);
+  margin: 0 auto;
+}
+
+.rc-canvas-settings-tip {
+  background: var(--rc-card-bg);
+  border: 1px solid var(--rc-card-border);
+  color: var(--rc-text-secondary);
+  font-size: var(--rc-font-size-xs);
+}
+
+.rc-empty-hero-description {
+  max-width: 500px;
+}
+
+.rc-visual-tile {
+  border: 1px solid var(--rc-card-border);
+  border-radius: var(--rc-radius-sm);
+  padding: 6px 8px;
+  font-family: var(--rc-font-sans);
+  font-size: var(--rc-font-size-sm);
+  font-weight: var(--rc-font-weight-semibold);
+  background: var(--rc-card-bg);
+  color: var(--rc-text-primary);
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--rc-transition-fast);
+
+  &:hover {
+    border-color: var(--rc-border-strong);
+    background-color: var(--rc-surface-hover);
+  }
+
+  &.active {
+    border-color: var(--rc-primary);
+    background-color: var(--rc-primary-subtle);
+    color: var(--rc-text-primary);
+    box-shadow: 0 0 0 1px var(--rc-primary);
+  }
+}
+
+.rc-card-header-styled {
+  background: var(--rc-card-bg);
+  border-color: var(--rc-card-border) !important;
+}
+
+.rc-visual-title-input {
+  font-size: var(--rc-font-size-base);
+  background: transparent;
+  width: auto;
+  max-width: 260px;
+  color: var(--rc-text-primary);
+}
+
+.rc-visual-card {
+  position: relative;
+  transition:
+    border-color var(--rc-transition-fast),
+    box-shadow var(--rc-transition-fast);
+
+  &:hover {
+    border-color: var(--rc-border-strong);
+  }
+}
+
+.rc-visual-selected .rc-visual-card {
+  border-color: var(--rc-primary) !important;
+  box-shadow: 0 0 0 1px var(--rc-primary);
+}
+
+.rc-visual-drag-handle {
+  cursor: grab;
+  cursor: -webkit-grab;
+  color: var(--rc-text-muted);
+  opacity: 0.6;
+  border-radius: var(--rc-radius-xs);
+  transition:
+    opacity var(--rc-transition-fast),
+    color var(--rc-transition-fast),
+    background-color var(--rc-transition-fast);
+
+  &:hover {
+    opacity: 1;
+    color: var(--rc-text-primary);
+    background-color: var(--rc-surface-hover);
+  }
+
+  &:active {
+    cursor: grabbing;
+    cursor: -webkit-grabbing;
+  }
+}
+
+.rc-visual-header-actions {
+  opacity: 0;
+  transition: opacity var(--rc-transition-fast);
+
+  .rc-visual-card:hover &,
+  .rc-visual-card:focus-within &,
+  .rc-visual-selected & {
+    opacity: 1;
+  }
+}
+
+.rc-visual-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rc-radius-xs);
+  color: var(--rc-text-secondary);
+  background: transparent;
+  border: none;
+  transition:
+    background-color var(--rc-transition-fast),
+    color var(--rc-transition-fast);
+
+  &:hover {
+    color: var(--rc-text-primary);
+    background-color: var(--rc-surface-hover);
+  }
+}
+
+.rc-visual-delete-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--rc-radius-xs);
+  color: var(--rc-text-secondary);
+  background: transparent;
+  border: none;
+  transition:
+    background-color var(--rc-transition-fast),
+    color var(--rc-transition-fast);
+
+  &:hover {
+    color: var(--rc-status-danger-text) !important;
+    background-color: rgba(220, 53, 69, 0.12);
+  }
+}
+
+.rc-visual-dropdown-menu {
+  background: var(--rc-card-bg);
+  border-color: var(--rc-card-border) !important;
+  min-width: 170px;
+  z-index: 1050;
+
+  .dropdown-item {
+    color: var(--rc-text-primary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    width: 100%;
+    transition: background-color var(--rc-transition-fast);
+
+    &:hover:not([disabled]) {
+      background-color: var(--rc-surface-hover);
+      color: var(--rc-text-primary);
+    }
+
+    &[disabled] {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .dropdown-divider {
+    border-top: 1px solid var(--rc-card-border);
+  }
+}
+
+// CDK Drag & Drop Grid Styling
+.rc-visual-card-col {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.cdk-drag-preview {
+  box-sizing: border-box;
+  border-radius: var(--rc-radius-md);
+  box-shadow: var(--rc-shadow-lg);
+  background: var(--rc-card-bg);
+  border: 1px solid var(--rc-primary);
+  opacity: 0.95;
+  z-index: 1060;
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.4;
+  border: 2px dashed var(--rc-primary) !important;
+  border-radius: var(--rc-radius-md);
+  background: var(--rc-surface-subtle);
+  min-height: 240px;
+}
+
+.cdk-drag-animating {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.rc-visuals-grid.cdk-drop-list-dragging .rc-visual-card-col:not(.cdk-drag-placeholder) {
+  transition: transform 250ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.rc-metric-display-card {
+  background: var(--rc-surface-subtle);
+  border: 1px solid var(--rc-card-border);
+}
+
+.rc-field-drop-zone {
+  background: var(--rc-card-bg);
+  border-color: var(--rc-card-border) !important;
+  transition:
+    background-color var(--rc-transition-fast),
+    border-color var(--rc-transition-fast);
+}
+
+.rc-field-drop-zone-empty {
+  border-style: dashed !important;
+}
+
+.rc-field-drag-item {
+  cursor: grab;
+  background: var(--rc-surface-subtle);
+  border-color: var(--rc-card-border) !important;
+}
+
+.rc-field-well-empty-prompt {
+  color: var(--rc-text-muted);
+  font-size: var(--rc-font-size-xs);
+}
+
+.rc-filter-remove-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.7;
+  background: transparent;
+  border: none;
+  padding: 2px;
+  color: var(--rc-text-secondary);
+  transition:
+    opacity var(--rc-transition-fast),
+    color var(--rc-transition-fast);
+
+  &:hover {
+    opacity: 1;
+    color: var(--rc-status-danger-text) !important;
+  }
+}
+
+.rc-tools-filter-card {
+  background: var(--rc-surface-subtle);
+  border: 1px solid var(--rc-card-border);
+  border-radius: var(--rc-radius-sm);
+  transition:
+    border-color var(--rc-transition-fast),
+    background-color var(--rc-transition-fast);
+
+  &:hover {
+    border-color: var(--rc-border-strong);
+  }
+}
+
+.rc-indicator-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--rc-primary);
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.rc-measure-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: var(--rc-radius-sm);
+  border: 1px solid var(--rc-card-border);
+  background-color: var(--rc-card-bg);
+  color: var(--rc-text-primary);
+  font-family: var(--rc-font-sans);
+  font-size: var(--rc-font-size-xs);
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color var(--rc-transition-fast),
+    background-color var(--rc-transition-fast);
+
+  &:hover {
+    border-color: var(--rc-border-strong);
+    background-color: var(--rc-surface-hover);
+  }
+
+  &.active {
+    border-color: var(--rc-primary);
+    background-color: var(--rc-primary-subtle);
+    color: var(--rc-text-primary);
+  }
+}
+
+.rc-measure-fx-tag {
+  font-family: var(--rc-font-mono);
+  font-size: var(--rc-font-size-2xs);
+  font-weight: var(--rc-font-weight-bold);
+  color: var(--rc-accent-text);
+  padding: 1px 5px;
+  border-radius: var(--rc-radius-xs);
+  background-color: var(--rc-surface-subtle);
+  border: 1px solid var(--rc-card-border);
+}

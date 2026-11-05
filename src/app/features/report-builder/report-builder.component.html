@@ -1,0 +1,1760 @@
+<div class="rc-workspace-grid rc-builder-grid">
+  <div class="rc-canvas-container p-0 d-flex flex-column">
+    <!-- Standardized Workspace Header -->
+    <div class="rc-page-header rc-workspace-header rc-print-hide">
+      <div>
+        <h1 class="h5 fw-bold mb-0">Report Builder</h1>
+        <p class="small text-muted mb-0">
+          Interactive report canvas and visual page layouts.
+        </p>
+      </div>
+
+      @if (hasVisuals()) {
+        <div class="d-flex align-items-center gap-2">
+          <button
+            type="button"
+            class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+            (click)="clearCanvas()"
+            id="report-builder-clear-page-btn"
+            aria-label="Clear active report page"
+            title="Remove all visuals from active page"
+          >
+            <svg
+              width="13"
+              height="13"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path
+                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+              ></path>
+            </svg>
+            <span>Clear Page</span>
+          </button>
+        </div>
+      }
+    </div>
+
+    <div
+      class="rc-canvas-stage flex-grow-1 p-3 d-flex flex-column align-items-center"
+    >
+      <div
+        class="rc-report-page-sheet w-100"
+        [style.maxWidth.px]="activeCanvasDimensions().width"
+        [style.minHeight.px]="activeCanvasDimensions().height"
+      >
+        @if (!hasVisuals()) {
+          <div class="rc-card rc-empty-hero my-3">
+            <div
+              class="mb-3 mx-auto d-flex align-items-center justify-content-center rounded-circle"
+            >
+              <svg
+                width="28"
+                height="28"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="12" y1="8" x2="12" y2="16"></line>
+                <line x1="8" y1="12" x2="16" y2="12"></line>
+              </svg>
+            </div>
+
+            <h3 class="h5 fw-bold mb-1">Start building your report</h3>
+            <p class="text-muted mx-auto mb-0 rc-empty-hero-description">
+              Provide your own data from Data Prep, or select a visual archetype
+              to begin assembling your layout.
+            </p>
+          </div>
+        } @else {
+          @if (selectedFilterCategory()) {
+            <div class="rc-active-filter-banner mb-3 p-2 px-3 rounded d-flex align-items-center justify-content-between bg-body-secondary border">
+              <div class="d-flex align-items-center gap-2 small">
+                <span class="badge text-bg-primary">Active Cross-Filter</span>
+                <span><strong>Category:</strong> {{ selectedFilterCategory() }}</span>
+              </div>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline py-0 px-2"
+                (click)="selectFilterCategory(null)"
+              >
+                Clear Filter
+              </button>
+            </div>
+          }
+
+          <div
+            cdkDropList
+            cdkDropListOrientation="mixed"
+            (cdkDropListDropped)="onDropVisual($event)"
+            class="row g-3 mb-3 rc-print-visuals rc-visuals-grid"
+          >
+            @for (visual of userVisuals(); track visual.id; let i = $index) {
+              <div
+                cdkDrag
+                [cdkDragData]="visual"
+                [class]="getVisualGridColumnClass(visual.width)"
+                class="rc-visual-card-col"
+                [class.rc-visual-selected]="selectedVisualId() === visual.id"
+                (click)="selectVisual(visual.id)"
+              >
+                <div
+                  *cdkDragPlaceholder
+                  class="rc-visual-drag-placeholder rounded h-100"
+                ></div>
+                <div class="rc-card h-100 rc-visual-card">
+                  <div
+                    class="card-header border-bottom py-2 px-3 d-flex justify-content-between align-items-center rc-card-header-styled"
+                  >
+                    <div
+                      class="d-flex align-items-center gap-2 flex-grow-1 me-2 overflow-hidden"
+                    >
+                      <button
+                        type="button"
+                        cdkDragHandle
+                        class="rc-btn rc-btn-ghost rc-btn-xs p-1 rc-visual-drag-handle rc-print-hide"
+                        title="Drag to reorder visual"
+                        [attr.aria-label]="
+                          'Drag to reorder visual ' + visual.title
+                        "
+                        (click)="$event.stopPropagation()"
+                      >
+                        <svg
+                          width="12"
+                          height="12"
+                          viewBox="0 0 24 24"
+                          fill="currentColor"
+                          aria-hidden="true"
+                        >
+                          <circle cx="8" cy="6" r="2"></circle>
+                          <circle cx="16" cy="6" r="2"></circle>
+                          <circle cx="8" cy="12" r="2"></circle>
+                          <circle cx="16" cy="12" r="2"></circle>
+                          <circle cx="8" cy="18" r="2"></circle>
+                          <circle cx="16" cy="18" r="2"></circle>
+                        </svg>
+                      </button>
+                      <input
+                        type="text"
+                        class="form-control border-0 fw-bold p-0 rc-visual-title-input text-truncate"
+                        [class.d-none]="!showVisualTitle()"
+                        [ngModel]="visual.title"
+                        (ngModelChange)="updateVisualTitle(visual.id, $event)"
+                        (click)="$event.stopPropagation()"
+                        [attr.aria-label]="
+                          'Edit title for visual ' + visual.title
+                        "
+                      />
+                    </div>
+
+                    <div
+                      class="rc-visual-header-actions d-flex align-items-center gap-1 rc-print-hide"
+                      role="toolbar"
+                      [attr.aria-label]="'Visual ' + visual.title + ' actions'"
+                    >
+                      <!-- Quick Width Toggle Button (Compact Icon Only) -->
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-ghost rc-btn-sm p-1 rc-visual-action-btn"
+                        (click)="
+                          toggleVisualWidth(visual.id); $event.stopPropagation()
+                        "
+                        [title]="getVisualWidthToggleTitle(visual.width)"
+                        [attr.aria-label]="
+                          getVisualWidthToggleTitle(visual.width)
+                        "
+                      >
+                        @if (visual.width === "full") {
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="8"
+                              height="18"
+                              rx="1"
+                            ></rect>
+                            <rect
+                              x="13"
+                              y="3"
+                              width="8"
+                              height="18"
+                              rx="1"
+                            ></rect>
+                          </svg>
+                        } @else {
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="1.8"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <rect
+                              x="3"
+                              y="3"
+                              width="18"
+                              height="18"
+                              rx="2"
+                            ></rect>
+                          </svg>
+                        }
+                      </button>
+
+                      <!-- Options Dropdown Menu (...) -->
+                      <div class="position-relative">
+                        <button
+                          type="button"
+                          class="rc-btn rc-btn-ghost rc-btn-sm p-1 rc-visual-action-btn"
+                          (click)="toggleVisualMenu(visual.id, $event)"
+                          [attr.aria-expanded]="
+                            activeVisualMenuId() === visual.id
+                          "
+                          [attr.aria-label]="
+                            'More options for visual ' + visual.title
+                          "
+                          title="More options"
+                        >
+                          <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            aria-hidden="true"
+                          >
+                            <circle cx="12" cy="12" r="1.5"></circle>
+                            <circle cx="19" cy="12" r="1.5"></circle>
+                            <circle cx="5" cy="12" r="1.5"></circle>
+                          </svg>
+                        </button>
+
+                        @if (activeVisualMenuId() === visual.id) {
+                          <div
+                            class="rc-visual-dropdown-menu position-absolute end-0 mt-1 py-1 shadow-sm rounded border"
+                            role="menu"
+                            (click)="$event.stopPropagation()"
+                          >
+                            <button
+                              type="button"
+                              class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs"
+                              (click)="
+                                toggleVisualWidth(visual.id); closeVisualMenu()
+                              "
+                              role="menuitem"
+                            >
+                              <span>{{
+                                getVisualWidthToggleTitle(visual.width)
+                              }}</span>
+                            </button>
+                            <button
+                              type="button"
+                              class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs"
+                              [disabled]="isFirstVisual(visual.id)"
+                              (click)="moveVisualEarlier(visual.id)"
+                              role="menuitem"
+                            >
+                              <span>Move earlier</span>
+                            </button>
+                            <button
+                              type="button"
+                              class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs"
+                              [disabled]="isLastVisual(visual.id)"
+                              (click)="moveVisualLater(visual.id)"
+                              role="menuitem"
+                            >
+                              <span>Move later</span>
+                            </button>
+                            <div class="dropdown-divider my-1"></div>
+                            <div class="px-3 py-1 rc-text-2xs fw-bold text-muted text-uppercase">Sort Options</div>
+                            <button
+                              type="button"
+                              class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs"
+                              (click)="setVisualSort(visual.id, 'value', 'desc')"
+                              role="menuitem"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="m3 16 4 4 4-4"></path>
+                                <path d="M7 20V4"></path>
+                                <path d="M11 4h10"></path>
+                                <path d="M11 8h7"></path>
+                                <path d="M11 12h4"></path>
+                              </svg>
+                              <span>Sort descending by value</span>
+                            </button>
+                            <button
+                              type="button"
+                              class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs"
+                              (click)="setVisualSort(visual.id, 'value', 'asc')"
+                              role="menuitem"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="m3 8 4-4 4 4"></path>
+                                <path d="M7 4v16"></path>
+                                <path d="M11 4h4"></path>
+                                <path d="M11 8h7"></path>
+                                <path d="M11 12h10"></path>
+                              </svg>
+                              <span>Sort ascending by value</span>
+                            </button>
+                            <button
+                              type="button"
+                              class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs"
+                              (click)="setVisualSort(visual.id, 'axis', 'asc')"
+                              role="menuitem"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                              <span>Sort by category (A to Z)</span>
+                            </button>
+                            @if (visual.sortBy) {
+                              <button
+                                type="button"
+                                class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs text-muted"
+                                (click)="clearVisualSort(visual.id)"
+                                role="menuitem"
+                              >
+                                <span>Reset sort</span>
+                              </button>
+                            }
+                            <div class="dropdown-divider my-1"></div>
+                            <button
+                              type="button"
+                              class="dropdown-item d-flex align-items-center gap-2 px-3 py-1 rc-text-xs text-danger"
+                              (click)="removeVisual(visual.id)"
+                              role="menuitem"
+                            >
+                              <span>Delete visual</span>
+                            </button>
+                          </div>
+                        }
+                      </div>
+
+                      <!-- Quick Delete Ghost Button -->
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-ghost rc-btn-sm p-1 rc-visual-delete-btn"
+                        (click)="
+                          removeVisual(visual.id); $event.stopPropagation()
+                        "
+                        [attr.aria-label]="'Delete visual ' + visual.title"
+                        title="Delete visual"
+                      >
+                        <svg
+                          width="14"
+                          height="14"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.8"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                          aria-hidden="true"
+                        >
+                          <polyline points="3 6 5 6 21 6"></polyline>
+                          <path
+                            d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                          ></path>
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div class="card-body p-3">
+                    @if (visual.archetype === 'Matrix') {
+                      @if (getMatrixRows(visual).length > 0) {
+                        <div class="rc-matrix-wrapper table-responsive h-100">
+                          <table class="table table-sm table-hover align-middle mb-0 font-monospace small">
+                            <thead class="table-light sticky-top">
+                              <tr>
+                                <th scope="col">Category</th>
+                                <th scope="col" class="text-end">Units</th>
+                                <th scope="col" class="text-end">Value</th>
+                                <th scope="col" class="text-end">Margin %</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (row of getMatrixRows(visual); track row.category) {
+                                <tr
+                                  (click)="selectFilterCategory(row.category, $event); $event.stopPropagation()"
+                                  [class.table-active]="isCategorySelected(row.category)"
+                                  style="cursor: pointer;"
+                                  [title]="'Filter report by ' + row.category + ' (Ctrl+click to multi-select)'"
+                                >
+                                  <td><strong>{{ row.category }}</strong></td>
+                                  <td class="text-end">{{ row.units | number }}</td>
+                                  <td class="text-end">{{ row.revenue | number:'1.2-2' }}</td>
+                                  <td class="text-end text-success">{{ (row.margin * 100) | number:'1.1-1' }}%</td>
+                                </tr>
+                              }
+                            </tbody>
+                            <tfoot class="table-group-divider fw-bold">
+                              @let totals = getMatrixTotals(visual);
+                              <tr>
+                                <td>Total</td>
+                                <td class="text-end">{{ totals.units | number }}</td>
+                                <td class="text-end">{{ totals.revenue | number:'1.2-2' }}</td>
+                                <td class="text-end text-success">{{ (totals.margin * 100) | number:'1.1-1' }}%</td>
+                              </tr>
+                            </tfoot>
+                          </table>
+                        </div>
+                      } @else {
+                        <div class="p-4 rounded text-center rc-metric-display-card">
+                          <div class="fw-semibold text-muted mb-1">
+                            {{ visual.metricLabel }}
+                          </div>
+                          <div class="h2 fw-bold mb-1">
+                            {{ visual.metricValue }}
+                          </div>
+                          <div class="text-muted font-monospace mb-0">
+                            {{ visual.metricSubtext }}
+                          </div>
+                        </div>
+                      }
+                    } @else if (visual.archetype === 'RAX MeasureCard' || visual.archetype === 'Card') {
+                      @let cardStatus = getMeasureCardDisplay(visual);
+                      <div class="p-4 rounded text-center rc-metric-display-card h-100 d-flex flex-column justify-content-center align-items-center">
+                        <div class="fw-semibold text-muted text-uppercase mb-1 small">
+                          {{ cardStatus.label }}
+                        </div>
+                        <div class="display-5 fw-bold text-primary mb-1">
+                          {{ cardStatus.value }}
+                        </div>
+                        <div class="text-muted font-monospace small">
+                          {{ cardStatus.subtext }}
+                        </div>
+                      </div>
+                    } @else if (visual.archetype === 'Slicer') {
+                      <div class="rc-canvas-slicer p-2 h-100 d-flex flex-column gap-2 justify-content-center">
+                        <div class="small text-muted fw-semibold text-uppercase d-flex justify-content-between align-items-center">
+                          <span>Filter Dimension: {{ activeSlicerDimension() }} <span class="fw-normal text-muted">(Ctrl+click for multi)</span></span>
+                          @if (selectedFilterCategory()) {
+                            <span class="badge text-bg-primary">{{ selectedFilterCategory() }}</span>
+                          }
+                        </div>
+                        @if (slicerCategories.length > 0) {
+                          <div class="d-flex flex-wrap gap-1">
+                            <button
+                              type="button"
+                              class="rc-btn rc-btn-xs"
+                              [class.rc-btn-primary]="isCategorySelected('All')"
+                              [class.rc-btn-outline]="!isCategorySelected('All')"
+                              (click)="selectFilterCategory(null, $event); $event.stopPropagation()"
+                            >
+                              All
+                            </button>
+                            @for (cat of slicerCategories; track cat) {
+                              <button
+                                type="button"
+                                class="rc-btn rc-btn-xs"
+                                [class.rc-btn-primary]="isCategorySelected(cat)"
+                                [class.rc-btn-outline]="!isCategorySelected(cat)"
+                                (click)="selectFilterCategory(cat, $event); $event.stopPropagation()"
+                              >
+                                {{ cat }}
+                              </button>
+                            }
+                          </div>
+                        } @else {
+                          <div class="text-muted font-monospace small">
+                            Bind a dimension column in Field Wells to populate slicer members.
+                          </div>
+                        }
+                      </div>
+                    } @else if (hasVisualChartData(visual)) {
+                      <rc-chart-canvas
+                        [chartData]="getVisualChartData(visual)"
+                      ></rc-chart-canvas>
+                    } @else {
+                      <div
+                        class="p-4 rounded text-center rc-metric-display-card"
+                      >
+                        <div class="fw-semibold text-muted mb-1">
+                          {{ visual.metricLabel }}
+                        </div>
+                        <div class="h2 fw-bold mb-1">
+                          {{ visual.metricValue }}
+                        </div>
+                        <div class="text-muted font-monospace mb-0">
+                          {{ visual.metricSubtext }}
+                        </div>
+                      </div>
+                    }
+                  </div>
+                </div>
+              </div>
+            }
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <aside
+    class="rc-zone-utility p-0 d-flex flex-column justify-content-between"
+    aria-label="Tools Visualization and Data Fields Dock"
+  >
+    <div class="d-flex flex-column flex-grow-1 overflow-hidden">
+      <div class="rc-tools-dock-header">
+        <span class="rc-tools-dock-title">Tools</span>
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-ghost text-muted p-1 d-inline-flex align-items-center justify-content-center"
+          (click)="toggleCollapseAll()"
+          [title]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
+          [attr.aria-label]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="1"></circle>
+            <circle cx="19" cy="12" r="1"></circle>
+            <circle cx="5" cy="12" r="1"></circle>
+          </svg>
+        </button>
+      </div>
+
+      <div
+        class="rc-tools-accordion flex-grow-1 overflow-y-auto"
+        role="region"
+        aria-label="Tools Sections"
+      >
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.active]="activeToolsTab() === 'Visualizations'"
+          [class.is-expanded]="isSectionExpanded('Visualizations')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between px-3 py-2 text-start border-0 border-bottom"
+            [class.active]="activeToolsTab() === 'Visualizations'"
+            [attr.aria-expanded]="isSectionExpanded('Visualizations')"
+            aria-controls="tools-section-visualizations"
+            id="tools-header-visualizations"
+            (click)="toggleSection('Visualizations')"
+            title="Visualizations"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Visualizations')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Visualizations</span>
+            </div>
+          </button>
+          @if (isSectionExpanded("Visualizations")) {
+            <div
+              id="tools-section-visualizations"
+              role="region"
+              aria-labelledby="tools-header-visualizations"
+              class="rc-tools-section-body p-3"
+            >
+              <div class="mb-3">
+                <div class="text-uppercase fw-bold rc-tools-heading mb-2">
+                  Graphics
+                </div>
+                <div class="row g-2">
+                  @for (archetype of visualArchetypes; track archetype) {
+                    <div class="col-6">
+                      <button
+                        type="button"
+                        class="rc-visual-tile w-100 py-2 d-flex align-items-center justify-content-center gap-2"
+                        [class.active]="selectedArchetype() === archetype"
+                        (click)="selectArchetypeAndAdd(archetype)"
+                        [title]="'Add ' + archetype + ' visual'"
+                        [attr.aria-label]="'Add ' + archetype + ' visual'"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            archetypeIcon;
+                            context: { $implicit: archetype, size: 14 }
+                          "
+                        ></ng-container>
+                        <span>{{ archetype }}</span>
+                      </button>
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="mb-3">
+                <div
+                  class="d-flex align-items-center justify-content-between mb-2"
+                >
+                  <div class="text-uppercase fw-bold rc-tools-heading">
+                    Field Wells
+                  </div>
+                  @if (hasAssignedWells()) {
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-sm rc-btn-ghost text-danger d-inline-flex align-items-center gap-1"
+                      (click)="clearAllFieldWells()"
+                      title="Clear all assigned fields"
+                      aria-label="Clear all assigned fields"
+                    >
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                      <span>Clear all</span>
+                    </button>
+                  }
+                </div>
+
+                <div class="d-flex flex-column gap-2">
+                  @for (slot of activeArchetypeSlots(); track slot.id) {
+                    <div class="p-2 rc-tools-filter-card">
+                      <div
+                        class="d-flex align-items-center justify-content-between mb-1"
+                      >
+                        <span
+                          class="rc-text-xs fw-semibold d-flex align-items-center gap-2"
+                        >
+                          <span>{{ slot.label }}</span>
+                        </span>
+                      </div>
+
+                      <div
+                        cdkDropList
+                        [id]="'field-well-' + slot.id"
+                        (cdkDropListDropped)="
+                          onDropFieldIntoSlot(slot.id, $event)
+                        "
+                        class="border rounded p-2 d-flex flex-column gap-1 rc-field-drop-zone"
+                        [class.rc-field-drop-zone-empty]="
+                          getSlotFields(slot.id).length === 0
+                        "
+                        style="min-height: 38px"
+                      >
+                        @if (getSlotFields(slot.id).length > 0) {
+                          @for (field of getSlotFields(slot.id); track field) {
+                            <div
+                              cdkDrag
+                              [cdkDragData]="field"
+                              class="border rounded px-2 py-1 d-flex justify-content-between align-items-center rc-field-drag-item"
+                            >
+                              <span
+                                class="rc-text-xs font-monospace fw-semibold text-truncate"
+                                >{{ getFieldDisplayLabel(field) }}</span
+                              >
+                              <button
+                                type="button"
+                                class="rc-filter-remove-btn ms-1"
+                                (click)="removeFieldFromSlot(slot.id, field)"
+                                [attr.aria-label]="
+                                  'Remove ' + field + ' from ' + slot.label
+                                "
+                                title="Remove field"
+                              >
+                                <svg
+                                  width="11"
+                                  height="11"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  stroke-linecap="round"
+                                  stroke-linejoin="round"
+                                  aria-hidden="true"
+                                >
+                                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                                </svg>
+                              </button>
+                            </div>
+                          }
+                        } @else {
+                          <div
+                            class="text-center py-1 px-2 rc-field-well-empty-prompt"
+                          >
+                            <span>{{ slot.hint }}</span>
+                          </div>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.active]="activeToolsTab() === 'Filters'"
+          [class.is-expanded]="isSectionExpanded('Filters')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between px-3 py-2 text-start border-0 border-bottom"
+            [class.active]="activeToolsTab() === 'Filters'"
+            [attr.aria-expanded]="isSectionExpanded('Filters')"
+            aria-controls="tools-section-filters"
+            id="tools-header-filters"
+            (click)="toggleSection('Filters')"
+            title="Filters"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Filters')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Filters</span>
+            </div>
+          </button>
+          @if (isSectionExpanded("Filters")) {
+            <div
+              id="tools-section-filters"
+              role="region"
+              aria-labelledby="tools-header-filters"
+              class="rc-tools-section-body p-3"
+            >
+              <div class="mb-3">
+                <div
+                  class="d-flex align-items-center justify-content-between mb-2"
+                >
+                  <div class="text-uppercase fw-bold rc-tools-heading">
+                    FILTERS ON THIS PAGE
+                  </div>
+                  @if (hasActiveFilters()) {
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-sm rc-btn-ghost text-danger d-inline-flex align-items-center gap-1"
+                      (click)="resetActiveFilters()"
+                      title="Clear all active page filters"
+                      aria-label="Clear all active page filters"
+                    >
+                      <svg
+                        width="11"
+                        height="11"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                      <span>Clear all</span>
+                    </button>
+                  }
+                </div>
+
+                <div class="d-flex flex-column gap-2 mb-3">
+                  @if (hasActiveFilters()) {
+                    @for (
+                      clause of activeFilterList();
+                      track clause.dimension
+                    ) {
+                      <div class="p-2 rc-tools-filter-card">
+                        <div
+                          class="d-flex align-items-center justify-content-between mb-1"
+                        >
+                          <span
+                            class="fw-semibold rc-text-xs d-flex align-items-center gap-2"
+                          >
+                            <span class="rc-indicator-dot"></span>
+                            <span>{{ clause.dimension }}</span>
+                            <span class="rc-value-tag">
+                              {{ clause.operator }}
+                            </span>
+                          </span>
+                          <button
+                            type="button"
+                            class="rc-filter-remove-btn"
+                            (click)="removeActiveFilter(clause.dimension)"
+                            [attr.aria-label]="
+                              'Remove ' + clause.dimension + ' filter'
+                            "
+                            title="Remove filter"
+                          >
+                            <svg
+                              width="12"
+                              height="12"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <line x1="18" y1="6" x2="6" y2="18"></line>
+                              <line x1="6" y1="6" x2="18" y2="18"></line>
+                            </svg>
+                          </button>
+                        </div>
+                        <div class="d-flex flex-wrap gap-1">
+                          @for (
+                            filterValue of clause.values;
+                            track filterValue
+                          ) {
+                            <span class="rc-value-tag">
+                              {{ filterValue }}
+                            </span>
+                          }
+                        </div>
+                      </div>
+                    }
+                  } @else {
+                    <div
+                      class="text-center py-3 px-2 border rounded text-muted rc-data-empty-placeholder"
+                    >
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        class="mb-1 text-muted"
+                        aria-hidden="true"
+                      >
+                        <polygon
+                          points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+                        ></polygon>
+                      </svg>
+                      <div class="rc-text-sm fw-medium">
+                        No filters active on this page
+                      </div>
+                      <div class="text-muted" style="font-size: 11px">
+                        Select a quick slicer or build a dimension filter below.
+                      </div>
+                    </div>
+                  }
+                </div>
+
+                <div class="p-3 rc-format-panel">
+                  <div class="rc-tools-heading mb-2">Add Page Filter</div>
+
+                  @if (availableDimensions().length > 0) {
+                    <div class="mb-2">
+                      <label
+                        for="tools-filter-dim-select"
+                        class="rc-dock-label"
+                      >
+                        Dimension / Column
+                      </label>
+                      <select
+                        id="tools-filter-dim-select"
+                        class="form-select form-select-sm"
+                        [ngModel]="selectedFilterDimension()"
+                        (ngModelChange)="onSelectDimension($event)"
+                      >
+                        <option value="" disabled>Select a column...</option>
+                        @for (
+                          dimension of availableDimensions();
+                          track dimension
+                        ) {
+                          <option [value]="dimension">{{ dimension }}</option>
+                        }
+                        <option value="Custom...">
+                          Custom Dimension Name...
+                        </option>
+                      </select>
+                    </div>
+                  } @else {
+                    <div class="alert alert-info p-2 mb-2 rc-text-xs">
+                      <span
+                        >No connected datasets found. Enter a dimension name
+                        below or
+                      </span>
+                      <a routerLink="/data-prep" class="alert-link"
+                        >connect data in Data Prep</a
+                      >.
+                    </div>
+                  }
+
+                  @if (
+                    availableDimensions().length === 0 ||
+                    selectedFilterDimension() === "Custom..."
+                  ) {
+                    <div class="mb-2">
+                      <label
+                        for="tools-filter-custom-dim"
+                        class="rc-dock-label"
+                      >
+                        Dimension Name
+                      </label>
+                      <input
+                        id="tools-filter-custom-dim"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="e.g. Column or attribute name"
+                        [ngModel]="customDimensionInput()"
+                        (ngModelChange)="customDimensionInput.set($event)"
+                      />
+                    </div>
+                  }
+
+                  <div class="row g-2 mb-2">
+                    <div class="col-6">
+                      <label for="tools-filter-op-select" class="rc-dock-label">
+                        Operator
+                      </label>
+                      <select
+                        id="tools-filter-op-select"
+                        class="form-select form-select-sm"
+                        [ngModel]="selectedFilterOperator()"
+                        (ngModelChange)="selectedFilterOperator.set($event)"
+                      >
+                        <option value="EQ">Equals (=)</option>
+                        <option value="NEQ">Not Equals (!=)</option>
+                        <option value="IN">In List (IN)</option>
+                        <option value="BETWEEN">Between</option>
+                      </select>
+                    </div>
+                    <div class="col-6">
+                      <label for="tools-filter-val-input" class="rc-dock-label">
+                        Value
+                      </label>
+                      <input
+                        id="tools-filter-val-input"
+                        type="text"
+                        class="form-control form-control-sm"
+                        placeholder="Filter value"
+                        [ngModel]="filterValueInput()"
+                        (ngModelChange)="filterValueInput.set($event)"
+                        (keydown.enter)="applyCustomFilter()"
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-primary rc-btn-sm w-100 d-inline-flex align-items-center justify-content-center gap-2 mt-2"
+                    (click)="applyCustomFilter()"
+                    [disabled]="!canApplyFilter()"
+                  >
+                    <svg
+                      width="13"
+                      height="13"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                    <span>Apply Filter</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.active]="activeToolsTab() === 'Data Fields'"
+          [class.is-expanded]="isSectionExpanded('Data Fields')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between px-3 py-2 text-start border-0 border-bottom"
+            [class.active]="activeToolsTab() === 'Data Fields'"
+            [attr.aria-expanded]="isSectionExpanded('Data Fields')"
+            aria-controls="tools-section-data-fields"
+            id="tools-header-data-fields"
+            (click)="toggleSection('Data Fields')"
+            title="Data Fields"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Data Fields')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Data Fields</span>
+            </div>
+          </button>
+          @if (isSectionExpanded("Data Fields")) {
+            <div
+              id="tools-section-data-fields"
+              role="region"
+              aria-labelledby="tools-header-data-fields"
+              class="rc-tools-section-body p-3"
+            >
+              <div class="d-flex flex-column gap-3">
+                <div class="p-3 rc-format-panel">
+                  <div class="rc-tools-heading mb-2">
+                    Measures ({{ state.measures.length }})
+                  </div>
+                  <div
+                    cdkDropList
+                    [cdkDropListConnectedTo]="fieldWellDropListIds()"
+                    [cdkDropListEnterPredicate]="denyDropEntry"
+                    class="d-flex flex-column gap-1"
+                  >
+                    @for (measure of state.measures; track measure.id) {
+                      <button
+                        type="button"
+                        cdkDrag
+                        [cdkDragData]="measure.id"
+                        class="rc-measure-item"
+                        [class.active]="state.activeMeasureId() === measure.id"
+                        (click)="assignMeasureToVisual(measure.id)"
+                        [attr.aria-label]="'Select measure ' + measure.label"
+                      >
+                        <span
+                          class="d-flex align-items-center gap-2 text-truncate"
+                        >
+                          <span class="rc-measure-fx-tag">fx</span>
+                          <span class="fw-semibold text-truncate">{{
+                            measure.label
+                          }}</span>
+                        </span>
+                        @if (state.activeMeasureId() === measure.id) {
+                          <span class="rc-value-tag">Active</span>
+                        }
+                      </button>
+                    }
+                  </div>
+                </div>
+                @if (state.sharedTables.length > 0) {
+                  <div class="p-3 rc-format-panel">
+                    <div class="rc-tools-heading mb-2">
+                      Datasets ({{ state.sharedTables.length }})
+                    </div>
+                    <div class="d-flex flex-column gap-2">
+                      @for (table of state.sharedTables; track table.name) {
+                        <div class="rc-dataset-tree-item">
+                          <button
+                            type="button"
+                            class="rc-dataset-tree-toggle"
+                            (click)="toggleTableExpanded(table.name)"
+                            [attr.aria-expanded]="isTableExpanded(table.name)"
+                          >
+                            <span
+                              class="fw-semibold font-monospace text-truncate d-flex align-items-center gap-2"
+                            >
+                              <svg
+                                class="rc-section-chevron"
+                                [class.is-rotated]="isTableExpanded(table.name)"
+                                width="10"
+                                height="10"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2.5"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                aria-hidden="true"
+                              >
+                                <polyline points="9 18 15 12 9 6"></polyline>
+                              </svg>
+                              <svg
+                                width="12"
+                                height="12"
+                                viewBox="0 0 24 24"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                stroke-linecap="round"
+                                stroke-linejoin="round"
+                                class="flex-shrink-0 rc-accent-text"
+                                aria-hidden="true"
+                              >
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                ></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="9" y1="21" x2="9" y2="9"></line>
+                              </svg>
+                              <span class="text-truncate">{{
+                                table.name
+                              }}</span>
+                            </span>
+                            <span
+                              class="text-muted font-monospace rc-text-xs flex-shrink-0"
+                            >
+                              {{ table.columns.length }} cols
+                            </span>
+                          </button>
+                          @if (isTableExpanded(table.name)) {
+                            <div
+                              cdkDropList
+                              [cdkDropListConnectedTo]="fieldWellDropListIds()"
+                              [cdkDropListEnterPredicate]="denyDropEntry"
+                              class="rc-dataset-tree-cols"
+                            >
+                              @for (col of table.columns; track col.name) {
+                                <div
+                                  cdkDrag
+                                  [cdkDragData]="table.name + '.' + col.name"
+                                  class="d-flex justify-content-between align-items-center pe-1"
+                                >
+                                  <span
+                                    class="font-monospace text-truncate rc-text-xs text-secondary"
+                                  >
+                                    {{ col.name }}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    class="rc-btn rc-btn-ghost rc-btn-xs py-0 px-1 rc-accent-text"
+                                    (click)="
+                                      quickAssignField(
+                                        table.name + '.' + col.name,
+                                        col.name
+                                      )
+                                    "
+                                    title="Assign to active visual"
+                                    aria-label="Assign column to active visual"
+                                  >
+                                    + Add
+                                  </button>
+                                </div>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  </div>
+                } @else {
+                  <div class="text-center py-3 px-2 rc-data-empty-placeholder">
+                    No external datasets connected.<br />
+                    <a
+                      routerLink="/data-prep"
+                      class="rc-btn rc-btn-outline rc-btn-sm mt-2 d-inline-flex align-items-center gap-2"
+                      title="Connect Data Source in Data Prep"
+                      aria-label="Connect Data Source in Data Prep"
+                    >
+                      <svg
+                        width="14"
+                        height="14"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                        <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                        <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                      </svg>
+                      <span>Connect Data in Data Prep</span>
+                    </a>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div
+          class="rc-tools-section rc-page-tab-group position-relative"
+          [class.active]="activeToolsTab() === 'Format'"
+          [class.is-expanded]="isSectionExpanded('Format')"
+        >
+          <button
+            type="button"
+            class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between px-3 py-2 text-start border-0 border-bottom"
+            [class.active]="activeToolsTab() === 'Format'"
+            [attr.aria-expanded]="isSectionExpanded('Format')"
+            aria-controls="tools-section-format"
+            id="tools-header-format"
+            (click)="toggleSection('Format')"
+            title="Format"
+          >
+            <div
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2 text-truncate"
+            >
+              <svg
+                class="rc-section-chevron"
+                [class.is-rotated]="isSectionExpanded('Format')"
+                width="12"
+                height="12"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2.5"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <polyline points="9 18 15 12 9 6"></polyline>
+              </svg>
+              <span class="rc-section-title">Format</span>
+            </div>
+          </button>
+          @if (isSectionExpanded("Format")) {
+            <div
+              id="tools-section-format"
+              role="region"
+              aria-labelledby="tools-header-format"
+              class="rc-tools-section-body p-3"
+            >
+              <!-- Canvas Settings Card -->
+              <div class="p-3 mb-3 rc-format-panel">
+                <div class="mb-2">
+                  <div class="rc-tools-heading">Canvas Settings</div>
+                  <p class="rc-text-xs text-muted mb-0">
+                    Configure page aspect ratio and pixel dimensions.
+                  </p>
+                </div>
+
+                <div class="mb-2">
+                  <label for="canvas-preset-select" class="rc-dock-label">
+                    Type / Preset
+                  </label>
+                  <select
+                    id="canvas-preset-select"
+                    class="form-select form-select-sm"
+                    [ngModel]="selectedCanvasPreset()"
+                    (ngModelChange)="setCanvasPreset($event)"
+                  >
+                    @for (preset of canvasPresets; track preset.id) {
+                      <option [value]="preset.id">
+                        {{ preset.label }} ({{ preset.width }} ×
+                        {{ preset.height }} px)
+                      </option>
+                    }
+                  </select>
+                </div>
+
+                @if (selectedCanvasPreset() === "Custom") {
+                  <div class="row g-2 mb-2">
+                    <div class="col-6">
+                      <label for="custom-canvas-width" class="rc-dock-label">
+                        Width (px)
+                      </label>
+                      <input
+                        id="custom-canvas-width"
+                        type="number"
+                        min="100"
+                        max="4000"
+                        class="form-control form-control-sm font-monospace"
+                        [ngModel]="customCanvasWidth()"
+                        (ngModelChange)="updateCustomCanvasWidth($event)"
+                      />
+                    </div>
+                    <div class="col-6">
+                      <label for="custom-canvas-height" class="rc-dock-label">
+                        Height (px)
+                      </label>
+                      <input
+                        id="custom-canvas-height"
+                        type="number"
+                        min="100"
+                        max="4000"
+                        class="form-control form-control-sm font-monospace"
+                        [ngModel]="customCanvasHeight()"
+                        (ngModelChange)="updateCustomCanvasHeight($event)"
+                      />
+                    </div>
+                  </div>
+                } @else {
+                  <div class="p-2 rounded mb-2 rc-canvas-settings-tip">
+                    <span class="fw-semibold">Tip:</span> Switch to
+                    <button
+                      type="button"
+                      class="btn btn-link p-0 rc-text-xs align-baseline"
+                      (click)="applyFullHdCustomTip()"
+                    >
+                      Custom (1920 × 1080 px)
+                    </button>
+                    for modern Full HD screens.
+                  </div>
+                }
+
+                <div class="rc-meta-row pt-2 border-top rc-tools-divider pb-0">
+                  <span class="rc-text-xs text-muted">Active Size:</span>
+                  <span
+                    class="font-monospace rc-text-xs fw-semibold text-secondary"
+                  >
+                    {{ activeCanvasDimensions().width }} ×
+                    {{ activeCanvasDimensions().height }} px
+                  </span>
+                </div>
+              </div>
+
+              <!-- Visual Layout & Positioning Card -->
+              @if (userVisuals().length > 0) {
+                <div class="p-3 mb-3 d-flex flex-column gap-2 rc-format-panel">
+                  <div class="mb-1">
+                    <div class="rc-tools-heading">Visual Layout</div>
+                    <p class="rc-text-xs text-muted mb-0">
+                      Manage sizing and arrangement of visuals on this page.
+                    </p>
+                  </div>
+
+                  @if (selectedVisual(); as activeVis) {
+                    <div class="p-2 border rounded rc-surface-subtle mb-1">
+                      <div
+                        class="d-flex align-items-center justify-content-between mb-2"
+                      >
+                        <span class="rc-text-xs fw-bold text-truncate me-2">{{
+                          activeVis.title
+                        }}</span>
+                        <span class="rc-text-2xs font-monospace text-muted">{{
+                          activeVis.width === "full"
+                            ? "100% Width"
+                            : "50% Width"
+                        }}</span>
+                      </div>
+                      <div
+                        class="btn-group btn-group-sm w-100 mb-2"
+                        role="group"
+                      >
+                        <button
+                          type="button"
+                          class="rc-btn rc-btn-sm"
+                          [class.rc-btn-primary]="activeVis.width === 'half'"
+                          [class.rc-btn-outline]="activeVis.width !== 'half'"
+                          (click)="
+                            activeVis.width !== 'half' &&
+                              toggleVisualWidth(activeVis.id)
+                          "
+                        >
+                          Half (50%)
+                        </button>
+                        <button
+                          type="button"
+                          class="rc-btn rc-btn-sm"
+                          [class.rc-btn-primary]="activeVis.width === 'full'"
+                          [class.rc-btn-outline]="activeVis.width !== 'full'"
+                          (click)="
+                            activeVis.width !== 'full' &&
+                              toggleVisualWidth(activeVis.id)
+                          "
+                        >
+                          Full (100%)
+                        </button>
+                      </div>
+                      <div class="d-flex gap-2 mb-2">
+                        <button
+                          type="button"
+                          class="rc-btn rc-btn-outline rc-btn-sm flex-fill"
+                          [disabled]="isFirstVisual(activeVis.id)"
+                          (click)="moveVisualEarlier(activeVis.id)"
+                          title="Move visual earlier in sequence"
+                        >
+                          Move Earlier
+                        </button>
+                        <button
+                          type="button"
+                          class="rc-btn rc-btn-outline rc-btn-sm flex-fill"
+                          [disabled]="isLastVisual(activeVis.id)"
+                          (click)="moveVisualLater(activeVis.id)"
+                          title="Move visual later in sequence"
+                        >
+                          Move Later
+                        </button>
+                      </div>
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-outline-danger rc-btn-sm w-100"
+                        (click)="removeVisual(activeVis.id)"
+                      >
+                        Delete Visual
+                      </button>
+                    </div>
+                  } @else {
+                    <p class="rc-text-xs text-muted mb-0">
+                      Click any visual card on the canvas to configure its
+                      layout and order.
+                    </p>
+                  }
+                </div>
+              }
+
+              <!-- Visual Formatting Card -->
+              <div class="p-3 d-flex flex-column gap-2 rc-format-panel">
+                <div class="mb-1">
+                  <div class="rc-tools-heading">Visual Formatting</div>
+                  <p class="rc-text-xs text-muted mb-0">
+                    Chart display toggles, legend placement, and color theme.
+                  </p>
+                </div>
+
+                <div class="form-check form-switch mb-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="show-title-toggle"
+                    [ngModel]="showVisualTitle()"
+                    (ngModelChange)="setShowVisualTitle($event)"
+                  />
+                  <label
+                    class="form-check-label fw-semibold rc-text-xs"
+                    for="show-title-toggle"
+                  >
+                    Visual Title
+                  </label>
+                </div>
+                <div class="form-check form-switch mb-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="show-grid-toggle"
+                    [ngModel]="showGridlines()"
+                    (ngModelChange)="setShowGridlines($event)"
+                  />
+                  <label
+                    class="form-check-label fw-semibold rc-text-xs"
+                    for="show-grid-toggle"
+                  >
+                    Cartesian Gridlines
+                  </label>
+                </div>
+                <div class="form-check form-switch mb-0">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    id="show-callouts-toggle"
+                    [ngModel]="highlightCallouts()"
+                    (ngModelChange)="setHighlightCallouts($event)"
+                  />
+                  <label
+                    class="form-check-label fw-semibold rc-text-xs"
+                    for="show-callouts-toggle"
+                  >
+                    Highlight Key Callouts
+                  </label>
+                </div>
+                <div class="mt-1">
+                  <label class="rc-dock-label" for="legend-position-select">
+                    Legend Position
+                  </label>
+                  <select
+                    id="legend-position-select"
+                    class="form-select form-select-sm"
+                    [ngModel]="legendPosition()"
+                    (ngModelChange)="setLegendPosition($event)"
+                  >
+                    <option value="top">Top</option>
+                    <option value="bottom">Bottom</option>
+                    <option value="right">Right</option>
+                    <option value="hidden">Hidden</option>
+                  </select>
+                </div>
+                <div class="mt-2">
+                  <label class="rc-dock-label" for="palette-select">
+                    Color Theme
+                  </label>
+                  <select
+                    id="palette-select"
+                    class="form-select form-select-sm"
+                    [ngModel]="selectedPalette()"
+                    (ngModelChange)="setPalette($event)"
+                  >
+                    @for (preset of colorPalettePresets; track preset.id) {
+                      <option [value]="preset.id">{{ preset.label }}</option>
+                    }
+                  </select>
+                </div>
+
+                @if (selectedPalette() === "custom") {
+                  <div class="mt-2 p-2 border rounded rc-surface-subtle">
+                    <label class="rc-dock-label mb-1" for="custom-color-picker">
+                      Custom Color
+                    </label>
+                    <div class="d-flex align-items-center gap-2">
+                      <input
+                        type="color"
+                        id="custom-color-picker"
+                        class="form-control form-control-color form-control-sm border-0 p-0"
+                        style="width: 36px; height: 31px; cursor: pointer;"
+                        [ngModel]="customColor()"
+                        (ngModelChange)="setCustomColor($event)"
+                        title="Choose custom chart color"
+                        aria-label="Choose custom chart color"
+                      />
+                      <input
+                        type="text"
+                        id="custom-color-hex"
+                        class="form-control form-control-sm font-monospace"
+                        [ngModel]="customColor()"
+                        (ngModelChange)="setCustomColor($event)"
+                        placeholder="#2563EB"
+                        maxlength="7"
+                        aria-label="Custom color hex code"
+                      />
+                    </div>
+                  </div>
+                }
+
+                <div class="rc-meta-row pt-2 border-top rc-tools-divider pb-0 mt-1">
+                  <span class="rc-text-xs text-muted">Active Palette:</span>
+                  <span
+                    class="font-monospace rc-text-xs fw-semibold d-inline-flex align-items-center gap-1"
+                  >
+                    <span
+                      class="d-inline-block rounded-circle border"
+                      [style.backgroundColor]="activePaletteColor()"
+                      style="width: 10px; height: 10px;"
+                    ></span>
+                    {{ activePaletteColor() }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <ng-template #archetypeIcon let-archetype let-size="size">
+    @switch (archetype) {
+      @case ("Bar") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="18" y1="20" x2="18" y2="10"></line>
+          <line x1="12" y1="20" x2="12" y2="4"></line>
+          <line x1="6" y1="20" x2="6" y2="14"></line>
+        </svg>
+      }
+      @case ("Line") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+        </svg>
+      }
+      @case ("Area") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M3 20h18"></path>
+          <path d="M3 16l5-7 5 4 8-9v12H3z"></path>
+        </svg>
+      }
+      @case ("Geo Map") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polygon
+            points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"
+          ></polygon>
+          <line x1="8" y1="2" x2="8" y2="18"></line>
+          <line x1="16" y1="6" x2="16" y2="22"></line>
+        </svg>
+      }
+      @case ("Donut") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <circle cx="12" cy="12" r="10"></circle>
+          <circle cx="12" cy="12" r="4"></circle>
+          <line x1="12" y1="2" x2="12" y2="8"></line>
+        </svg>
+      }
+      @case ("Matrix") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+          <line x1="3" y1="9" x2="21" y2="9"></line>
+          <line x1="3" y1="15" x2="21" y2="15"></line>
+          <line x1="9" y1="3" x2="9" y2="21"></line>
+          <line x1="15" y1="3" x2="15" y2="21"></line>
+        </svg>
+      }
+      @case ("Gauge") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M12 2a10 10 0 0 0-10 10c0 4.1 2.5 7.6 6.1 9.1"></path>
+          <path d="M15.9 21.1c3.6-1.5 6.1-5 6.1-9.1a10 10 0 0 0-10-10"></path>
+          <line x1="12" y1="12" x2="16" y2="8"></line>
+          <circle cx="12" cy="12" r="2"></circle>
+        </svg>
+      }
+      @case ("RAX MeasureCard") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+          <line x1="7" y1="8" x2="17" y2="8"></line>
+          <line x1="7" y1="12" x2="13" y2="12"></line>
+          <line x1="7" y1="16" x2="10" y2="16"></line>
+        </svg>
+      }
+      @case ("Slicer") {
+        <svg
+          [attr.width]="size || 14"
+          [attr.height]="size || 14"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.8"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+        </svg>
+      }
+    }
+  </ng-template>
+</div>
