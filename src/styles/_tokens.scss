@@ -1,0 +1,247 @@
+// ============================================================================
+// RollerCoaster Design System Tokens (src/styles/_tokens.scss)
+// Compliant with WCAG 2.1 Level AA, EN 301 549 V2.1.2, and RGAA 4.1.2
+// ============================================================================
+
+:root,
+[data-bs-theme="light"] {
+  // --------------------------------------------------------------------------
+  // 1. Core Brand & Palette Primitives
+  // --------------------------------------------------------------------------
+  --rc-primary: #FF981A;
+  --rc-primary-dark: #E65100;
+  --rc-primary-hover: #FFA73B;
+  --rc-primary-subtle: #FFF4E5;
+  --rc-primary-glow: rgba(255, 152, 26, 0.25);
+
+  --rc-surface-light: #F2F2F2;
+  --rc-surface-dark: #333333;
+  --rc-neutral-soft: #B9C1C6;
+  --rc-text-pure: #FFFFFF;
+  --rc-text-dark: #333333;
+
+  // --------------------------------------------------------------------------
+  // 2. Active Theme Surfaces & Borders (Light Mode)
+  // --------------------------------------------------------------------------
+  --rc-canvas-bg: #F2F2F2;
+  --rc-card-bg: #FFFFFF;
+  --rc-surface-panel: #FAFAFA;
+  --rc-surface-subtle: #F0F3F5;
+  --rc-surface-hover: rgba(0, 0, 0, 0.04);
+  --rc-surface-active: rgba(255, 152, 26, 0.12);
+
+  --rc-card-border: #D9DEE2;
+  --rc-border-color: #D9DEE2;
+  --rc-border-subtle: #E8ECEF;
+  --rc-border-strong: #B9C1C6;
+
+  // Typography Colors
+  --rc-text-primary: #333333;
+  --rc-text-secondary: #475569;
+  --rc-text-muted: #475569;
+  --rc-accent-text: #C64400;
+  --rc-rail-active-bg: #454039;
+  --rc-status-bg: #1B65A4;
+  --rc-status-error-bg: #B3262D;
+  --rc-statusbar-bg: #252B30;
+
+  // --------------------------------------------------------------------------
+  // 3. Semantic Status Tokens (Light Mode - WCAG Level AA compliant)
+  // --------------------------------------------------------------------------
+  --rc-status-success-bg: #EAF6EF;
+  --rc-status-success-text: #18784D;
+  --rc-status-success-border: #B2DEC4;
+
+  --rc-status-warning-bg: #FFF4E5;
+  --rc-status-warning-text: #8A4B00;
+  --rc-status-warning-border: #FCD6A8;
+
+  --rc-status-danger-bg: #FFF3F2;
+  --rc-status-danger-text: #B3261E;
+  --rc-status-danger-border: #F9C3C0;
+
+  --rc-status-info-bg: #EBF3FB;
+  --rc-status-info-text: #1B65A4;
+  --rc-status-info-border: #BCE0FD;
+
+  // --------------------------------------------------------------------------
+  // 4. Typography System
+  // --------------------------------------------------------------------------
+  --rc-font-sans: 'Assistant', 'Assitant', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --rc-font-family: var(--rc-font-sans);
+  --rc-font-mono: 'Consolas', 'Monaco', 'Courier New', monospace;
+  --rc-font-heading: 'Assistant', 'Assitant', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --rc-headings-font-family: var(--rc-font-heading);
+
+  --bs-body-font-family: var(--rc-font-sans);
+  --bs-font-sans-serif: var(--rc-font-sans);
+
+  // Typographic Scale
+  --rc-font-size-2xs: 10px;
+  --rc-font-size-xs: 11px;
+  --rc-font-size-sm: 12px;
+  --rc-font-size-base: 13px;
+  --rc-font-size-md: 14px;
+  --rc-font-size-lg: 16px;
+  --rc-font-size-xl: 18px;
+  --rc-font-size-2xl: 22px;
+  --rc-font-size-3xl: 28px;
+
+  --rc-font-weight-normal: 400;
+  --rc-font-weight-medium: 500;
+  --rc-font-weight-semibold: 600;
+  --rc-font-weight-bold: 700;
+
+  --rc-line-height-tight: 1.25;
+  --rc-line-height-base: 1.45;
+  --rc-line-height-relaxed: 1.6;
+
+  // --------------------------------------------------------------------------
+  // 5. Border Radii & Shadows
+  // --------------------------------------------------------------------------
+  --rc-radius-xs: 3px;
+  --rc-radius-sm: 4px;
+  --rc-radius-md: 6px;
+  --rc-radius-lg: 8px;
+  --rc-radius-xl: 12px;
+  --rc-radius-pill: 9999px;
+
+  --rc-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --rc-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.06);
+  --rc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --rc-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --rc-shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.18);
+
+  // --------------------------------------------------------------------------
+  // 6. Transitions & Motion
+  // --------------------------------------------------------------------------
+  --rc-transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --rc-transition-base: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --rc-transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  // --------------------------------------------------------------------------
+  // 7. Z-Index
+  // --------------------------------------------------------------------------
+  --rc-z-canvas: 1;
+  --rc-z-utility: 10;
+  --rc-z-toolbar: 100;
+  --rc-z-modal: 1000;
+
+  // --------------------------------------------------------------------------
+  // 8. Layout Dimensions
+  // --------------------------------------------------------------------------
+  --rc-rail-width: 48px;
+  --rc-ribbon-height: 40px;
+  --rc-formula-height: 36px;
+  --rc-status-height: 28px;
+  --rc-utility-width: 320px;
+  --rc-tools-dock-width: 320px;
+  --rc-mobile-header-height: 60px;
+}
+
+// ============================================================================
+// Dark Mode Overrides
+// ============================================================================
+[data-bs-theme="dark"] {
+  // Surfaces & Backgrounds
+  --rc-canvas-bg: #1A1D20;
+  --rc-card-bg: #23272B;
+  --rc-surface-panel: #1E2226;
+  --rc-surface-subtle: #2A2F34;
+  --rc-surface-hover: rgba(255, 255, 255, 0.06);
+  --rc-surface-active: rgba(255, 152, 26, 0.2);
+  --rc-primary-subtle: #38250E;
+
+  // Borders
+  --rc-card-border: #383E44;
+  --rc-border-color: #383E44;
+  --rc-border-subtle: #2F343A;
+  --rc-border-strong: #4F575F;
+
+  // Typography Colors
+  --rc-text-primary: #FFFFFF;
+  --rc-text-secondary: #C6CDD2;
+  --rc-text-muted: #8E98A0;
+  --rc-accent-text: #FFA73B;
+
+  // Rail & Status bar
+  --rc-rail-active-bg: #38342E;
+  --rc-statusbar-bg: #16181B;
+
+  // Semantic Status Tokens (Dark Mode)
+  --rc-status-success-bg: #143322;
+  --rc-status-success-text: #57D38C;
+  --rc-status-success-border: #1E5033;
+
+  --rc-status-warning-bg: #38250E;
+  --rc-status-warning-text: #FFA73B;
+  --rc-status-warning-border: #5A3C17;
+
+  --rc-status-danger-bg: #381515;
+  --rc-status-danger-text: #FF7B7B;
+  --rc-status-danger-border: #5C2222;
+
+  --rc-status-info-bg: #132A3E;
+  --rc-status-info-text: #73B9F5;
+  --rc-status-info-border: #1D496D;
+
+  // Shadows (Deepened for dark backgrounds)
+  --rc-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --rc-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --rc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+  --rc-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+  --rc-shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.7);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-bs-theme="light"]) {
+    --rc-canvas-bg: #1A1D20;
+    --rc-card-bg: #23272B;
+    --rc-surface-panel: #1E2226;
+    --rc-surface-subtle: #2A2F34;
+    --rc-surface-hover: rgba(255, 255, 255, 0.06);
+    --rc-surface-active: rgba(255, 152, 26, 0.2);
+    --rc-primary-subtle: #38250E;
+
+    --rc-card-border: #383E44;
+    --rc-border-color: #383E44;
+    --rc-border-subtle: #2F343A;
+    --rc-border-strong: #4F575F;
+
+    --rc-text-primary: #FFFFFF;
+    --rc-text-secondary: #C6CDD2;
+    --rc-text-muted: #8E98A0;
+    --rc-accent-text: #FFA73B;
+
+    --rc-rail-active-bg: #38342E;
+    --rc-statusbar-bg: #16181B;
+
+    --rc-status-success-bg: #143322;
+    --rc-status-success-text: #57D38C;
+    --rc-status-success-border: #1E5033;
+
+    --rc-status-warning-bg: #38250E;
+    --rc-status-warning-text: #FFA73B;
+    --rc-status-warning-border: #5A3C17;
+
+    --rc-status-danger-bg: #381515;
+    --rc-status-danger-text: #FF7B7B;
+    --rc-status-danger-border: #5C2222;
+
+    --rc-status-info-bg: #132A3E;
+    --rc-status-info-text: #73B9F5;
+    --rc-status-info-border: #1D496D;
+
+    --rc-shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --rc-shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.4);
+    --rc-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5);
+    --rc-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.6);
+    --rc-shadow-floating: 0 12px 32px rgba(0, 0, 0, 0.7);
+  }
+}
+
+// Global WCAG AA contrast enhancements
+.text-white-50 {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+

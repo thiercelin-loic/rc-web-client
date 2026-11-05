@@ -1,0 +1,67 @@
+// ============================================================================
+// Theme Maps (src/styles/_maps.scss)
+// ============================================================================
+@use 'variables' as vars;
+
+$rc-theme-colors: (
+  "primary": vars.$rc-primary,
+  "secondary": vars.$rc-neutral-soft,
+  "success": vars.$rc-status-success-text,
+  "warning": vars.$rc-primary-dark,
+  "danger": vars.$rc-status-danger-text,
+  "light": vars.$rc-surface-light,
+  "dark": vars.$rc-surface-dark
+);
+
+$rc-zindex-levels: (
+  "canvas": 1,
+  "utility": 10,
+  "toolbar": 100,
+  "modal": 1000
+);
+
+// CSS Custom Property Bridges for data-bs-theme="light" and data-bs-theme="dark"
+[data-bs-theme="light"] {
+  --bs-primary: #{vars.$rc-primary};
+  --bs-primary-rgb: 255, 152, 26;
+  --bs-secondary: #{vars.$rc-neutral-soft};
+  --bs-body-bg: #{vars.$rc-surface-light};
+  --bs-body-color: #{vars.$rc-text-dark};
+  --bs-focus-ring-color: #{vars.$rc-primary-dark};
+  --bs-border-color: #D9DEE2;
+  --bs-card-bg: #FFFFFF;
+  --bs-card-border-color: #D9DEE2;
+  --bs-tertiary-bg: #FAFAFA;
+  --bs-secondary-bg: #F0F3F5;
+}
+
+[data-bs-theme="dark"] {
+  --bs-primary: #{vars.$rc-primary};
+  --bs-primary-rgb: 255, 152, 26;
+  --bs-secondary: #{vars.$rc-neutral-soft};
+  --bs-body-bg: #1A1D20;
+  --bs-body-color: #{vars.$rc-text-pure};
+  --bs-focus-ring-color: #{vars.$rc-primary};
+  --bs-border-color: #383E44;
+  --bs-card-bg: #23272B;
+  --bs-card-border-color: #383E44;
+  --bs-tertiary-bg: #1E2226;
+  --bs-secondary-bg: #2A2F34;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-bs-theme="light"]) {
+    --bs-primary: #{vars.$rc-primary};
+    --bs-primary-rgb: 255, 152, 26;
+    --bs-secondary: #{vars.$rc-neutral-soft};
+    --bs-body-bg: #1A1D20;
+    --bs-body-color: #{vars.$rc-text-pure};
+    --bs-focus-ring-color: #{vars.$rc-primary};
+    --bs-border-color: #383E44;
+    --bs-card-bg: #23272B;
+    --bs-card-border-color: #383E44;
+    --bs-tertiary-bg: #1E2226;
+    --bs-secondary-bg: #2A2F34;
+  }
+}
+
