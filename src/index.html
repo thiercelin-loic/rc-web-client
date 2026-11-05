@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="utf-8">
+  <title>RollerCoaster</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="RollerCoaster Business Intelligence &amp; Analytics Workspace.">
+  <link rel="icon" type="image/svg+xml" href="assets/icon.svg">
+  <script>
+    (function () {
+      try {
+        var preference = localStorage.getItem('rc_theme_preference');
+        var theme = 'light';
+        if (preference === 'dark' || preference === 'light') {
+          theme = preference;
+        } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+          theme = 'dark';
+        }
+        document.documentElement.setAttribute('data-bs-theme', theme);
+      } catch (e) {}
+    })();
+  </script>
+</head>
+<body>
+  <rc-root></rc-root>
+</body>
+</html>
