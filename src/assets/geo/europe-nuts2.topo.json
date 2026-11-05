@@ -1,0 +1,87 @@
+{
+  "type": "Topology",
+  "bbox": [-10.5, 35.0, 31.5, 71.0],
+  "transform": {
+    "scale": [0.0042, 0.0036],
+    "translate": [-10.5, 35.0]
+  },
+  "objects": {
+    "europe_nuts2": {
+      "type": "GeometryCollection",
+      "geometries": [
+        {
+          "type": "Polygon",
+          "id": "DACH",
+          "properties": {
+            "id": "DACH",
+            "nutsCode": "DE-NW",
+            "name": "DACH (DE / AT / CH)",
+            "PrimaryNuts2": "DE-NW (North Rhine-Westphalia)",
+            "centerLon": 10.4,
+            "centerLat": 50.1
+          },
+          "arcs": [[0]]
+        },
+        {
+          "type": "Polygon",
+          "id": "Benelux",
+          "properties": {
+            "id": "Benelux",
+            "nutsCode": "NL-ZH",
+            "name": "Benelux (NL / BE / LU)",
+            "PrimaryNuts2": "NL-ZH (South Holland)",
+            "centerLon": 4.9,
+            "centerLat": 51.5
+          },
+          "arcs": [[1]]
+        },
+        {
+          "type": "Polygon",
+          "id": "France",
+          "properties": {
+            "id": "France",
+            "nutsCode": "FR-IDF",
+            "name": "France",
+            "PrimaryNuts2": "FR-IDF (Île-de-France)",
+            "centerLon": 2.3,
+            "centerLat": 46.8
+          },
+          "arcs": [[2]]
+        },
+        {
+          "type": "Polygon",
+          "id": "Nordics",
+          "properties": {
+            "id": "Nordics",
+            "nutsCode": "SE-ST",
+            "name": "Nordics (SE / DK / NO / FI)",
+            "PrimaryNuts2": "SE-ST (Stockholm)",
+            "centerLon": 15.2,
+            "centerLat": 60.1
+          },
+          "arcs": [[3]]
+        },
+        {
+          "type": "Polygon",
+          "id": "Other EEA",
+          "properties": {
+            "id": "Other EEA",
+            "nutsCode": "IT-MI",
+            "name": "Other EEA (IT / ES / PL)",
+            "PrimaryNuts2": "IT-LOM / ES-MD",
+            "centerLon": 12.5,
+            "centerLat": 43.5
+          },
+          "arcs": [[4]]
+        }
+      ]
+    }
+  },
+  "arcs": [
+    [[4000, 3800], [1200, 0], [200, 1400], [-1400, 200], [0, -1600]],
+    [[3300, 4200], [700, 0], [0, 900], [-700, 0], [0, -900]],
+    [[2100, 2600], [1400, 200], [200, 1400], [-1400, 200], [-200, -1800]],
+    [[4800, 5800], [1800, 400], [400, 2200], [-2000, -200], [-200, -2400]],
+    [[4200, 1500], [1600, 300], [-300, 1800], [-1300, -200], [0, -1900]]
+  ]
+}
