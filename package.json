@@ -1,0 +1,41 @@
+{
+  "name": "rc-web-client",
+  "version": "0.0.1",
+  "license": "Apache-2.0",
+  "private": true,
+  "scripts": {
+    "postinstall": "node scripts/verify-telemetry.mjs",
+    "prebuild": "node scripts/verify-telemetry.mjs",
+    "pretest": "node scripts/verify-telemetry.mjs",
+    "ng": "ng",
+    "start": "ng serve --port 4200",
+    "build": "ng build",
+    "watch": "ng build --watch --configuration development",
+    "test": "ng test --watch=false"
+  },
+  "dependencies": {
+    "@angular/cdk": "^22.2.3",
+    "@angular/common": "^22.2.3",
+    "@angular/compiler": "^22.2.3",
+    "@angular/core": "^22.2.3",
+    "@angular/forms": "^22.2.3",
+    "@angular/platform-browser": "^22.2.3",
+    "@angular/router": "^22.2.3",
+    "bootstrap": "5.3.6",
+    "chart.js": "^4.5.0",
+    "chartjs-chart-geo": "^4.3.6",
+    "rxjs": "^7.8.0",
+    "tslib": "^2.8.0"
+  },
+  "devDependencies": {
+    "@angular/build": "^22.2.3",
+    "@angular/cli": "^22.2.3",
+    "@angular/compiler-cli": "^22.2.3",
+    "@vitest/coverage-v8": "^5.0.0",
+    "axe-core": "^4.10.2",
+    "jsdom": "^26.0.0",
+    "sass": "^1.85.0",
+    "typescript": "~6.0.0",
+    "vitest": "^5.0.0"
+  }
+}
