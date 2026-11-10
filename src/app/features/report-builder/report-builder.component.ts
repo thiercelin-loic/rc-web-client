@@ -31,6 +31,7 @@ import {
 } from "../../core/state-manager.service";
 import { ExportService } from "../../core/export.service";
 import { SemanticModelService } from "../../core/semantic-model.service";
+import { IngestionWorkflowService } from "../../core/ingestion-workflow.service";
 import {
   RaxQueryService,
   VisualQueryRequestOptions,
@@ -389,6 +390,7 @@ const NUMERIC_TYPE_PATTERN = /int|dec|num|float|double|real|money|long/i;
 export class ReportBuilderComponent implements OnInit {
   public readonly state = inject(StateManagerService);
   public readonly exportService = inject(ExportService);
+  public readonly ingestion = inject(IngestionWorkflowService);
   private readonly semanticModelService = inject(SemanticModelService);
   private readonly raxQuery = inject(RaxQueryService);
 

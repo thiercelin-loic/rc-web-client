@@ -222,5 +222,41 @@ describe('AppComponent', () => {
     const children = Array.from(rightCluster.children);
     expect(children.indexOf(projectContainer!)).toBeLessThan(children.indexOf(exportContainer!));
   });
+
+  it('provides global Get Data ribbon button and Load/Transform Navigator workflow', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const app = fixture.componentInstance;
+    const getDataBtn = fixture.nativeElement.querySelector('#ribbon-get-data-btn') as HTMLButtonElement;
+    expect(getDataBtn).toBeTruthy();
+
+    getDataBtn.click();
+    fixture.detectChanges();
+    expect(app.ingestion.isGetDataModalOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('#get-data-modal-title')).toBeTruthy();
+
+    app.ingestion.closeGetDataModal();
+    fixture.detectChanges();
+    expect(app.ingestion.isGetDataModalOpen()).toBe(false);
+
+    // Trigger Navigator and Load directly into StateManagerService
+    app.ingestion.openNavigatorForText(
+      'sales_global.csv',
+      'CSV',
+      'CSV',
+      'Region,Revenue\nEurope,1200\nNorth America,2400',
+    );
+    fixture.detectChanges();
+    expect(app.ingestion.isNavigatorModalOpen()).toBe(true);
+    expect(fixture.nativeElement.querySelector('#navigator-modal-title')).toBeTruthy();
+
+    app.ingestion.confirmNavigatorAndLoad('load');
+    fixture.detectChanges();
+    expect(app.ingestion.isNavigatorModalOpen()).toBe(false);
+    expect(app.state.sharedTables.some((t) => t.name === 'sales_global')).toBe(true);
+    expect(app.state.getTableRows('sales_global').length).toBe(2);
+  });
 });
 

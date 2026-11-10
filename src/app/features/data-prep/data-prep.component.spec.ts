@@ -244,4 +244,88 @@ describe('DataPrepComponent', () => {
     component.removeStep(1);
     expect(component.columns().length).toBe(2);
   });
+
+  it('manages Get Data modal connectors, filtering by category and search term', async () => {
+    const fixture = TestBed.createComponent(DataPrepComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    expect(component.isGetDataModalOpen()).toBe(false);
+
+    component.onAddSource();
+    expect(component.isGetDataModalOpen()).toBe(true);
+
+    component.onSelectConnectorCategory('file');
+    expect(component.filteredConnectors().every((c) => c.category === 'file')).toBe(true);
+    expect(component.filteredConnectors().some((c) => c.id === 'excel')).toBe(true);
+
+    component.connectorSearchQuery.set('SQL');
+    component.onSelectConnectorCategory('all');
+    expect(component.filteredConnectors().some((c) => c.name.includes('SQL'))).toBe(true);
+
+    component.onSelectConnector('sqlserver');
+    expect(component.selectedConnectorId()).toBe('sqlserver');
+
+    component.onCloseGetDataModal();
+    expect(component.isGetDataModalOpen()).toBe(false);
+  });
+
+  it('opens pre-ingestion Navigator modal, previews raw unpromoted sheets, and generates standard 4-step Power Query pipeline', async () => {
+    const fixture = TestBed.createComponent(DataPrepComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    expect(component.isNavigatorModalOpen()).toBe(false);
+
+    // Open Navigator for workbook/CSV
+    component.openNavigatorForText(
+      'Financial Sample.xlsx',
+      'XLSX',
+      'XLSX',
+      'Segment,Country,Product\nGovernment,Canada,Carretera\nMidmarket,Germany,Carretera',
+    );
+
+    expect(component.isNavigatorModalOpen()).toBe(true);
+    expect(component.navigatorSheets().length).toBeGreaterThanOrEqual(1);
+
+    const sheet = component.selectedNavigatorSheet();
+    expect(sheet).toBeDefined();
+    // Navigator raw preview starts with Column1, Column2... and row 0 has header text
+    expect(sheet?.columns[0].name).toBe('Column1');
+    expect(sheet?.rows[0]['Column1']).toBe('Segment');
+
+    // Confirm Navigator import
+    component.confirmNavigatorAndLoad();
+    expect(component.isNavigatorModalOpen()).toBe(false);
+
+    // Assert 4-step Power Query chain
+    const steps = component.appliedSteps();
+    expect(steps.length).toBe(4);
+    expect(steps[0].type).toBe('FileSource');
+    expect(steps[1].type).toBe('Navigation');
+    expect(steps[2].type).toBe('PromoteHeaders');
+    expect(steps[3].type).toBe('DetectDataType');
+
+    // Final state (Step 3: Changed Type) has promoted headers and coerced data rows
+    expect(component.selectedStepIndex()).toBe(3);
+    expect(component.columns().map((c) => c.name)).toEqual(['Segment', 'Country', 'Product']);
+    expect(component.rows().length).toBe(2);
+    expect(component.activeStepFormula()).toContain('Table.TransformColumnTypes');
+
+    // Time-travel back to Step 1 (Navigation): unpromoted raw columns
+    component.onSelectStep(1);
+    expect(component.selectedStepIndex()).toBe(1);
+    expect(component.columns().map((c) => c.name)).toEqual(['Column1', 'Column2', 'Column3']);
+    expect(component.rows().length).toBe(3); // includes row 0 (Segment, Country...)
+    expect(component.activeStepFormula()).toContain('Item="Sheet1",Kind="Sheet"');
+
+    // Time-travel forward to Step 2 (Promoted Headers)
+    component.onSelectStep(2);
+    expect(component.selectedStepIndex()).toBe(2);
+    expect(component.columns().map((c) => c.name)).toEqual(['Segment', 'Country', 'Product']);
+    expect(component.rows().length).toBe(2);
+    expect(component.activeStepFormula()).toContain('Table.PromoteHeaders');
+  });
 });

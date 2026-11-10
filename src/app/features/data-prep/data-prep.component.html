@@ -22,7 +22,9 @@
           (click)="activeMobileTab.set('data')"
           id="mobile-tab-data"
         >
-          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+          <span
+            class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+          >
             <svg
               width="14"
               height="14"
@@ -56,7 +58,9 @@
           (click)="activeMobileTab.set('tools')"
           id="mobile-tab-tools"
         >
-          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+          <span
+            class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+          >
             <svg
               width="14"
               height="14"
@@ -89,7 +93,9 @@
     [class.d-md-flex]="true"
   >
     <!-- Standardized Workspace Action Toolbar -->
-    <div class="rc-page-header rc-workspace-header d-flex justify-content-end align-items-center">
+    <div
+      class="rc-page-header rc-workspace-header d-flex justify-content-end align-items-center"
+    >
       <div class="d-flex align-items-center gap-2">
         <button
           type="button"
@@ -138,31 +144,46 @@
             stroke-linejoin="round"
             aria-hidden="true"
           >
-            <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"></path>
+            <path
+              d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"
+            ></path>
           </svg>
           <span>Run Incremental Refresh</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
+          (click)="onApplyAndLoad()"
+          id="data-prep-apply-close-btn"
+          title="Commit pipeline transformations and load to semantic model"
+          aria-label="Close and Apply transformations"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Close &amp; Apply</span>
         </button>
       </div>
     </div>
 
     <!-- Top R-Query Ribbon -->
-    <header
-      class="rc-rquery-ribbon"
-      aria-label="R-Query Transformation Ribbon"
-    >
+    <header class="rc-rquery-ribbon" aria-label="R-Query Transformation Ribbon">
       <div class="ribbon-action-group">
-        <input
-          #sourceFileInput
-          type="file"
-          accept=".csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro"
-          class="d-none"
-          (change)="onSourceFileSelected($event)"
-          aria-label="Upload dataset file"
-        />
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-          (click)="onAddSource(sourceFileInput)"
+          (click)="onAddSource()"
           title="Connect New Structured Stream or File (CSV, TSV, XLSX, Parquet, JSON)"
           id="data-prep-add-source-btn"
         >
@@ -202,7 +223,9 @@
             stroke-linejoin="round"
             aria-hidden="true"
           >
-            <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            <polygon
+              points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"
+            ></polygon>
           </svg>
           <span>Filter</span>
         </button>
@@ -228,7 +251,9 @@
           >
             <polyline points="23 4 23 10 17 10"></polyline>
             <polyline points="1 20 1 14 7 14"></polyline>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            <path
+              d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
+            ></path>
           </svg>
           <span>Change Type</span>
         </button>
@@ -374,10 +399,12 @@
         class="rc-rquery-config-bar border-bottom px-3 py-2 bg-body-tertiary"
         aria-label="R-Query Transformation Parameters"
       >
-        @if (panel === 'filter') {
+        @if (panel === "filter") {
           <div class="d-flex flex-wrap align-items-end gap-2">
             <div>
-              <label class="form-label  mb-1" for="filter-col-select">Column</label>
+              <label class="form-label mb-1" for="filter-col-select"
+                >Column</label
+              >
               <select
                 id="filter-col-select"
                 class="form-select form-select-sm"
@@ -390,7 +417,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="filter-op-select">Operator</label>
+              <label class="form-label mb-1" for="filter-op-select"
+                >Operator</label
+              >
               <select
                 id="filter-op-select"
                 class="form-select form-select-sm"
@@ -402,9 +431,11 @@
                 }
               </select>
             </div>
-            @if (filterOperator() !== 'notEmpty') {
+            @if (filterOperator() !== "notEmpty") {
               <div>
-                <label class="form-label  mb-1" for="filter-val-input">Value</label>
+                <label class="form-label mb-1" for="filter-val-input"
+                  >Value</label
+                >
                 <input
                   id="filter-val-input"
                   type="text"
@@ -415,9 +446,11 @@
                 />
               </div>
             }
-            @if (filterOperator() === 'between') {
+            @if (filterOperator() === "between") {
               <div>
-                <label class="form-label  mb-1" for="filter-val-to-input">End (Exclusive)</label>
+                <label class="form-label mb-1" for="filter-val-to-input"
+                  >End (Exclusive)</label
+                >
                 <input
                   id="filter-val-to-input"
                   type="text"
@@ -448,10 +481,12 @@
           </div>
         }
 
-        @if (panel === 'changeType') {
+        @if (panel === "changeType") {
           <div class="d-flex flex-wrap align-items-end gap-2">
             <div>
-              <label class="form-label  mb-1" for="changetype-col-select">Column</label>
+              <label class="form-label mb-1" for="changetype-col-select"
+                >Column</label
+              >
               <select
                 id="changetype-col-select"
                 class="form-select form-select-sm"
@@ -464,7 +499,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="changetype-target-select">Target Type</label>
+              <label class="form-label mb-1" for="changetype-target-select"
+                >Target Type</label
+              >
               <select
                 id="changetype-target-select"
                 class="form-select form-select-sm"
@@ -508,10 +545,12 @@
           </div>
         }
 
-        @if (panel === 'unpivot') {
+        @if (panel === "unpivot") {
           <div class="d-flex flex-wrap align-items-end gap-2">
             <div>
-              <label class="form-label  mb-1" for="unpivot-mode-select">Mode</label>
+              <label class="form-label mb-1" for="unpivot-mode-select"
+                >Mode</label
+              >
               <select
                 id="unpivot-mode-select"
                 class="form-select form-select-sm"
@@ -519,7 +558,9 @@
                 (change)="unpivotMode.set($any($event.target).value)"
               >
                 <option value="selected">Unpivot Selected Columns</option>
-                <option value="other">Unpivot Other Columns (Keep Selected Anchored)</option>
+                <option value="other">
+                  Unpivot Other Columns (Keep Selected Anchored)
+                </option>
               </select>
             </div>
             <div class="d-flex flex-wrap gap-1 align-items-center">
@@ -536,7 +577,9 @@
               }
             </div>
             <div>
-              <label class="form-label  mb-1" for="unpivot-attr-input">Attribute Column</label>
+              <label class="form-label mb-1" for="unpivot-attr-input"
+                >Attribute Column</label
+              >
               <input
                 id="unpivot-attr-input"
                 type="text"
@@ -546,7 +589,9 @@
               />
             </div>
             <div>
-              <label class="form-label  mb-1" for="unpivot-val-input">Value Column</label>
+              <label class="form-label mb-1" for="unpivot-val-input"
+                >Value Column</label
+              >
               <input
                 id="unpivot-val-input"
                 type="text"
@@ -575,17 +620,19 @@
           </div>
         }
 
-        @if (panel === 'groupBy') {
+        @if (panel === "groupBy") {
           <div class="d-flex flex-wrap align-items-end gap-2">
             <div>
-              <span class="form-label  d-block mb-1">Group By Keys</span>
+              <span class="form-label d-block mb-1">Group By Keys</span>
               <div class="d-flex flex-wrap gap-1">
                 @for (col of columns(); track col.name) {
                   <button
                     type="button"
                     class="rc-btn rc-btn-sm"
                     [class.rc-btn-primary]="groupByColumns().includes(col.name)"
-                    [class.rc-btn-outline]="!groupByColumns().includes(col.name)"
+                    [class.rc-btn-outline]="
+                      !groupByColumns().includes(col.name)
+                    "
                     (click)="toggleGroupByColumnSelection(col.name)"
                   >
                     {{ col.name }}
@@ -594,7 +641,9 @@
               </div>
             </div>
             <div>
-              <label class="form-label  mb-1" for="groupby-fn-select">Operation</label>
+              <label class="form-label mb-1" for="groupby-fn-select"
+                >Operation</label
+              >
               <select
                 id="groupby-fn-select"
                 class="form-select form-select-sm"
@@ -609,7 +658,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="groupby-src-select">Metric Column</label>
+              <label class="form-label mb-1" for="groupby-src-select"
+                >Metric Column</label
+              >
               <select
                 id="groupby-src-select"
                 class="form-select form-select-sm"
@@ -622,7 +673,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="groupby-out-input">New Column Name</label>
+              <label class="form-label mb-1" for="groupby-out-input"
+                >New Column Name</label
+              >
               <input
                 id="groupby-out-input"
                 type="text"
@@ -651,10 +704,12 @@
           </div>
         }
 
-        @if (panel === 'customColumn') {
+        @if (panel === "customColumn") {
           <div class="d-flex flex-wrap align-items-end gap-2">
             <div>
-              <label class="form-label  mb-1" for="custom-mode-select">Column Kind</label>
+              <label class="form-label mb-1" for="custom-mode-select"
+                >Column Kind</label
+              >
               <select
                 id="custom-mode-select"
                 class="form-select form-select-sm"
@@ -662,11 +717,15 @@
                 (change)="customColumnMode.set($any($event.target).value)"
               >
                 <option value="expression">Custom Formula Expression</option>
-                <option value="index">Surrogate Key Index Column (1, 2, 3...)</option>
+                <option value="index">
+                  Surrogate Key Index Column (1, 2, 3...)
+                </option>
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="custom-name-input">Column Name</label>
+              <label class="form-label mb-1" for="custom-name-input"
+                >Column Name</label
+              >
               <input
                 id="custom-name-input"
                 type="text"
@@ -675,10 +734,11 @@
                 (input)="customColumnName.set($any($event.target).value)"
               />
             </div>
-            @if (customColumnMode() === 'expression') {
+            @if (customColumnMode() === "expression") {
               <div class="flex-grow-1">
-                <label class="form-label  mb-1" for="custom-expr-input">
-                  M / R-Query Expression (e.g. <code>[qty] * [price]</code> or <code>if [qty] &gt; 5 then 'Bulk' else 'Single'</code>)
+                <label class="form-label mb-1" for="custom-expr-input">
+                  M / R-Query Expression (e.g. <code>[qty] * [price]</code> or
+                  <code>if [qty] &gt; 5 then 'Bulk' else 'Single'</code>)
                 </label>
                 <input
                   id="custom-expr-input"
@@ -686,28 +746,34 @@
                   class="form-control form-control-sm font-monospace"
                   placeholder="[colA] * [colB]"
                   [value]="customColumnExpression()"
-                  (input)="customColumnExpression.set($any($event.target).value)"
+                  (input)="
+                    customColumnExpression.set($any($event.target).value)
+                  "
                 />
               </div>
             } @else {
               <div>
-                <label class="form-label  mb-1" for="index-seed-input">Start At</label>
+                <label class="form-label mb-1" for="index-seed-input"
+                  >Start At</label
+                >
                 <input
                   id="index-seed-input"
                   type="number"
                   class="form-control form-control-sm"
-                  style="width: 80px;"
+                  style="width: 80px"
                   [value]="indexInitialValue()"
                   (input)="indexInitialValue.set(+$any($event.target).value)"
                 />
               </div>
               <div>
-                <label class="form-label  mb-1" for="index-step-input">Increment</label>
+                <label class="form-label mb-1" for="index-step-input"
+                  >Increment</label
+                >
                 <input
                   id="index-step-input"
                   type="number"
                   class="form-control form-control-sm"
-                  style="width: 80px;"
+                  style="width: 80px"
                   [value]="indexIncrement()"
                   (input)="indexIncrement.set(+$any($event.target).value)"
                 />
@@ -733,10 +799,12 @@
           </div>
         }
 
-        @if (panel === 'mergeQueries') {
+        @if (panel === "mergeQueries") {
           <div class="d-flex flex-wrap align-items-end gap-2">
             <div>
-              <label class="form-label  mb-1" for="merge-target-select">Right Lookup Table</label>
+              <label class="form-label mb-1" for="merge-target-select"
+                >Right Lookup Table</label
+              >
               <select
                 id="merge-target-select"
                 class="form-select form-select-sm"
@@ -749,7 +817,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="merge-key-select">Join Key</label>
+              <label class="form-label mb-1" for="merge-key-select"
+                >Join Key</label
+              >
               <select
                 id="merge-key-select"
                 class="form-select form-select-sm"
@@ -762,7 +832,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="merge-kind-select">Join Kind</label>
+              <label class="form-label mb-1" for="merge-kind-select"
+                >Join Kind</label
+              >
               <select
                 id="merge-kind-select"
                 class="form-select form-select-sm"
@@ -774,7 +846,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="merge-action-select">Post-Join Mode</label>
+              <label class="form-label mb-1" for="merge-action-select"
+                >Post-Join Mode</label
+              >
               <select
                 id="merge-action-select"
                 class="form-select form-select-sm"
@@ -805,7 +879,7 @@
           </div>
         }
 
-        @if (panel === 'shaping') {
+        @if (panel === "shaping") {
           <div class="d-flex flex-wrap align-items-center gap-2">
             <button
               type="button"
@@ -836,7 +910,7 @@
                 type="number"
                 min="1"
                 class="form-control form-control-sm"
-                style="width: 64px;"
+                style="width: 64px"
                 [value]="shapingRowCount()"
                 (input)="shapingRowCount.set(+$any($event.target).value)"
                 aria-label="Number of rows to remove"
@@ -859,7 +933,7 @@
             <div class="d-inline-flex align-items-center gap-1">
               <select
                 class="form-select form-select-sm"
-                style="width: auto;"
+                style="width: auto"
                 [value]="bulkRenameOperation()"
                 (change)="bulkRenameOperation.set($any($event.target).value)"
                 aria-label="Bulk rename column operation"
@@ -881,7 +955,7 @@
             <div class="d-inline-flex align-items-center gap-1">
               <select
                 class="form-select form-select-sm"
-                style="width: auto;"
+                style="width: auto"
                 [value]="splitColumnTarget()"
                 (change)="splitColumnTarget.set($any($event.target).value)"
                 aria-label="Column to split"
@@ -893,7 +967,7 @@
               <input
                 type="text"
                 class="form-control form-control-sm"
-                style="width: 56px;"
+                style="width: 56px"
                 [value]="splitDelimiter()"
                 (input)="splitDelimiter.set($any($event.target).value)"
                 aria-label="Split delimiter"
@@ -910,10 +984,12 @@
           </div>
         }
 
-        @if (panel === 'incrementalRefresh') {
+        @if (panel === "incrementalRefresh") {
           <div class="d-flex flex-wrap align-items-end gap-2">
             <div>
-              <label class="form-label  mb-1" for="ir-col-select">Date / Watermark Column</label>
+              <label class="form-label mb-1" for="ir-col-select"
+                >Date / Watermark Column</label
+              >
               <select
                 id="ir-col-select"
                 class="form-select form-select-sm"
@@ -927,7 +1003,9 @@
               </select>
             </div>
             <div>
-              <label class="form-label  mb-1" for="ir-start-input">RangeStart (Inclusive &gt;=)</label>
+              <label class="form-label mb-1" for="ir-start-input"
+                >RangeStart (Inclusive &gt;=)</label
+              >
               <input
                 id="ir-start-input"
                 type="text"
@@ -937,7 +1015,9 @@
               />
             </div>
             <div>
-              <label class="form-label  mb-1" for="ir-end-input">RangeEnd (Exclusive &lt;)</label>
+              <label class="form-label mb-1" for="ir-end-input"
+                >RangeEnd (Exclusive &lt;)</label
+              >
               <input
                 id="ir-end-input"
                 type="text"
@@ -976,10 +1056,14 @@
       >
         <div class="sources-pane-header">
           <h2 class="sources-title">Datasets</h2>
-          <p class=" text-muted mb-0">Active ingestion sources.</p>
+          <p class="text-muted mb-0">Active ingestion sources.</p>
         </div>
 
-        <div class="sources-list" role="listbox" aria-label="Ingestion Datasets">
+        <div
+          class="sources-list"
+          role="listbox"
+          aria-label="Ingestion Datasets"
+        >
           @for (src of sources(); track src.id) {
             <div
               class="source-item-row d-flex align-items-center gap-1"
@@ -993,13 +1077,21 @@
                 (click)="onSelectSource(src)"
                 [id]="'source-' + src.id"
               >
-                <span class="format-indicator" [class]="src.format.toLowerCase()">
+                <span
+                  class="format-indicator"
+                  [class]="src.format.toLowerCase()"
+                >
                   {{ src.format }}
                 </span>
                 <span
                   class="src-name text-truncate"
                   [class.fst-italic]="src.enableLoad === false"
-                  [title]="src.name + (src.enableLoad === false ? ' (Staging only - Load disabled)' : '')"
+                  [title]="
+                    src.name +
+                    (src.enableLoad === false
+                      ? ' (Staging only - Load disabled)'
+                      : '')
+                  "
                 >
                   {{ src.name }}
                 </span>
@@ -1008,8 +1100,16 @@
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-ghost px-1"
                 (click)="toggleSourceEnableLoad(src.id, $event)"
-                [title]="src.enableLoad === false ? 'Enable Load to Semantic Model' : 'Disable Load (Keep as Staging Query)'"
-                [attr.aria-label]="src.enableLoad === false ? 'Enable load for ' + src.name : 'Disable load for ' + src.name"
+                [title]="
+                  src.enableLoad === false
+                    ? 'Enable Load to Semantic Model'
+                    : 'Disable Load (Keep as Staging Query)'
+                "
+                [attr.aria-label]="
+                  src.enableLoad === false
+                    ? 'Enable load for ' + src.name
+                    : 'Disable load for ' + src.name
+                "
               >
                 <svg
                   width="12"
@@ -1022,7 +1122,9 @@
                 >
                   @if (src.enableLoad === false) {
                     <line x1="1" y1="1" x2="23" y2="23"></line>
-                    <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"></path>
+                    <path
+                      d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"
+                    ></path>
                   } @else {
                     <polyline points="20 6 9 17 4 12"></polyline>
                   }
@@ -1045,17 +1147,21 @@
                   aria-hidden="true"
                 >
                   <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  <path
+                    d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                  ></path>
                 </svg>
               </button>
             </div>
           } @empty {
-            <div class="p-3 text-center text-muted  d-flex flex-column align-items-center justify-content-center">
+            <div
+              class="p-3 text-center text-muted d-flex flex-column align-items-center justify-content-center"
+            >
               <span class="mb-2">No datasets connected</span>
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-outline"
-                (click)="onAddSource(sourceFileInput)"
+                (click)="onAddSource()"
               >
                 + Add Source
               </button>
@@ -1065,22 +1171,63 @@
       </aside>
 
       <!-- Center Data Preview Pane -->
-      <main
-        class="dataprep-preview-pane"
-        aria-label="Dataset Tabular Preview"
-      >
+      <main class="dataprep-preview-pane" aria-label="Dataset Tabular Preview">
         <div class="preview-toolbar">
           <div class="preview-info d-flex align-items-center">
             @if (selectedSource(); as src) {
               <span>Previewing:</span>
               <strong class="ms-1">{{ src.name }}</strong>
               <span class="text-muted ms-2">
-                ({{ rows().length }} Rows &bull; Step {{ selectedStepIndex() + 1 }} of {{ appliedSteps().length || 1 }})
+                ({{ rows().length }} Rows &bull; Step
+                {{ selectedStepIndex() + 1 }} of
+                {{ appliedSteps().length || 1 }})
               </span>
             } @else {
               <span class="text-muted">No dataset selected</span>
             }
           </div>
+        </div>
+
+        <!--  M Formula Bar -->
+        <div
+          class="rc-rquery-formula-bar px-3 py-1 border-bottom d-flex align-items-center gap-2 bg-body-tertiary"
+        >
+          <span
+            class="formula-fx-badge text-body-secondary fw-bold font-monospace"
+            title="M Formula"
+            >fx</span
+          >
+          <input
+            type="text"
+            class="form-control form-control-sm font-monospace formula-input py-0 px-2"
+            style="font-size: 11px; height: 26px"
+            [value]="activeStepFormula()"
+            readonly
+            title="Active Step M Formula Expression"
+            aria-label=" M step formula"
+          />
+          <button
+            type="button"
+            class="rc-btn rc-btn-sm rc-btn-ghost p-1"
+            (click)="onCopyFormula()"
+            title="Copy formula expression"
+            aria-label="Copy formula"
+          >
+            <svg
+              width="12"
+              height="12"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              aria-hidden="true"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path
+                d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+              ></path>
+            </svg>
+          </button>
         </div>
 
         <div class="table-container">
@@ -1091,16 +1238,21 @@
                   @for (col of columns(); track col.name) {
                     <th scope="col" class="position-relative">
                       <div class="col-th-inner">
-                        <span class="type-icon-tag" [class]="(col.icon || 'text').toLowerCase()">
-                          {{ col.icon || 'TEXT' }}
+                        <span
+                          class="type-icon-tag"
+                          [class]="(col.icon || 'text').toLowerCase()"
+                        >
+                          {{ col.icon || "TEXT" }}
                         </span>
                         @if (editingColumnName() === col.name) {
                           <input
                             type="text"
                             class="form-control form-control-sm py-0 px-1 font-monospace"
-                            style="width: 120px; font-size: 11px; height: 22px;"
+                            style="width: 120px; font-size: 11px; height: 22px"
                             [value]="editingColumnValue()"
-                            (input)="editingColumnValue.set($any($event.target).value)"
+                            (input)="
+                              editingColumnValue.set($any($event.target).value)
+                            "
                             (keydown.enter)="saveColumnRename(col.name)"
                             (keydown.escape)="cancelColumnRename()"
                             (blur)="saveColumnRename(col.name)"
@@ -1108,7 +1260,10 @@
                             aria-label="Rename column name"
                           />
                         } @else {
-                          <span class="col-title text-truncate" [title]="col.name">
+                          <span
+                            class="col-title text-truncate"
+                            [title]="col.name"
+                          >
                             {{ col.name }}
                           </span>
                         }
@@ -1142,7 +1297,9 @@
                           role="menu"
                           [attr.aria-label]="'Actions for column ' + col.name"
                         >
-                          <div class="dropdown-header  text-muted px-3 py-1">Type Conversion</div>
+                          <div class="dropdown-header text-muted px-3 py-1">
+                            Type Conversion
+                          </div>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
@@ -1186,7 +1343,9 @@
                             <span>Boolean (True/False)</span>
                           </button>
                           <div class="dropdown-divider my-1"></div>
-                          <div class="dropdown-header  text-muted px-3 py-1">Sort &amp; Fill</div>
+                          <div class="dropdown-header text-muted px-3 py-1">
+                            Sort &amp; Fill
+                          </div>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
@@ -1209,7 +1368,9 @@
                             <span>Fill Down</span>
                           </button>
                           <div class="dropdown-divider my-1"></div>
-                          <div class="dropdown-header  text-muted px-3 py-1">Transform &amp; Cleanse</div>
+                          <div class="dropdown-header text-muted px-3 py-1">
+                            Transform &amp; Cleanse
+                          </div>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
@@ -1277,9 +1438,9 @@
                   <tr>
                     @for (col of columns(); track col.name) {
                       <td>
-                        @if (col.name === 'sale_id' || col.name === 'id') {
+                        @if (col.name === "sale_id" || col.name === "id") {
                           <code>{{ formatCellValue(row, col.name) }}</code>
-                        } @else if (col.name === 'sku_code') {
+                        } @else if (col.name === "sku_code") {
                           <strong>{{ formatCellValue(row, col.name) }}</strong>
                         } @else {
                           {{ formatCellValue(row, col.name) }}
@@ -1291,7 +1452,9 @@
               </tbody>
             </table>
           } @else {
-            <div class="empty-preview-container d-flex flex-column align-items-center justify-content-center p-5 text-center text-muted h-100">
+            <div
+              class="empty-preview-container d-flex flex-column align-items-center justify-content-center p-5 text-center text-muted h-100"
+            >
               <svg
                 width="36"
                 height="36"
@@ -1302,20 +1465,35 @@
                 class="mb-2 opacity-50"
                 aria-hidden="true"
               >
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <path
+                  d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                ></path>
                 <polyline points="14 2 14 8 20 8"></polyline>
                 <line x1="16" y1="13" x2="8" y2="13"></line>
                 <line x1="16" y1="17" x2="8" y2="17"></line>
                 <polyline points="10 9 9 9 8 9"></polyline>
               </svg>
-              <p class="mb-1 fw-semibold text-body">No data records in preview buffer</p>
-              <p class=" text-muted mb-3">Data should be provided by users. Connect a CSV, TSV, XLSX, Parquet, or JSON file to start data preparation.</p>
+              <p class="mb-1 fw-semibold text-body">
+                No data records in preview buffer
+              </p>
+              <p class="text-muted mb-3">
+                Data should be provided by users. Connect a CSV, TSV, XLSX,
+                Parquet, or JSON file to start data preparation.
+              </p>
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
-                (click)="onAddSource(sourceFileInput)"
+                (click)="onAddSource()"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  aria-hidden="true"
+                >
                   <line x1="12" y1="5" x2="12" y2="19"></line>
                   <line x1="5" y1="12" x2="19" y2="12"></line>
                 </svg>
@@ -1343,8 +1521,12 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-ghost text-muted p-1 d-inline-flex align-items-center justify-content-center"
           (click)="toggleCollapseAll()"
-          [title]="isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'"
-          [attr.aria-label]="isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'"
+          [title]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
+          [attr.aria-label]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
           id="data-prep-collapse-all-btn"
         >
           <svg
@@ -1406,7 +1588,7 @@
             <span class="steps-count-badge">{{ appliedSteps().length }}</span>
           </button>
 
-          @if (isSectionExpanded('Steps')) {
+          @if (isSectionExpanded("Steps")) {
             <div
               id="tools-section-steps"
               role="region"
@@ -1423,7 +1605,12 @@
                     role="button"
                     tabindex="0"
                     (keydown.enter)="onSelectStep(idx)"
-                    [attr.aria-label]="'Select transformation step ' + (idx + 1) + ': ' + step.name"
+                    [attr.aria-label]="
+                      'Select transformation step ' +
+                      (idx + 1) +
+                      ': ' +
+                      step.name
+                    "
                   >
                     <div class="step-icon-wrap" aria-hidden="true">
                       <svg
@@ -1440,11 +1627,17 @@
                       </svg>
                     </div>
                     <div class="step-info text-start flex-grow-1">
-                      <span class="step-name text-truncate">{{ step.name }}</span>
-                      <span class="step-type text-truncate">{{ step.type }}</span>
+                      <span class="step-name text-truncate">{{
+                        step.name
+                      }}</span>
+                      <span class="step-type text-truncate">{{
+                        step.type
+                      }}</span>
                     </div>
                     @if (idx > 0) {
-                      <div class="step-actions d-inline-flex align-items-center gap-1">
+                      <div
+                        class="step-actions d-inline-flex align-items-center gap-1"
+                      >
                         @if (idx > 1) {
                           <button
                             type="button"
@@ -1453,7 +1646,15 @@
                             [attr.aria-label]="'Move step ' + step.name + ' up'"
                             (click)="moveStep(idx, -1, $event)"
                           >
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                            <svg
+                              width="10"
+                              height="10"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              aria-hidden="true"
+                            >
                               <polyline points="18 15 12 9 6 15"></polyline>
                             </svg>
                           </button>
@@ -1465,7 +1666,15 @@
                           [attr.aria-label]="'Delete step ' + step.name"
                           (click)="removeStep(idx, $event)"
                         >
-                          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                          <svg
+                            width="10"
+                            height="10"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            aria-hidden="true"
+                          >
                             <line x1="18" y1="6" x2="6" y2="18"></line>
                             <line x1="6" y1="6" x2="18" y2="18"></line>
                           </svg>
@@ -1474,8 +1683,9 @@
                     }
                   </div>
                 } @empty {
-                  <div class="p-3 text-center text-muted ">
-                    No transformation steps recorded. Connect a dataset source to start.
+                  <div class="p-3 text-center text-muted">
+                    No transformation steps recorded. Connect a dataset source
+                    to start.
                   </div>
                 }
               </div>
@@ -1517,7 +1727,7 @@
             </div>
           </button>
 
-          @if (isSectionExpanded('Definition')) {
+          @if (isSectionExpanded("Definition")) {
             <div
               id="tools-section-definition"
               role="region"
@@ -1525,8 +1735,14 @@
               class="rc-tools-section-body"
             >
               @if (activeStep(); as step) {
-                <div class="d-flex align-items-center justify-content-between mb-2 gap-1">
-                  <div class="btn-group btn-group-sm" role="group" aria-label="Definition format">
+                <div
+                  class="d-flex align-items-center justify-content-between mb-2 gap-1"
+                >
+                  <div
+                    class="btn-group btn-group-sm"
+                    role="group"
+                    aria-label="Definition format"
+                  >
                     <button
                       type="button"
                       class="rc-btn rc-btn-sm"
@@ -1564,22 +1780,37 @@
                       stroke-linejoin="round"
                       aria-hidden="true"
                     >
-                      <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-                      <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                      <rect
+                        x="9"
+                        y="9"
+                        width="13"
+                        height="13"
+                        rx="2"
+                        ry="2"
+                      ></rect>
+                      <path
+                        d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"
+                      ></path>
                     </svg>
                     <span>Copy</span>
                   </button>
                 </div>
 
                 <div class="step-json-box">
-                  @if (definitionFormat() === 'm') {
-                    <pre class="json-code"><code>{{ activeMQueryScript() }}</code></pre>
+                  @if (definitionFormat() === "m") {
+                    <pre
+                      class="json-code"
+                    ><code>{{ activeMQueryScript() }}</code></pre>
                   } @else {
-                    <pre class="json-code"><code>{{ activeStepDefinitionJson() }}</code></pre>
+                    <pre
+                      class="json-code"
+                    ><code>{{ activeStepDefinitionJson() }}</code></pre>
                   }
                 </div>
               } @else {
-                <div class="text-muted  py-2 px-1">No transformation step selected.</div>
+                <div class="text-muted py-2 px-1">
+                  No transformation step selected.
+                </div>
               }
             </div>
           }
@@ -1619,7 +1850,7 @@
             </div>
           </button>
 
-          @if (isSectionExpanded('Quarantine')) {
+          @if (isSectionExpanded("Quarantine")) {
             <div
               id="tools-section-quarantine"
               role="region"
@@ -1640,20 +1871,26 @@
                     class="q-icon"
                     aria-hidden="true"
                   >
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path
+                      d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+                    ></path>
                   </svg>
                   <span class="q-title">Isolation Monitor</span>
                 </div>
                 <p class="q-desc">
                   Records failing datatype constraints are isolated in
-                  <code>quarantine_records</code> without halting the ingestion stream.
+                  <code>quarantine_records</code> without halting the ingestion
+                  stream.
                 </p>
                 <div class="q-status-row">
-                  <span class="q-badge">{{ quarantineStats().rowsQuarantined }} Rows Quarantined</span>
+                  <span class="q-badge"
+                    >{{ quarantineStats().rowsQuarantined }} Rows
+                    Quarantined</span
+                  >
                   <span class="q-ok">{{ quarantineStats().status }}</span>
                 </div>
                 @if (quarantinedRecords().length > 0) {
-                  <div class="mt-2 pt-2 border-top ">
+                  <div class="mt-2 pt-2 border-top">
                     @for (q of quarantinedRecords().slice(0, 3); track $index) {
                       <div class="text-truncate" [title]="q.errorReason">
                         Line {{ q.sourceLineNumber }}: {{ q.errorReason }}
@@ -1680,4 +1917,5 @@
       </div>
     </aside>
   </div>
+
 </div>

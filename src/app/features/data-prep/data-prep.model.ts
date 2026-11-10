@@ -20,6 +20,72 @@ export type BackendDataType =
 export type AggregationFunction = 'SUM' | 'AVG' | 'MIN' | 'MAX' | 'COUNT';
 export type JoinKind = 'INNER' | 'LEFT' | 'RIGHT' | 'FULL';
 
+export interface DataPrepColumn {
+  readonly name: string;
+  readonly type?: string;
+  readonly icon?: string;
+}
+
+export interface DataPrepStep {
+  readonly id: string;
+  readonly name: string;
+  readonly type: string;
+  readonly detail?: string;
+  readonly definition?: Record<string, unknown>;
+}
+
+export interface IngestionSource {
+  readonly id: string;
+  readonly name: string;
+  readonly format: 'PARQUET' | 'CSV' | 'XLSX' | 'REST';
+  readonly path: string;
+  readonly enableLoad?: boolean;
+  readonly backendFormat?: BackendSourceFormat;
+}
+
+export interface SourceSnapshot {
+  readonly columns: readonly DataPrepColumn[];
+  readonly rows: readonly Record<string, unknown>[];
+  readonly rawText?: string;
+  readonly rawBase64?: string;
+}
+
+export interface WorkbookSheet {
+  readonly id: string;
+  readonly name: string;
+  readonly kind: 'Sheet' | 'Table';
+  readonly columns: readonly DataPrepColumn[];
+  readonly rows: readonly Record<string, unknown>[];
+}
+
+export interface DataConnector {
+  readonly id: string;
+  readonly name: string;
+  readonly category: 'file' | 'database' | 'azure' | 'online' | 'other';
+  readonly description: string;
+  readonly fileExtensions?: string;
+}
+
+export const DATA_CONNECTORS: readonly DataConnector[] = [
+  { id: 'excel', name: 'Classeur Excel', category: 'file', description: 'Import data from Microsoft Excel workbooks (.xlsx, .xlsm, .xls)', fileExtensions: '.xlsx,.xlsm,.xls' },
+  { id: 'csv', name: 'Texte/CSV', category: 'file', description: 'Delimited text files (.csv, .tsv, .txt)', fileExtensions: '.csv,.tsv,.txt' },
+  { id: 'xml', name: 'XML', category: 'file', description: 'Extensible Markup Language documents (.xml)', fileExtensions: '.xml' },
+  { id: 'json', name: 'JSON', category: 'file', description: 'JavaScript Object Notation documents (.json)', fileExtensions: '.json' },
+  { id: 'parquet', name: 'Parquet', category: 'file', description: 'Apache Parquet columnar storage files (.parquet)', fileExtensions: '.parquet,.avro' },
+  { id: 'sqlserver', name: 'Base de données SQL Server', category: 'database', description: 'Microsoft SQL Server or Azure SQL Database' },
+  { id: 'postgres', name: 'Base de données PostgreSQL', category: 'database', description: 'Open-source PostgreSQL relational database' },
+  { id: 'mysql', name: 'Base de données MySQL', category: 'database', description: 'MySQL Community or Enterprise database' },
+  { id: 'oracle', name: 'Base de données Oracle', category: 'database', description: 'Oracle Database Enterprise Edition' },
+  { id: 'snowflake', name: 'Snowflake', category: 'database', description: 'Snowflake Cloud Data Warehouse' },
+  { id: 'bigquery', name: 'Google BigQuery', category: 'database', description: 'Google Cloud BigQuery enterprise data warehouse' },
+  { id: 'azure_sql', name: 'Azure SQL Database', category: 'azure', description: 'Managed relational SQL database in Azure' },
+  { id: 'azure_blob', name: 'Stockage Blob Azure', category: 'azure', description: 'Azure Blob Storage binary containers' },
+  { id: 'cosmos_db', name: 'Azure Cosmos DB', category: 'azure', description: 'Globally distributed, multi-model NoSQL database' },
+  { id: 'rest', name: 'REST API / Web', category: 'online', description: 'HTTP / JSON REST API web data endpoints' },
+  { id: 'sharepoint', name: 'Dossier SharePoint', category: 'online', description: 'SharePoint Online document library' },
+  { id: 'odata', name: 'Flux OData', category: 'online', description: 'Open Data Protocol web feed' },
+];
+
 export interface RQueryAggregateDefinition {
   readonly outputColumn: string;
   readonly sourceColumn: string;
@@ -47,6 +113,8 @@ export interface RQueryStepDefinition {
   readonly expression?: string;
   readonly parameters?: Readonly<Record<string, unknown>>;
   readonly onError?: string;
+  readonly item?: string;
+  readonly kind?: string;
   readonly [key: string]: unknown;
 }
 
@@ -217,9 +285,20 @@ export function formatMQueryScript(
     let expr = prevVar;
     switch (stepType) {
       case 'FileSource':
-      case 'FileSourceStep':
-        expr = `Csv.Document(File.Contents("${sourceName}"), [Encoding=65001, QuoteStyle=QuoteStyle.None])`;
+      case 'FileSourceStep': {
+        const isXlsx = sourceName.toLowerCase().endsWith('.xlsx') || sourceName.toLowerCase().endsWith('.xls');
+        expr = isXlsx
+          ? `Excel.Workbook(File.Contents("${sourceName}"), null, true)`
+          : `Csv.Document(File.Contents("${sourceName}"), [Encoding=65001, QuoteStyle=QuoteStyle.None])`;
         break;
+      }
+      case 'Navigation':
+      case 'NavigationStep': {
+        const item = String(def['item'] ?? 'Sheet1');
+        const kind = String(def['kind'] ?? 'Sheet');
+        expr = `${prevVar}{[Item="${item}",Kind="${kind}"]}[Data]`;
+        break;
+      }
       case 'PromoteHeaders':
       case 'PromoteHeadersStep':
         expr = `Table.PromoteHeaders(${prevVar}, [PromoteAllScalars=true])`;
@@ -395,4 +474,120 @@ export function formatMQueryScript(
   lines.push('in');
   lines.push(`  ${prevVar}`);
   return lines.join('\n');
+}
+
+/**
+ * Returns the single-line Power Query M expression for an individual active step
+ * to populate the interactive formula bar above the table preview.
+ */
+export function getStepMFormula(
+  sourceName: string,
+  step: { readonly name: string; readonly type: string; readonly definition?: Record<string, unknown> } | null,
+  prevVar = 'Source',
+): string {
+  if (!step) {
+    return '';
+  }
+  const def = step.definition ?? {};
+  const stepType = String(def['step'] ?? step.type);
+
+  switch (stepType) {
+    case 'FileSource':
+    case 'FileSourceStep': {
+      const isXlsx = sourceName.toLowerCase().endsWith('.xlsx') || sourceName.toLowerCase().endsWith('.xls');
+      return isXlsx
+        ? `= Excel.Workbook(File.Contents("${sourceName}"), null, true)`
+        : `= Csv.Document(File.Contents("${sourceName}"), [Encoding=65001, QuoteStyle=QuoteStyle.None])`;
+    }
+    case 'Navigation':
+    case 'NavigationStep': {
+      const item = String(def['item'] ?? 'Sheet1');
+      const kind = String(def['kind'] ?? 'Sheet');
+      return `= ${prevVar}{[Item="${item}",Kind="${kind}"]}[Data]`;
+    }
+    case 'PromoteHeaders':
+    case 'PromoteHeadersStep':
+      return `= Table.PromoteHeaders(${prevVar}, [PromoteAllScalars=true])`;
+    case 'ChangeType':
+    case 'ChangeTypeStep': {
+      const col = String(def['column'] ?? '');
+      const target = String(def['targetType'] ?? def['type'] ?? 'Text');
+      return `= Table.TransformColumnTypes(${prevVar}, {{"${col}", type ${target.toLowerCase()}}})`;
+    }
+    case 'DetectDataType':
+    case 'DetectDataTypeStep':
+      return `= Table.TransformColumnTypes(${prevVar}, /* Auto-Detected Schema */)`;
+    case 'RenameColumn':
+    case 'RenameColumnStep': {
+      const oldCol = String(def['oldName'] ?? def['original'] ?? '');
+      const newCol = String(def['newName'] ?? def['renamed'] ?? '');
+      return `= Table.RenameColumns(${prevVar}, {{"${oldCol}", "${newCol}"}})`;
+    }
+    case 'FilterRows':
+    case 'FilterRowsStep': {
+      const pred = String(def['predicate'] ?? 'true');
+      return `= Table.SelectRows(${prevVar}, each ${pred})`;
+    }
+    case 'FilterNulls':
+    case 'FilterNullsStep': {
+      const col = String(def['column'] ?? '');
+      return `= Table.SelectRows(${prevVar}, each [${col}] <> null and [${col}] <> "")`;
+    }
+    case 'UnpivotColumns':
+    case 'UnpivotColumnsStep': {
+      const cols = (def['pivotColumns'] as string[]) ?? [];
+      const nameCol = String(def['nameCol'] ?? 'Attribute');
+      const valCol = String(def['valCol'] ?? 'Value');
+      return `= Table.Unpivot(${prevVar}, {${cols.map((c) => `"${c}"`).join(', ')}}, "${nameCol}", "${valCol}")`;
+    }
+    case 'UnpivotOtherColumns':
+    case 'UnpivotOtherColumnsStep': {
+      const anchorCols = (def['groupColumns'] as string[]) ?? [];
+      const nameCol = String(def['nameCol'] ?? 'Attribute');
+      const valCol = String(def['valCol'] ?? 'Value');
+      return `= Table.UnpivotOtherColumns(${prevVar}, {${anchorCols.map((c) => `"${c}"`).join(', ')}}, "${nameCol}", "${valCol}")`;
+    }
+    case 'GroupRows':
+    case 'GroupRowsStep': {
+      const gCols = (def['groupColumns'] as string[]) ?? [];
+      const aggs = (def['aggregations'] as RQueryAggregateDefinition[]) ?? [];
+      const aggSpec = aggs
+        .map((a) => `{"${a.outputColumn}", each List.${a.function}([${a.sourceColumn}])}`)
+        .join(', ');
+      return `= Table.Group(${prevVar}, {${gCols.map((c) => `"${c}"`).join(', ')}}, {${aggSpec}})`;
+    }
+    case 'AddCustomColumn':
+    case 'AddCustomColumnStep': {
+      const newCol = String(def['newName'] ?? 'Custom');
+      const formula = String(def['expression'] ?? 'null');
+      return `= Table.AddColumn(${prevVar}, "${newCol}", each ${formula})`;
+    }
+    case 'AddIndexColumn':
+    case 'AddIndexColumnStep': {
+      const newCol = String(def['newName'] ?? 'Index');
+      const params = (def['parameters'] as Record<string, unknown>) ?? {};
+      const seed = Number(params['initialValue'] ?? 1);
+      const inc = Number(params['increment'] ?? 1);
+      return `= Table.AddIndexColumn(${prevVar}, "${newCol}", ${seed}, ${inc}, Int64.Type)`;
+    }
+    case 'MergeQueries':
+    case 'MergeQueriesStep': {
+      const target = String(def['targetTable'] ?? 'LookupTable');
+      const keys = (def['joinKeys'] as string[]) ?? [];
+      const kind = String(def['joinType'] ?? 'LEFT');
+      return `= Table.NestedJoin(${prevVar}, {${keys.map((k) => `"${k}"`).join(', ')}}, ${target}, {${keys.map((k) => `"${k}"`).join(', ')}}, "${target}", JoinKind.${kind})`;
+    }
+    case 'Transpose':
+    case 'TransposeStep':
+      return `= Table.Transpose(${prevVar})`;
+    case 'RemoveDuplicates':
+    case 'RemoveDuplicatesStep': {
+      const cols = (def['groupColumns'] as string[]) ?? [];
+      return cols.length > 0
+        ? `= Table.Distinct(${prevVar}, {${cols.map((c) => `"${c}"`).join(', ')}})`
+        : `= Table.Distinct(${prevVar})`;
+    }
+    default:
+      return `= ${prevVar} /* ${step.name} */`;
+  }
 }

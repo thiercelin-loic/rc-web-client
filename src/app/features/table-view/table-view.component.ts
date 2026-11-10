@@ -19,6 +19,7 @@ import {
   DEFAULT_SEMANTIC_MODEL,
   SemanticModelService,
 } from "../../core/semantic-model.service";
+import { IngestionWorkflowService } from "../../core/ingestion-workflow.service";
 
 export type TableViewSection = "Tables" | "Columns" | "Calculations";
 export type FormulaAuthoringMode = "column" | "table" | "measure";
@@ -102,6 +103,7 @@ const RAX_TABLE_FUNCTIONS: readonly FormulaSuggestion[] = [
 export class TableViewComponent implements OnInit {
   public readonly state = inject(StateManagerService);
   private readonly semanticModel = inject(SemanticModelService);
+  public readonly ingestion = inject(IngestionWorkflowService);
 
   // Active view & mobile responsive state
   public readonly activeMobileTab = signal<"grid" | "tools">("grid");

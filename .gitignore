@@ -14,3 +14,17 @@ Thumbs.db
 # Logs
 logs/
 *.log
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Test & coverage
+coverage/
+
+# Local Agent Rules
+AGENTS.md
+GEMINI.md
+.agents/
+

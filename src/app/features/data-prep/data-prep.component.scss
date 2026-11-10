@@ -446,3 +446,27 @@
     border-color: #e2e8f0;
   }
 }
+
+.rc-rquery-formula-bar {
+  background-color: var(--rc-surface-subtle);
+  border-bottom: 1px solid var(--rc-card-border);
+  min-height: 36px;
+
+  .formula-fx-badge {
+    font-size: var(--rc-font-size-xs);
+    font-family: var(--rc-font-mono);
+    color: var(--rc-text-secondary);
+    padding: 2px 6px;
+    border-radius: var(--rc-radius-xs);
+    background-color: var(--rc-card-border);
+  }
+
+  .formula-input {
+    background-color: var(--rc-card-bg);
+    color: var(--rc-text-primary);
+    border: 1px solid var(--rc-card-border);
+    border-radius: var(--rc-radius-xs);
+    font-size: var(--rc-font-size-xs);
+    font-family: var(--rc-font-mono);
+  }
+}

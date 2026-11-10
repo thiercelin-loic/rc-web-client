@@ -1456,11 +1456,12 @@
                 } @else {
                   <div class="text-center py-3 px-2 rc-data-empty-placeholder">
                     No external datasets connected.<br />
-                    <a
-                      routerLink="/data-prep"
+                    <button
+                      type="button"
+                      (click)="ingestion.openGetDataModal()"
                       class="rc-btn rc-btn-outline rc-btn-sm mt-2 d-inline-flex align-items-center gap-2"
-                      title="Connect Data Source in Data Prep"
-                      aria-label="Connect Data Source in Data Prep"
+                      title="Get Data — Connect workbooks, CSV, Parquet, databases, or REST streams"
+                      aria-label="Get Data"
                     >
                       <svg
                         width="14"
@@ -1477,8 +1478,8 @@
                         <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
                         <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
                       </svg>
-                      <span>Connect Data in Data Prep</span>
-                    </a>
+                      <span>Get Data</span>
+                    </button>
                   </div>
                 }
               </div>

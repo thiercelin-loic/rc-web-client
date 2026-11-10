@@ -88,19 +88,11 @@
     <!-- Standardized Workspace Action Toolbar -->
     <header class="rc-page-header rc-workspace-header flex-shrink-0 d-flex justify-content-end align-items-center">
       <div class="d-flex align-items-center gap-2">
-        <input
-          #csvFileInput
-          type="file"
-          accept=".csv,.tsv,.txt"
-          class="d-none"
-          (change)="onImportCsv($event)"
-          aria-label="Upload CSV dataset"
-        />
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-1"
-          (click)="csvFileInput.click()"
-          title="Import CSV data into active table"
+          (click)="ingestion.openGetDataModal()"
+          title="Get Data — Connect workbooks, CSV, Parquet, databases, or REST streams"
         >
           <svg
             width="13"
@@ -113,11 +105,11 @@
             stroke-linejoin="round"
             aria-hidden="true"
           >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="17 8 12 3 7 8"></polyline>
-            <line x1="12" y1="3" x2="12" y2="15"></line>
+            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
           </svg>
-          <span>Import CSV</span>
+          <span>Get Data</span>
         </button>
 
         <button
@@ -666,7 +658,7 @@
                       <button
                         type="button"
                         class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-1"
-                        (click)="csvFileInput.click()"
+                        (click)="ingestion.openGetDataModal()"
                       >
                         <svg
                           width="12"
@@ -677,11 +669,11 @@
                           stroke-width="2"
                           aria-hidden="true"
                         >
-                          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-                          <polyline points="17 8 12 3 7 8"></polyline>
-                          <line x1="12" y1="3" x2="12" y2="15"></line>
+                          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
                         </svg>
-                        <span>Import CSV Data</span>
+                        <span>Get Data</span>
                       </button>
                     </div>
                   </td>

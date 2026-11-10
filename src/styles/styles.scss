@@ -827,6 +827,57 @@ optgroup {
   background-color: var(--rc-surface-panel);
 }
 
+.rc-connector-row {
+  background-color: var(--rc-card-bg);
+  border-color: var(--rc-card-border);
+  transition:
+    background-color var(--rc-transition-fast),
+    border-color var(--rc-transition-fast);
+
+  &:hover {
+    background-color: var(--rc-surface-hover);
+    border-color: var(--rc-border-strong);
+  }
+
+  &.border-primary {
+    border-color: var(--rc-primary) !important;
+    background-color: var(--rc-status-warning-bg);
+  }
+}
+
+.rc-preview-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--rc-font-size-sm);
+
+  th {
+    position: sticky;
+    top: 0;
+    background-color: var(--rc-surface-subtle);
+    color: var(--rc-text-primary);
+    padding: 6px 12px;
+    border-bottom: 2px solid var(--rc-card-border);
+    border-right: 1px solid var(--rc-card-border);
+    text-align: left;
+    white-space: nowrap;
+    z-index: 2;
+  }
+
+  td {
+    padding: 6px 12px;
+    border-bottom: 1px solid var(--rc-card-border);
+    border-right: 1px solid var(--rc-card-border);
+    background-color: var(--rc-card-bg);
+    color: var(--rc-text-primary);
+    white-space: nowrap;
+  }
+
+  tr:hover td {
+    background-color: var(--rc-surface-hover);
+  }
+}
+
 @keyframes rcFadeIn {
   from {
     opacity: 0;

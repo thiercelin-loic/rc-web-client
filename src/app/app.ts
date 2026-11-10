@@ -25,6 +25,7 @@ import { HelpCenterService } from "./core/help-center.service";
 import { ExportFormatType, ExportService } from "./core/export.service";
 import { AuthService } from "./core/auth.service";
 import { ProjectSerializationService } from "./core/project-serialization.service";
+import { IngestionWorkflowService } from "./core/ingestion-workflow.service";
 
 interface NavModuleItem {
   readonly route: string;
@@ -564,6 +565,40 @@ interface NavModuleItem {
               }
             </div>
 
+            <input
+              #globalSourceFileInput
+              type="file"
+              accept=".csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro"
+              class="d-none"
+              (change)="ingestion.handleFileSelection($event)"
+              aria-label="Upload dataset file"
+            />
+            <button
+              type="button"
+              id="ribbon-get-data-btn"
+              class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+              (click)="ingestion.openGetDataModal()"
+              title="Get Data — Connect workbooks, CSV, Parquet, databases, or REST streams"
+              aria-label="Get Data"
+            >
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.8"
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                aria-hidden="true"
+              >
+                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+              </svg>
+              <span class="d-none d-sm-inline">Get Data</span>
+            </button>
+
             <div id="export-dropdown-container" class="position-relative">
               <button
                 type="button"
@@ -981,6 +1016,351 @@ interface NavModuleItem {
             </a>
           </div>
         </footer>
+
+        @if (ingestion.isGetDataModalOpen()) {
+          <div
+            class="rc-modal-backdrop"
+            (click)="ingestion.closeGetDataModal()"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="get-data-modal-title"
+          >
+            <div
+              class="rc-modal-dialog rc-modal-lg"
+              style="max-width: 780px"
+              (click)="$event.stopPropagation()"
+            >
+              <div class="rc-modal-header">
+                <div class="d-flex align-items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                  </svg>
+                  <h2 class="rc-modal-title" id="get-data-modal-title">Get Data</h2>
+                </div>
+                <button
+                  type="button"
+                  class="rc-modal-close"
+                  (click)="ingestion.closeGetDataModal()"
+                  aria-label="Close Get Data modal"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="p-3 border-bottom bg-body-tertiary">
+                <input
+                  type="search"
+                  class="form-control form-control-sm"
+                  placeholder="Search connectors (Excel, CSV, SQL, REST...)..."
+                  [value]="ingestion.connectorSearchQuery()"
+                  (input)="ingestion.connectorSearchQuery.set($any($event.target).value)"
+                  aria-label="Filter connectors"
+                />
+              </div>
+
+              <div class="rc-modal-body p-0 d-flex" style="height: 380px">
+                <nav
+                  class="border-end p-2"
+                  style="width: 200px; background-color: var(--rc-surface-subtle)"
+                  aria-label="Connector Categories"
+                >
+                  <ul class="list-unstyled mb-0 d-flex flex-column gap-1">
+                    <li>
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
+                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'all'"
+                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'all'"
+                        (click)="ingestion.selectConnectorCategory('all')"
+                      >
+                        All
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
+                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'file'"
+                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'file'"
+                        (click)="ingestion.selectConnectorCategory('file')"
+                      >
+                        File
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
+                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'database'"
+                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'database'"
+                        (click)="ingestion.selectConnectorCategory('database')"
+                      >
+                        Database
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
+                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'azure'"
+                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'azure'"
+                        (click)="ingestion.selectConnectorCategory('azure')"
+                      >
+                        Azure / Cloud
+                      </button>
+                    </li>
+                    <li>
+                      <button
+                        type="button"
+                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
+                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'online'"
+                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'online'"
+                        (click)="ingestion.selectConnectorCategory('online')"
+                      >
+                        Online Services / Web
+                      </button>
+                    </li>
+                  </ul>
+                </nav>
+
+                <div class="flex-grow-1 p-3 overflow-y-auto" role="listbox" aria-label="Available Connectors">
+                  <div class="d-flex flex-column gap-1">
+                    @for (connector of ingestion.filteredConnectors(); track connector.id) {
+                      <div
+                        class="rc-connector-row p-2 rounded d-flex align-items-center justify-content-between cursor-pointer border"
+                        [class.border-primary]="ingestion.selectedConnectorId() === connector.id"
+                        [class.bg-body-secondary]="ingestion.selectedConnectorId() === connector.id"
+                        (click)="ingestion.selectConnector(connector.id)"
+                        (dblclick)="ingestion.connectSelectedConnector(globalSourceFileInput)"
+                        role="option"
+                        [attr.aria-selected]="ingestion.selectedConnectorId() === connector.id"
+                        tabindex="0"
+                        (keydown.enter)="ingestion.connectSelectedConnector(globalSourceFileInput)"
+                      >
+                        <div class="d-flex align-items-center gap-2">
+                          <div class="p-1 rounded bg-body-tertiary border">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                              @if (connector.category === 'file') {
+                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                                <polyline points="14 2 14 8 20 8"></polyline>
+                              } @else if (connector.category === 'database') {
+                                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                              } @else {
+                                <circle cx="12" cy="12" r="10"></circle>
+                                <line x1="2" y1="12" x2="22" y2="12"></line>
+                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                              }
+                            </svg>
+                          </div>
+                          <div>
+                            <div class="fw-semibold" style="font-size: 13px">{{ connector.name }}</div>
+                            <div class="text-muted" style="font-size: 11px">{{ connector.description }}</div>
+                          </div>
+                        </div>
+                        <span class="badge text-bg-light border font-monospace text-uppercase" style="font-size: 10px">{{ connector.category }}</span>
+                      </div>
+                    } @empty {
+                      <div class="p-4 text-center text-muted">No connectors found matching your query.</div>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <div class="rc-modal-footer">
+                <button
+                  type="button"
+                  class="rc-btn rc-btn-sm rc-btn-outline"
+                  (click)="ingestion.closeGetDataModal()"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
+                  (click)="ingestion.connectSelectedConnector(globalSourceFileInput)"
+                  id="get-data-connect-btn"
+                >
+                  <span>Connect</span>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+
+        @if (ingestion.isNavigatorModalOpen()) {
+          <div
+            class="rc-modal-backdrop"
+            (click)="ingestion.cancelNavigator()"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="navigator-modal-title"
+          >
+            <div
+              class="rc-modal-dialog rc-modal-lg"
+              style="max-width: 920px"
+              (click)="$event.stopPropagation()"
+            >
+              <div class="rc-modal-header">
+                <div class="d-flex align-items-center gap-2">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                  </svg>
+                  <div>
+                    <h2 class="rc-modal-title" id="navigator-modal-title">Navigator</h2>
+                    <div class="text-muted" style="font-size: 11px">{{ ingestion.pendingFileName() }}</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="rc-modal-close"
+                  (click)="ingestion.cancelNavigator()"
+                  aria-label="Close Navigator"
+                >
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+                </button>
+              </div>
+
+              <div class="rc-modal-body p-0 d-flex" style="height: 440px">
+                <div
+                  class="border-end p-2 d-flex flex-column"
+                  style="width: 250px; background-color: var(--rc-surface-subtle)"
+                >
+                  <div
+                    class="p-2 border-bottom fw-bold text-uppercase text-secondary"
+                    style="font-size: 10px; letter-spacing: 0.05em"
+                  >
+                    Display Options
+                  </div>
+                  <div class="overflow-y-auto flex-grow-1 pt-2" role="tree" aria-label="Workbook Sheets">
+                    <div class="fw-semibold text-truncate px-2 py-1 text-secondary" style="font-size: 11px">
+                      {{ ingestion.pendingFileName() }}
+                    </div>
+                    <ul class="list-unstyled mb-0 d-flex flex-column gap-1 ps-2">
+                      @for (sheet of ingestion.navigatorSheets(); track sheet.id) {
+                        <li>
+                          <button
+                            type="button"
+                            class="rc-btn rc-btn-sm w-100 justify-content-start text-start d-flex align-items-center gap-2"
+                            [class.rc-btn-primary]="ingestion.selectedNavigatorSheetId() === sheet.id"
+                            [class.rc-btn-ghost]="ingestion.selectedNavigatorSheetId() !== sheet.id"
+                            (click)="ingestion.selectedNavigatorSheetId.set(sheet.id)"
+                          >
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                              @if (sheet.kind === 'Table') {
+                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="3" y1="15" x2="21" y2="15"></line>
+                                <line x1="9" y1="3" x2="9" y2="21"></line>
+                              } @else {
+                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                <line x1="3" y1="9" x2="21" y2="9"></line>
+                                <line x1="9" y1="21" x2="9" y2="9"></line>
+                              }
+                            </svg>
+                            <span class="text-truncate">{{ sheet.name }}</span>
+                          </button>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                </div>
+
+                <div class="flex-grow-1 d-flex flex-column overflow-hidden bg-body">
+                  @if (ingestion.selectedNavigatorSheet(); as sheet) {
+                    <div class="p-2 px-3 border-bottom d-flex align-items-center justify-content-between bg-body-tertiary">
+                      <div class="d-flex align-items-center gap-2">
+                        <span class="fw-bold" style="font-size: 13px">{{ sheet.name }}</span>
+                        <span class="badge text-bg-secondary" style="font-size: 10px">{{ sheet.kind }}</span>
+                        <span class="text-muted" style="font-size: 11px">({{ sheet.rows.length }} rows preview)</span>
+                      </div>
+                      <div class="text-muted fst-italic" style="font-size: 11px">
+                        Unpromoted raw data preview
+                      </div>
+                    </div>
+
+                    <div class="flex-grow-1 overflow-auto">
+                      <table class="rc-preview-table mb-0">
+                        <thead>
+                          <tr>
+                            @for (col of sheet.columns; track col.name) {
+                              <th>
+                                <span class="fw-semibold" style="font-size: 11px">{{ col.name }}</span>
+                              </th>
+                            }
+                          </tr>
+                        </thead>
+                        <tbody>
+                          @for (row of sheet.rows; track $index) {
+                            <tr [class.table-light]="$index === 0">
+                              @for (col of sheet.columns; track col.name) {
+                                <td [class.fw-bold]="$index === 0">
+                                  {{ row[col.name] ?? '—' }}
+                                </td>
+                              }
+                            </tr>
+                          }
+                        </tbody>
+                      </table>
+                    </div>
+                  } @else {
+                    <div class="p-4 text-center text-muted h-100 d-flex align-items-center justify-content-center">
+                      Select an item on the left to preview its table data.
+                    </div>
+                  }
+                </div>
+              </div>
+
+              <div class="rc-modal-footer justify-content-between">
+                <div class="text-muted" style="font-size: 11px">
+                  Generates: <code>Source</code> &rarr; <code>Navigation</code> &rarr; <code>Promoted Headers</code> &rarr; <code>Changed Type</code>.
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-sm rc-btn-outline"
+                    (click)="ingestion.cancelNavigator()"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+                    (click)="ingestion.confirmNavigatorAndLoad('transform')"
+                    id="navigator-transform-btn"
+                  >
+                    <span>Transform Data</span>
+                  </button>
+                  <button
+                    type="button"
+                    class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
+                    (click)="ingestion.confirmNavigatorAndLoad('load')"
+                    id="navigator-load-btn"
+                  >
+                    <span>Load</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        }
       </div>
 
       @if (state.mobileDrawerOpen()) {
@@ -1089,6 +1469,7 @@ export class AppComponent {
   public readonly state = inject(StateManagerService);
   public readonly authService = inject(AuthService);
   public readonly projectService = inject(ProjectSerializationService);
+  public readonly ingestion = inject(IngestionWorkflowService);
   public readonly userMenuOpen = signal<boolean>(false);
   public readonly projectMenuOpen = signal<boolean>(false);
   public readonly editingProject = signal<boolean>(false);
