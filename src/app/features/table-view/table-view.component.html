@@ -85,16 +85,8 @@
     [class.d-md-flex]="true"
     aria-label="Table View Canvas"
   >
-    <!-- Standardized Workspace Header -->
-    <header class="rc-page-header rc-workspace-header flex-shrink-0">
-      <div>
-        
-        <h1 class="h5 fw-bold mb-0">Table View</h1>
-        <p class="small text-muted mb-0">
-          Row-level data inspection, calculated columns, and table modeling.
-        </p>
-      </div>
-
+    <!-- Standardized Workspace Action Toolbar -->
+    <header class="rc-page-header rc-workspace-header flex-shrink-0 d-flex justify-content-end align-items-center">
       <div class="d-flex align-items-center gap-2">
         <input
           #csvFileInput
@@ -259,12 +251,13 @@
         @if (activeColumns().length > 0) {
           <select
             class="form-select form-select-sm py-0 px-2 font-monospace"
-            style="width: auto; height: 26px; font-size: 11px; background-color: var(--rc-surface-subtle); color: var(--rc-text-primary); border: 1px solid var(--rc-card-border);"
-            [ngModel]="dateColumnCandidate()"
+            style="min-width: 140px; width: auto; height: 26px; font-size: 11px; background-color: var(--rc-surface-subtle); color: var(--rc-text-primary); border: 1px solid var(--rc-card-border);"
+            [ngModel]="effectiveDateColumn()"
             (ngModelChange)="dateColumnCandidate.set($event)"
             aria-label="Choose a Date Column"
             title="Select the Date column key for Time Intelligence"
           >
+            <option value="" disabled [selected]="!effectiveDateColumn()">Choose date col...</option>
             @for (col of activeColumns(); track col.name) {
               <option [value]="col.name">{{ col.name }}</option>
             }
@@ -454,7 +447,7 @@
                 <!-- Dynamic Model Columns -->
                 @for (col of activeColumns(); track col.name) {
                   <th
-                    class="rc-th-cell border-bottom border-end px-2 py-1 user-select-none text-truncate"
+                    class="rc-th-cell border-bottom border-end px-2 py-1 user-select-none"
                     [class.is-sorted]="sortColumn() === col.name"
                     [style.opacity]="col.isHidden ? '0.6' : '1'"
                     (click)="toggleSort(col.name)"
@@ -468,56 +461,120 @@
                     "
                     style="cursor: pointer; background-color: var(--rc-card-bg);"
                   >
-                    <div class="d-flex align-items-center justify-content-between gap-1">
-                      <div class="d-flex align-items-center gap-1 min-w-0">
-                        <!-- Key type indicator if PK/FK -->
-                        @if (col.keyType === "PK") {
-                          <span
-                            class="badge px-1 py-1 rounded-pill"
-                            style="font-size: 9px; background-color: var(--rc-primary); color: #fff;"
-                            title="Primary Key"
-                          >
-                            PK
-                          </span>
-                        } @else if (col.keyType === "FK") {
-                          <span
-                            class="badge px-1 py-1 rounded-pill"
-                            style="font-size: 9px; background-color: var(--rc-surface-hover); color: var(--rc-text-secondary); border: 1px solid var(--rc-card-border);"
-                            title="Foreign Key"
-                          >
-                            FK
-                          </span>
-                        }
-
+                    <div
+                      class="d-flex align-items-center gap-1.5 w-100"
+                      [class.justify-content-end]="getColumnAlignment(col) === 'text-end'"
+                      [class.justify-content-center]="getColumnAlignment(col) === 'text-center'"
+                      [class.justify-content-between]="getColumnAlignment(col) === 'text-start'"
+                    >
+                      @if (getColumnAlignment(col) === 'text-end') {
+                        <!-- Right-aligned header: Type badge on the left, Name & Sort caret on the right -->
                         <span
-                          class="fw-semibold text-truncate"
-                          style="font-size: 12px; color: var(--rc-text-primary);"
-                        >
-                          {{ col.name }}
-                        </span>
-
-                        @if (col.isHidden) {
-                          <span
-                            class="text-secondary font-monospace"
-                            style="font-size: 9px;"
-                            title="Hidden in Report View"
-                          >
-                            (Hidden)
-                          </span>
-                        }
-                      </div>
-
-                      <div class="d-flex align-items-center gap-1 flex-shrink-0">
-                        <span
-                          class="text-secondary font-monospace"
-                          style="font-size: 10px; opacity: 0.75;"
+                          class="badge font-monospace text-secondary flex-shrink-0"
+                          style="font-size: 9px; opacity: 0.75; background-color: var(--rc-surface-subtle); border: 1px solid var(--rc-card-border);"
                         >
                           {{ col.dataType }}
                         </span>
 
+                        <div class="d-flex align-items-center gap-1 min-w-0">
+                          <span
+                            class="fw-semibold text-truncate"
+                            style="font-size: 12px; color: var(--rc-text-primary);"
+                          >
+                            {{ col.name }}
+                          </span>
+                          @if (col.isHidden) {
+                            <span
+                              class="text-secondary font-monospace"
+                              style="font-size: 9px;"
+                              title="Hidden in Report View"
+                            >
+                              (Hidden)
+                            </span>
+                          }
+                          <!-- Sort Caret Indicator -->
+                          <span
+                            class="rc-sort-icon d-inline-flex align-items-center"
+                            style="width: 12px; height: 12px;"
+                          >
+                            @if (sortColumn() === col.name) {
+                              @if (sortDirection() === "asc") {
+                                <svg
+                                  width="10"
+                                  height="10"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2.5"
+                                  aria-hidden="true"
+                                >
+                                  <polyline points="18 15 12 9 6 15"></polyline>
+                                </svg>
+                              } @else {
+                                <svg
+                                  width="10"
+                                  height="10"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2.5"
+                                  aria-hidden="true"
+                                >
+                                  <polyline points="6 9 12 15 18 9"></polyline>
+                                </svg>
+                              }
+                            }
+                          </span>
+                        </div>
+                      } @else {
+                        <!-- Left-aligned or centered header: Title and badges grouped cleanly -->
+                        <div class="d-flex align-items-center gap-1.5 min-w-0">
+                          @if (col.keyType === "PK") {
+                            <span
+                              class="badge px-1 py-0.5 rounded-pill"
+                              style="font-size: 9px; background-color: var(--rc-primary); color: #fff;"
+                              title="Primary Key"
+                            >
+                              PK
+                            </span>
+                          } @else if (col.keyType === "FK") {
+                            <span
+                              class="badge px-1 py-0.5 rounded-pill"
+                              style="font-size: 9px; background-color: var(--rc-surface-hover); color: var(--rc-text-secondary); border: 1px solid var(--rc-card-border);"
+                              title="Foreign Key"
+                            >
+                              FK
+                            </span>
+                          }
+
+                          <span
+                            class="fw-semibold text-truncate"
+                            style="font-size: 12px; color: var(--rc-text-primary);"
+                          >
+                            {{ col.name }}
+                          </span>
+
+                          <span
+                            class="badge font-monospace text-secondary flex-shrink-0"
+                            style="font-size: 9px; opacity: 0.75; background-color: var(--rc-surface-subtle); border: 1px solid var(--rc-card-border);"
+                          >
+                            {{ col.dataType }}
+                          </span>
+
+                          @if (col.isHidden) {
+                            <span
+                              class="text-secondary font-monospace"
+                              style="font-size: 9px;"
+                              title="Hidden in Report View"
+                            >
+                              (Hidden)
+                            </span>
+                          }
+                        </div>
+
                         <!-- Sort Caret Indicator -->
                         <span
-                          class="rc-sort-icon d-inline-flex align-items-center"
+                          class="rc-sort-icon d-inline-flex align-items-center flex-shrink-0"
                           style="width: 12px; height: 12px;"
                         >
                           @if (sortColumn() === col.name) {
@@ -548,7 +605,7 @@
                             }
                           }
                         </span>
-                      </div>
+                      }
                     </div>
                   </th>
                 }
@@ -568,12 +625,12 @@
                   <!-- Column Cells -->
                   @for (col of activeColumns(); track col.name) {
                     <td
-                      class="rc-td-cell border-bottom border-end px-2 py-1 text-truncate"
+                      class="rc-td-cell border-bottom border-end px-2 py-1"
                       [class]="getColumnAlignment(col)"
                       [style.opacity]="col.isHidden ? '0.6' : '1'"
-                      style="font-size: 12px; color: var(--rc-text-primary); max-width: 260px;"
+                      style="font-size: 12px; color: var(--rc-text-primary);"
                     >
-                      <span class="font-monospace">
+                      <span class="font-monospace text-truncate d-inline-block" style="max-width: 100%;">
                         {{ formatCellValue(row[col.name], col) }}
                       </span>
                     </td>
@@ -862,16 +919,23 @@
                         <select
                           class="form-select form-select-sm py-0 px-1 font-monospace"
                           style="font-size: 11px; height: 24px;"
-                          [ngModel]="activeCol.dataType"
+                          [ngModel]="getColumnDataType(activeCol)"
                           (ngModelChange)="updateColumnDataType(activeCol.name, $event)"
                           aria-label="Column Data Type"
                         >
+                          <option value="STRING">STRING (Text)</option>
                           <option value="VARCHAR">VARCHAR (Text)</option>
+                          <option value="INT64">INT64 (Integer)</option>
                           <option value="INT">INT (Whole)</option>
-                          <option value="DECIMAL">DECIMAL (Fixed)</option>
+                          <option value="FLOAT64">FLOAT64 (Decimal)</option>
                           <option value="FLOAT">FLOAT (Decimal)</option>
+                          <option value="DECIMAL">DECIMAL (Fixed)</option>
                           <option value="DATE">DATE</option>
+                          <option value="DATETIME">DATETIME</option>
                           <option value="BOOLEAN">BOOLEAN</option>
+                          @if (isCustomDataType(activeCol.dataType)) {
+                            <option [value]="activeCol.dataType">{{ activeCol.dataType }}</option>
+                          }
                         </select>
                       </div>
 
@@ -952,7 +1016,7 @@
                   </div>
                 }
 
-                <div class="d-flex flex-column gap-2">
+                <div class="d-flex flex-column gap-2 pb-3">
                   @for (col of activeColumns(); track col.name) {
                     <div
                       class="p-2 rounded"

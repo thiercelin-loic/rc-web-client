@@ -88,15 +88,8 @@
     [class.d-none]="activeMobileTab() !== 'data'"
     [class.d-md-flex]="true"
   >
-    <!-- Standardized Workspace Header -->
-    <div class="rc-page-header rc-workspace-header">
-      <div>
-        <h1 class="h5 fw-bold mb-0">Data Preparation</h1>
-        <p class=" text-muted mb-0">
-          R-Query ingestion pipelines and stream transformations.
-        </p>
-      </div>
-
+    <!-- Standardized Workspace Action Toolbar -->
+    <div class="rc-page-header rc-workspace-header d-flex justify-content-end align-items-center">
       <div class="d-flex align-items-center gap-2">
         <button
           type="button"

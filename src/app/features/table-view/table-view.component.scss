@@ -54,23 +54,30 @@
   background-color: var(--rc-canvas-bg);
   scrollbar-width: thin;
   scrollbar-color: var(--rc-card-border) transparent;
+  min-width: 0;
+  overflow: auto;
 }
 
 .rc-data-table {
   color: var(--rc-text-primary);
+  width: max-content;
+  min-width: 100%;
 
   th {
     border-color: var(--rc-card-border) !important;
     color: var(--rc-text-primary);
+    white-space: nowrap;
   }
 
   td {
     border-color: var(--rc-card-border) !important;
+    white-space: nowrap;
   }
 }
 
 .rc-th-cell {
   transition: background-color var(--rc-transition-fast);
+  min-width: 110px;
 
   &:hover {
     background-color: var(--rc-surface-hover) !important;
@@ -79,6 +86,10 @@
   &.is-sorted {
     background-color: var(--rc-surface-subtle) !important;
   }
+}
+
+.rc-td-cell {
+  min-width: 110px;
 }
 
 .rc-table-row {

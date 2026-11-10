@@ -122,6 +122,18 @@ export class TableViewComponent implements OnInit {
   public readonly selectedTableName = signal<string>("");
   public readonly selectedColumnName = signal<string>("");
   public readonly dateColumnCandidate = signal<string>("");
+  public readonly effectiveDateColumn = computed<string>(() => {
+    const explicit = this.dateColumnCandidate();
+    if (explicit) return explicit;
+    const tbl = this.activeTable();
+    if (!tbl || !tbl.columns.length) return "";
+    const dateCol = tbl.columns.find(
+      (c) =>
+        c.dataType.toUpperCase().includes("DATE") ||
+        c.name.toLowerCase().includes("date"),
+    );
+    return tbl.dateColumn || dateCol?.name || tbl.columns[0]?.name || "";
+  });
   public readonly tableSearchQuery = signal<string>("");
 
   public readonly tables = computed<readonly SharedTable[]>(() => {
@@ -282,6 +294,14 @@ export class TableViewComponent implements OnInit {
       this.selectedTableName.set(first.name);
       if (first.columns.length > 0) {
         this.selectedColumnName.set(first.columns[0].name);
+        const dateCol = first.columns.find(
+          (c) =>
+            c.dataType.toUpperCase().includes("DATE") ||
+            c.name.toLowerCase().includes("date"),
+        );
+        this.dateColumnCandidate.set(
+          first.dateColumn || dateCol?.name || first.columns[0]?.name || "",
+        );
       }
     }
   }
@@ -295,6 +315,14 @@ export class TableViewComponent implements OnInit {
       this.selectedTableName.set(first.name);
       if (first.columns.length > 0) {
         this.selectedColumnName.set(first.columns[0].name);
+        const dateCol = first.columns.find(
+          (c) =>
+            c.dataType.toUpperCase().includes("DATE") ||
+            c.name.toLowerCase().includes("date"),
+        );
+        this.dateColumnCandidate.set(
+          first.dateColumn || dateCol?.name || first.columns[0]?.name || "",
+        );
       }
     }
 
@@ -535,6 +563,48 @@ export class TableViewComponent implements OnInit {
     this.state.announce(`Changed column [${colName}] data type to ${dataType}.`);
   }
 
+  public getColumnDataType(col: SharedColumn): string {
+    const raw = (col.dataType || "STRING").toUpperCase();
+    const standard = [
+      "STRING",
+      "VARCHAR",
+      "INT64",
+      "INT",
+      "FLOAT64",
+      "FLOAT",
+      "DECIMAL",
+      "DATE",
+      "DATETIME",
+      "BOOLEAN",
+    ];
+    if (standard.includes(raw)) return raw;
+    if (raw.includes("CHAR") || raw.includes("TEXT") || raw.includes("STRING")) return "STRING";
+    if (raw.includes("INT")) return raw.includes("64") ? "INT64" : "INT";
+    if (raw.includes("FLOAT") || raw.includes("DOUBLE")) return raw.includes("64") ? "FLOAT64" : "FLOAT";
+    if (raw.includes("DEC") || raw.includes("NUMERIC")) return "DECIMAL";
+    if (raw.includes("DATE") || raw.includes("TIME")) return raw.includes("TIME") ? "DATETIME" : "DATE";
+    if (raw.includes("BOOL")) return "BOOLEAN";
+    return raw;
+  }
+
+  public isCustomDataType(dataType: string | undefined): boolean {
+    if (!dataType) return false;
+    const raw = dataType.toUpperCase();
+    const standard = [
+      "STRING",
+      "VARCHAR",
+      "INT64",
+      "INT",
+      "FLOAT64",
+      "FLOAT",
+      "DECIMAL",
+      "DATE",
+      "DATETIME",
+      "BOOLEAN",
+    ];
+    return !standard.includes(raw);
+  }
+
   public updateColumnSummarization(
     colName: string,
     summarizeBy: ColumnSummarization,
@@ -771,7 +841,10 @@ export class TableViewComponent implements OnInit {
     const tbl = this.activeTable();
     if (!tbl) return;
 
-    const candidateName = explicitDateColumn || this.dateColumnCandidate();
+    const candidateName =
+      explicitDateColumn ||
+      this.effectiveDateColumn() ||
+      this.dateColumnCandidate();
     const dateCol =
       tbl.columns.find((c) => c.name === candidateName) ??
       tbl.columns.find(
@@ -1515,10 +1588,18 @@ export class TableViewComponent implements OnInit {
         name.includes("amount") ||
         name.includes("revenue") ||
         name.includes("price") ||
+        name.includes("prix") ||
         name.includes("cost") ||
+        name.includes("cout") ||
+        name.includes("coût") ||
         name.includes("profit") ||
         name.includes("montant") ||
-        name.includes("cours")
+        name.includes("cours") ||
+        name.includes("chiffre") ||
+        name.includes("affaires") ||
+        name.includes("total") ||
+        name.includes("eur") ||
+        name.includes("usd")
       ) {
         return `€${val.toLocaleString("en-US", {
           minimumFractionDigits: 2,

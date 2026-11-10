@@ -168,6 +168,16 @@ export class RaxRequestsComponent implements OnInit {
 
   private readonly queryEditorRef =
     viewChild<ElementRef<HTMLTextAreaElement>>("queryEditor");
+  private readonly editorGutterRef =
+    viewChild<ElementRef<HTMLDivElement>>("editorGutter");
+
+  public syncGutterScroll(): void {
+    const textarea = this.queryEditorRef()?.nativeElement;
+    const gutter = this.editorGutterRef()?.nativeElement;
+    if (textarea && gutter) {
+      gutter.scrollTop = textarea.scrollTop;
+    }
+  }
 
   private tabSequence = 1;
 

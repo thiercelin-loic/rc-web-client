@@ -52,6 +52,11 @@ interface NavModuleItem {
           background-color var(--rc-transition-fast),
           color var(--rc-transition-fast);
       }
+      .rc-rail-btn svg {
+        width: 18px;
+        height: 18px;
+        flex-shrink: 0;
+      }
       .rc-rail-btn:hover {
         background-color: rgba(255, 255, 255, 0.08);
         color: var(--rc-text-pure);
@@ -72,115 +77,6 @@ interface NavModuleItem {
       }
       .rc-project-badge {
         max-width: 240px;
-      }
-      .rc-page-tab-group {
-        min-height: 38px;
-        position: relative;
-        display: inline-flex;
-        align-items: center;
-        background: transparent;
-        border-bottom: 2px solid transparent;
-        border-radius: var(--rc-radius-xs) var(--rc-radius-xs) 0 0;
-        cursor: grab;
-        user-select: none;
-        transition:
-          background-color var(--rc-transition-fast),
-          border-color var(--rc-transition-fast);
-      }
-      .rc-page-tab-group:active {
-        cursor: grabbing;
-      }
-      .rc-page-tab-group:hover {
-        background-color: rgba(255, 255, 255, 0.08);
-      }
-      .rc-page-tab-group.active {
-        background-color: rgba(255, 255, 255, 0.12);
-        border-bottom-color: var(--rc-primary);
-      }
-      .rc-page-tab-group.rc-tab-dragging {
-        opacity: 0.35;
-      }
-      .rc-page-tab-group.rc-tab-drop-left {
-        box-shadow: inset 2px 0 0 0 var(--rc-primary);
-      }
-      .rc-page-tab-group.rc-tab-drop-right {
-        box-shadow: inset -2px 0 0 0 var(--rc-primary);
-      }
-      .rc-page-tab {
-        min-height: 36px;
-        display: inline-flex;
-        align-items: center;
-        padding: 0 6px 0 10px;
-        font-size: var(--rc-font-size-sm);
-        font-weight: var(--rc-font-weight-semibold);
-        color: var(--rc-neutral-soft);
-        background: transparent !important;
-        border: none !important;
-        border-radius: var(--rc-radius-xs);
-        cursor: pointer;
-        white-space: nowrap;
-        transition: color var(--rc-transition-fast);
-      }
-      .rc-page-tab:focus-visible {
-        outline: 2px solid var(--rc-primary) !important;
-        outline-offset: -2px !important;
-      }
-      .rc-page-tab-title {
-        max-width: 140px;
-      }
-      .rc-page-tab-title svg {
-        fill: currentColor;
-        flex-shrink: 0;
-      }
-      .rc-page-tab.active {
-        color: var(--rc-text-pure);
-      }
-      .rc-page-tab-group:hover .rc-page-tab {
-        color: var(--rc-text-pure);
-      }
-      .rc-page-tab-actions {
-        padding-right: 6px;
-        padding-left: 2px;
-        gap: 2px;
-        display: inline-flex;
-        align-items: center;
-      }
-      button.rc-tab-action-btn {
-        width: 20px;
-        height: 20px;
-        padding: 0 !important;
-        margin: 0 !important;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        background: transparent !important;
-        border: 0 !important;
-        appearance: none !important;
-        -webkit-appearance: none !important;
-        border-radius: var(--rc-radius-xs);
-        color: var(--rc-neutral-soft);
-        cursor: pointer;
-        opacity: 0;
-        transition:
-          opacity var(--rc-transition-fast),
-          background-color var(--rc-transition-fast),
-          color var(--rc-transition-fast);
-      }
-      .rc-page-tab-group:hover button.rc-tab-action-btn,
-      .rc-page-tab-group:focus-within button.rc-tab-action-btn,
-      .rc-page-tab-group.active button.rc-tab-action-btn {
-        opacity: 0.8;
-      }
-      button.rc-tab-action-btn:hover,
-      button.rc-tab-action-btn:focus-visible {
-        opacity: 1 !important;
-        background-color: rgba(255, 255, 255, 0.18) !important;
-        color: var(--rc-text-pure) !important;
-      }
-      button.rc-tab-remove-btn:hover,
-      button.rc-tab-remove-btn:focus-visible {
-        color: var(--rc-status-danger-text, #ff7b7b) !important;
-        background-color: rgba(224, 82, 82, 0.25) !important;
       }
       .rc-page-tab-input {
         min-height: 24px;
@@ -223,8 +119,17 @@ interface NavModuleItem {
       .rc-project-menu {
         position: absolute;
         top: 100%;
-        left: 0;
+        right: 0;
+        left: auto;
         min-width: 180px;
+      }
+      .rc-ribbon-page-title {
+        font-family: var(--rc-font-heading);
+        font-size: var(--rc-font-size-md);
+        font-weight: var(--rc-font-weight-bold);
+        color: var(--rc-text-pure);
+        letter-spacing: -0.01em;
+        line-height: 1.2;
       }
       .rc-page-menu-container .dropdown-item,
       .rc-export-menu .dropdown-item,
@@ -296,7 +201,7 @@ interface NavModuleItem {
       .rc-ribbon-brand {
         width: var(--rc-rail-width, 48px);
         min-width: var(--rc-rail-width, 48px);
-        height: var(--rc-ribbon-height, 48px);
+        height: var(--rc-ribbon-height, 40px);
         display: flex;
         align-items: center;
         justify-content: center;
@@ -418,9 +323,7 @@ interface NavModuleItem {
               alt="Roller Coaster Logo"
             />
           </div>
-          <div
-            class="d-flex align-items-center min-w-0 flex-grow-1 gap-2  me-2b "
-          >
+          <div class="d-flex align-items-center min-w-0 flex-grow-1 gap-2 me-2">
             <button
               type="button"
               class="rc-btn rc-btn-md rc-btn-outline d-md-none px-2 d-inline-flex align-items-center justify-content-center flex-shrink-0"
@@ -443,6 +346,17 @@ interface NavModuleItem {
                 <line x1="3" y1="18" x2="21" y2="18"></line>
               </svg>
             </button>
+            <h1
+              id="rc-ribbon-page-title"
+              class="rc-ribbon-page-title h6 mb-0 fw-bold text-white text-truncate"
+            >
+              {{ currentPageTitle() }}
+            </h1>
+          </div>
+
+          <div
+            class="d-flex align-items-center gap-2 flex-shrink-0 pe-2 pe-md-3"
+          >
             <div
               id="rc-current-project-container"
               class="rc-project-tab-group position-relative d-inline-flex align-items-center flex-shrink-0"
@@ -482,22 +396,16 @@ interface NavModuleItem {
                   "
                 >
                   <svg
+                    viewBox="0 0 24 24"
                     width="16"
                     height="16"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="currentColor"
-                    stroke-width="1.8"
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
+                    fill="currentColor"
                     class="flex-shrink-0"
                     aria-hidden="true"
                   >
                     <path
-                      d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"
-                    ></path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                      d="M8,18h8V16H8v2Zm0-4h8V12H8v2ZM6,22q-0.82,0-1.41-0.59T4,20V4Q4,3.17 4.59,2.59T6,2h8l6,6V20q0,0.82-0.59,1.41T18,22H6ZM13,9V4H6V20H18V9H13ZM6,4V9V4V9V20V4Z"
+                    />
                   </svg>
                   <span class="text-truncate rc-project-title">{{
                     state.activeProject().filename
@@ -547,8 +455,8 @@ interface NavModuleItem {
                       id="rc-rename-project-btn"
                     >
                       <svg
-                        width="14"
-                        height="14"
+                        width="16"
+                        height="16"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -576,8 +484,8 @@ interface NavModuleItem {
                       title="Save current project to .rcp package"
                     >
                       <svg
-                        width="14"
-                        height="14"
+                        width="16"
+                        height="16"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -604,8 +512,8 @@ interface NavModuleItem {
                       title="Open and load an existing .rcp file"
                     >
                       <svg
-                        width="14"
-                        height="14"
+                        width="16"
+                        height="16"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -632,8 +540,8 @@ interface NavModuleItem {
                       title="Create a new blank .rcp project"
                     >
                       <svg
-                        width="14"
-                        height="14"
+                        width="16"
+                        height="16"
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
@@ -656,298 +564,6 @@ interface NavModuleItem {
               }
             </div>
 
-            @if (isReportRoute()) {
-              <nav aria-label="Report Pages">
-                <ul
-                  class="list-unstyled d-flex align-items-center  mb-0 min-w-0"
-                >
-                  @for (
-                    page of state.reportPages();
-                    track $index;
-                    let i = $index
-                  ) {
-                    <li
-                      class="rc-page-tab-group position-relative d-inline-flex align-items-center"
-                      [class.active]="state.activePage() === page"
-                      [class.rc-tab-dragging]="draggedPageIndex() === i"
-                      [class.rc-tab-drop-left]="
-                        dragOverIndex() === i && dragOverPosition() === 'left'
-                      "
-                      [class.rc-tab-drop-right]="
-                        dragOverIndex() === i && dragOverPosition() === 'right'
-                      "
-                      [attr.draggable]="editingPageIndex() !== i"
-                      (dragstart)="onPageDragStart($event, i)"
-                      (dragover)="onPageDragOver($event, i)"
-                      (dragenter)="onPageDragEnter($event, i)"
-                      (dragleave)="onPageDragLeave($event, i)"
-                      (drop)="onPageDrop($event, i)"
-                      (dragend)="onPageDragEnd()"
-                      (contextmenu)="onPageContextMenu($event, i)"
-                    >
-                      @if (editingPageIndex() === i) {
-                        <input
-                          #renameInput
-                          type="text"
-                          class="rc-page-tab-input"
-                          [value]="editingPageValue()"
-                          (input)="editingPageValue.set(renameInput.value)"
-                          (keydown.enter)="commitRenamePage(page)"
-                          (keydown.escape)="cancelRenamePage()"
-                          (blur)="commitRenamePage(page)"
-                          aria-label="Rename report page"
-                        />
-                      } @else {
-                        <button
-                          type="button"
-                          class="rc-page-tab"
-                          [class.active]="state.activePage() === page"
-                          [attr.aria-current]="
-                            state.activePage() === page ? 'page' : null
-                          "
-                          (click)="onSelectReportPage(page)"
-                          (dblclick)="startRenamePage(i, page)"
-                          (keydown)="onTabKeyDown($event, i, page)"
-                          [title]="
-                            'Page: ' +
-                            page +
-                            ' (Double-click to rename, drag to reorder)'
-                          "
-                        >
-                          <span
-                            class="rc-page-tab-title d-inline-flex align-items-center gap-2 text-truncate"
-                          >
-                            <svg
-                              viewBox="0 -960 960 960"
-                              width="18"
-                              height="18"
-                              fill="currentColor"
-                              aria-hidden="true"
-                              focusable="false"
-                            >
-                              <path
-                                d="M160-240h640v-320H520v-160H160v480Zm0 80q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z"
-                              />
-                            </svg>
-                            {{ page }}
-                          </span>
-                        </button>
-
-                        <div
-                          class="rc-page-tab-actions d-inline-flex align-items-center"
-                        >
-                          <button
-                            type="button"
-                            class="rc-tab-action-btn rc-page-menu-trigger"
-                            (click)="togglePageMenu($event, i)"
-                            [attr.aria-expanded]="pageMenuIndex() === i"
-                            aria-label="Page options"
-                            title="Page options"
-                          >
-                            <svg
-                              width="12"
-                              height="12"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="1.8"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              aria-hidden="true"
-                            >
-                              <circle cx="12" cy="12" r="1.5"></circle>
-                              <circle cx="12" cy="5" r="1.5"></circle>
-                              <circle cx="12" cy="19" r="1.5"></circle>
-                            </svg>
-                          </button>
-
-                          @if (state.reportPages().length > 1) {
-                            <button
-                              type="button"
-                              class="rc-tab-action-btn rc-tab-remove-btn"
-                              (click)="onRemoveReportPage($event, page)"
-                              [attr.aria-label]="'Remove ' + page"
-                              title="Remove page"
-                            >
-                              <svg
-                                width="12"
-                                height="12"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                              >
-                                <line x1="18" y1="6" x2="6" y2="18"></line>
-                                <line x1="6" y1="6" x2="18" y2="18"></line>
-                              </svg>
-                            </button>
-                          }
-                        </div>
-                      }
-
-                      @if (pageMenuIndex() === i) {
-                        <ul
-                          class="rc-page-menu-container dropdown-menu show start-0 top-100 mt-1 shadow-sm p-1 list-unstyled mb-0"
-                          role="menu"
-                          [attr.aria-label]="page + ' options'"
-                        >
-                          <li role="none">
-                            <button
-                              type="button"
-                              class="dropdown-item  py-1 d-flex align-items-center gap-2"
-                              (click)="startRenamePage(i, page)"
-                              role="menuitem"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                              >
-                                <path d="M12 20h9"></path>
-                                <path
-                                  d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
-                                ></path>
-                              </svg>
-                              <span>Rename</span>
-                            </button>
-                          </li>
-
-                          <li role="none">
-                            <button
-                              type="button"
-                              class="dropdown-item  py-1 d-flex align-items-center gap-2"
-                              [class.disabled]="i === 0"
-                              [disabled]="i === 0"
-                              [attr.aria-disabled]="i === 0 ? 'true' : null"
-                              (click)="moveTab(page, 'left')"
-                              role="menuitem"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                              >
-                                <polyline points="15 18 9 12 15 6"></polyline>
-                              </svg>
-                              <span>Move Left</span>
-                            </button>
-                          </li>
-
-                          <li role="none">
-                            <button
-                              type="button"
-                              class="dropdown-item  py-1 d-flex align-items-center gap-2"
-                              [class.disabled]="
-                                i === state.reportPages().length - 1
-                              "
-                              [disabled]="i === state.reportPages().length - 1"
-                              [attr.aria-disabled]="
-                                i === state.reportPages().length - 1
-                                  ? 'true'
-                                  : null
-                              "
-                              (click)="moveTab(page, 'right')"
-                              role="menuitem"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                              >
-                                <polyline points="9 18 15 12 9 6"></polyline>
-                              </svg>
-                              <span>Move Right</span>
-                            </button>
-                          </li>
-
-                          <li
-                            role="separator"
-                            class="dropdown-divider my-1"
-                          ></li>
-
-                          <li role="none">
-                            <button
-                              type="button"
-                              class="dropdown-item  py-1 text-danger d-flex align-items-center gap-2"
-                              [class.disabled]="state.reportPages().length <= 1"
-                              [disabled]="state.reportPages().length <= 1"
-                              (click)="onRemoveReportPage($event, page)"
-                              role="menuitem"
-                            >
-                              <svg
-                                width="14"
-                                height="14"
-                                viewBox="0 0 24 24"
-                                fill="none"
-                                stroke="currentColor"
-                                stroke-width="1.8"
-                                stroke-linecap="round"
-                                stroke-linejoin="round"
-                                aria-hidden="true"
-                              >
-                                <polyline points="3 6 5 6 21 6"></polyline>
-                                <path
-                                  d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-                                ></path>
-                              </svg>
-                              <span>Remove</span>
-                            </button>
-                          </li>
-                        </ul>
-                      }
-                    </li>
-                  }
-                </ul>
-              </nav>
-              <button
-                type="button"
-                class="rc-btn rc-btn-ghost rc-btn-sm d-none d-lg-inline-flex flex-shrink-0 px-2"
-                (click)="state.addReportPage()"
-                aria-label="Add new report page"
-                title="Add new report page"
-              >
-                <svg
-                  width="16"
-                  height="16"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.8"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  aria-hidden="true"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-              </button>
-            }
-          </div>
-
-          <div
-            class="d-flex align-items-center gap-2 flex-shrink-0 pe-2 pe-md-3"
-          >
             <div id="export-dropdown-container" class="position-relative">
               <button
                 type="button"
@@ -958,8 +574,8 @@ interface NavModuleItem {
                 aria-label="Export report formats"
               >
                 <svg
-                  width="15"
-                  height="15"
+                  width="16"
+                  height="16"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -1008,8 +624,8 @@ interface NavModuleItem {
                         @switch (fmt) {
                           @case (".pdf") {
                             <svg
-                              width="14"
-                              height="14"
+                              width="16"
+                              height="16"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -1029,8 +645,8 @@ interface NavModuleItem {
                           }
                           @case (".xlsx") {
                             <svg
-                              width="14"
-                              height="14"
+                              width="16"
+                              height="16"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -1055,8 +671,8 @@ interface NavModuleItem {
                           }
                           @case (".parquet") {
                             <svg
-                              width="14"
-                              height="14"
+                              width="16"
+                              height="16"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -1076,8 +692,8 @@ interface NavModuleItem {
                           }
                           @case (".csv") {
                             <svg
-                              width="14"
-                              height="14"
+                              width="16"
+                              height="16"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -1096,8 +712,8 @@ interface NavModuleItem {
                           }
                           @case (".tsv") {
                             <svg
-                              width="14"
-                              height="14"
+                              width="16"
+                              height="16"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -1144,8 +760,8 @@ interface NavModuleItem {
               id="ribbon-theme-toggle-btn"
             >
               <svg
-                width="15"
-                height="15"
+                width="16"
+                height="16"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -1177,8 +793,8 @@ interface NavModuleItem {
                 id="rail-operator-profile-btn"
               >
                 <svg
-                  width="15"
-                  height="15"
+                  width="16"
+                  height="16"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -1253,21 +869,21 @@ interface NavModuleItem {
           </div>
         </header>
         <nav
-          class="rc-zone-rail d-none d-md-flex flex-column justify-content-between align-items-center py-2"
+          class="rc-zone-rail d-none d-md-flex flex-column justify-content-center align-items-center py-2"
           aria-label="Primary Workspace Modules"
         >
-          <div class="d-flex flex-column align-items-center w-100 my-auto">
+          <div class="d-flex flex-column align-items-center w-100 gap-4">
             @for (mod of navModules; track mod.route) {
               <a
                 [routerLink]="mod.route"
                 routerLinkActive="active"
-                class="rc-rail-btn mb-4"
+                class="rc-rail-btn"
                 [title]="mod.label"
                 [attr.aria-label]="mod.label"
               >
                 <svg
-                  width="20"
-                  height="20"
+                  width="22"
+                  height="22"
                   viewBox="0 0 24 24"
                   fill="none"
                   stroke="currentColor"
@@ -1281,8 +897,6 @@ interface NavModuleItem {
               </a>
             }
           </div>
-
-          <div style="width: 36px; height: 36px;" aria-hidden="true"></div>
         </nav>
 
         <main
@@ -1402,7 +1016,7 @@ interface NavModuleItem {
                 class="text-uppercase fw-bold  mb-2"
                 style="color: var(--rc-text-secondary);"
               >
-                Workspace Modules (6)
+                Workspace Modules ({{ navModules.length }})
               </div>
               <div class="row g-2">
                 @for (mod of navModules; track mod.route) {
@@ -1575,159 +1189,19 @@ export class AppComponent {
     return url.startsWith("/login") || url.startsWith("/signup");
   });
 
-  public readonly editingPageIndex = signal<number | null>(null);
-  public readonly editingPageValue = signal<string>("");
-  public readonly pageMenuIndex = signal<number | null>(null);
-  public readonly draggedPageIndex = signal<number | null>(null);
-  public readonly dragOverIndex = signal<number | null>(null);
-  public readonly dragOverPosition = signal<"left" | "right" | null>(null);
-
-  public onSelectReportPage(page: string): void {
-    this.pageMenuIndex.set(null);
-    this.state.selectPage(page);
-    this.router.navigate(["/report-builder"]);
-  }
-
-  public startRenamePage(index: number, page: string): void {
-    this.pageMenuIndex.set(null);
-    this.editingPageIndex.set(index);
-    this.editingPageValue.set(page);
-    setTimeout(() => {
-      const input =
-        document.querySelector<HTMLInputElement>(".rc-page-tab-input");
-      if (input) {
-        input.focus();
-        input.select();
-      }
-    }, 10);
-  }
-
-  public commitRenamePage(oldName: string): void {
-    const newName = this.editingPageValue().trim();
-    this.editingPageIndex.set(null);
-    if (newName && newName !== oldName) {
-      this.state.renameReportPage(oldName, newName);
-    }
-  }
-
-  public cancelRenamePage(): void {
-    this.editingPageIndex.set(null);
-  }
-
-  public onRemoveReportPage(event: Event, page: string): void {
-    event.stopPropagation();
-    this.pageMenuIndex.set(null);
-    this.state.removeReportPage(page);
-  }
-
-  public togglePageMenu(event: Event, index: number): void {
-    event.stopPropagation();
-    this.pageMenuIndex.update((curr) => (curr === index ? null : index));
-  }
-
-  public onPageContextMenu(event: MouseEvent, index: number): void {
-    event.preventDefault();
-    event.stopPropagation();
-    this.pageMenuIndex.set(index);
-  }
-
-  public moveTab(page: string, direction: "left" | "right"): void {
-    this.pageMenuIndex.set(null);
-    this.state.moveReportPage(page, direction);
-  }
-
-  public onPageDragStart(event: DragEvent, index: number): void {
-    if (this.editingPageIndex() !== null) {
-      event.preventDefault();
-      return;
-    }
-    this.draggedPageIndex.set(index);
-    this.pageMenuIndex.set(null);
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = "move";
-      event.dataTransfer.setData("text/plain", String(index));
-    }
-  }
-
-  public onPageDragEnter(event: DragEvent, index: number): void {
-    event.preventDefault();
-  }
-
-  public onPageDragOver(event: DragEvent, index: number): void {
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = "move";
-    }
-    const fromIndex = this.draggedPageIndex();
-    if (fromIndex === null || fromIndex === index) {
-      this.dragOverIndex.set(null);
-      this.dragOverPosition.set(null);
-      return;
-    }
-    const target = event.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    const midX = rect.left + rect.width / 2;
-    const pos = event.clientX < midX ? "left" : "right";
-    this.dragOverIndex.set(index);
-    this.dragOverPosition.set(pos);
-  }
-
-  public onPageDragLeave(event: DragEvent, index: number): void {
-    const target = event.currentTarget as HTMLElement;
-    if (!target.contains(event.relatedTarget as Node)) {
-      if (this.dragOverIndex() === index) {
-        this.dragOverIndex.set(null);
-        this.dragOverPosition.set(null);
-      }
-    }
-  }
-
-  public onPageDrop(event: DragEvent, dropIndex: number): void {
-    event.preventDefault();
-    const fromIndex = this.draggedPageIndex();
-    if (fromIndex !== null && fromIndex !== dropIndex) {
-      const pos = this.dragOverPosition();
-      let targetIndex = dropIndex;
-      if (fromIndex < dropIndex) {
-        targetIndex = pos === "left" ? dropIndex - 1 : dropIndex;
-      } else {
-        targetIndex = pos === "right" ? dropIndex + 1 : dropIndex;
-      }
-      const total = this.state.reportPages().length;
-      if (
-        targetIndex >= 0 &&
-        targetIndex < total &&
-        targetIndex !== fromIndex
-      ) {
-        this.state.reorderReportPages(fromIndex, targetIndex);
-      }
-    }
-    this.onPageDragEnd();
-  }
-
-  public onPageDragEnd(): void {
-    this.draggedPageIndex.set(null);
-    this.dragOverIndex.set(null);
-    this.dragOverPosition.set(null);
-  }
-
-  public onTabKeyDown(event: KeyboardEvent, index: number, page: string): void {
-    if (event.key === "F2") {
-      event.preventDefault();
-      this.startRenamePage(index, page);
-    } else if (event.key === "Delete") {
-      if (this.state.reportPages().length > 1) {
-        event.preventDefault();
-        this.state.removeReportPage(page);
-      }
-    } else if (event.altKey && event.key === "ArrowLeft") {
-      event.preventDefault();
-      this.state.moveReportPage(page, "left");
-    } else if (event.altKey && event.key === "ArrowRight") {
-      event.preventDefault();
-      this.state.moveReportPage(page, "right");
-    }
-  }
+  public readonly currentPageTitle = computed(() => {
+    const url = this.currentUrl();
+    const mod = this.navModules.find((m) => url.startsWith(m.route));
+    if (mod) return mod.label;
+    if (url.startsWith("/accessibility") || url.startsWith("/accessibilite"))
+      return "Accessibility Statement";
+    if (url.startsWith("/privacy") || url.startsWith("/confidentialite"))
+      return "Privacy Policy";
+    if (url.startsWith("/print-view")) return "Print View";
+    if (url.startsWith("/login")) return "Log In";
+    if (url.startsWith("/signup")) return "Sign Up";
+    return "Report Builder";
+  });
 
   public navigateTo(route: string): void {
     this.router.navigate([route]);
@@ -1832,6 +1306,11 @@ export class AppComponent {
     this.editingProject.set(false);
   }
 
+  public onSelectReportPage(page: string): void {
+    this.state.selectPage(page);
+    this.router.navigate(["/report-builder"]);
+  }
+
   @HostListener("document:keydown.escape")
   public onEscapeKey(): void {
     if (this.editingProject()) {
@@ -1845,12 +1324,6 @@ export class AppComponent {
     }
     if (this.exportMenuOpen()) {
       this.exportMenuOpen.set(false);
-    }
-    if (this.pageMenuIndex() !== null) {
-      this.pageMenuIndex.set(null);
-    }
-    if (this.editingPageIndex() !== null) {
-      this.cancelRenamePage();
     }
   }
 
@@ -1874,12 +1347,6 @@ export class AppComponent {
       !target.closest("#export-dropdown-container")
     ) {
       this.exportMenuOpen.set(false);
-    }
-    if (
-      this.pageMenuIndex() !== null &&
-      !target.closest(".rc-page-tab-group")
-    ) {
-      this.pageMenuIndex.set(null);
     }
   }
 }

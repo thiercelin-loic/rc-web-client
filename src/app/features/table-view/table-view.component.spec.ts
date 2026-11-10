@@ -299,11 +299,35 @@ describe("TableViewComponent", () => {
     expect(component.formatCellValue(true, boolCol)).toBe("True");
     expect(component.formatCellValue(false, boolCol)).toBe("False");
 
+    // French monetary column heuristics
+    const frenchPriceCol = { name: "Prix_Unitaire_EUR", dataType: "FLOAT64" };
+    expect(component.formatCellValue(8.68, frenchPriceCol)).toBe("€8.68");
+
+    const frenchCaCol = { name: "Chiffre_Affaires_EUR", dataType: "FLOAT64" };
+    expect(component.formatCellValue(52.08, frenchCaCol)).toBe("€52.08");
+
     // Explicit Column Tools Format override
     component.selectTable("fact_transactions");
     component.setColumnFormat("volume", "Currency");
     const volCol = component.activeColumns().find((c) => c.name === "volume")!;
     expect(component.formatCellValue(42, volCol)).toBe("€42.00");
+  });
+
+  it("normalizes column data types and computes effective date column", async () => {
+    const fixture = TestBed.createComponent(TableViewComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    expect(component.getColumnDataType({ name: "col1", dataType: "STRING" })).toBe("STRING");
+    expect(component.getColumnDataType({ name: "col2", dataType: "FLOAT64" })).toBe("FLOAT64");
+    expect(component.getColumnDataType({ name: "col3", dataType: "INT64" })).toBe("INT64");
+    expect(component.getColumnDataType({ name: "col4", dataType: "VARCHAR" })).toBe("VARCHAR");
+    expect(component.isCustomDataType("STRING")).toBe(false);
+    expect(component.isCustomDataType("UUID")).toBe(true);
+
+    // effectiveDateColumn should fallback gracefully
+    expect(component.effectiveDateColumn()).toBeTruthy();
   });
 
   it("exports table records to CSV", async () => {

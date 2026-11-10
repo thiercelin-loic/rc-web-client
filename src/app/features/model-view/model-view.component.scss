@@ -5,6 +5,8 @@
 
 .dag-interactive-surface {
   position: relative;
+  width: 100%;
+  height: 100%;
   background-image: radial-gradient(
     var(--rc-border-color) 1px,
     transparent 1px
@@ -18,13 +20,18 @@
 
 .dag-canvas-stage {
   position: relative;
+  width: 100%;
+  height: 100%;
   min-width: 100%;
   min-height: 100%;
 }
 
 .dag-relationships-overlay {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: 5;
 }
@@ -74,7 +81,7 @@
 
 .table-card {
   position: absolute;
-  width: 220px;
+  width: 244px;
   background: var(--rc-card-bg);
   border: 1px solid var(--rc-card-border);
   border-radius: var(--rc-radius-md);
@@ -96,6 +103,11 @@
     border-color: var(--rc-primary);
     box-shadow: 0 0 0 2px var(--rc-primary-glow);
   }
+
+  &.is-hidden {
+    opacity: 0.72;
+    border-style: dashed;
+  }
 }
 
 @media (max-width: 767.98px) {
@@ -112,8 +124,8 @@
   gap: 8px;
   background: var(--rc-surface-subtle);
   border-bottom: 1px solid var(--rc-card-border);
-  border-radius: calc(var(--rc-radius-md) - 1px)
-    calc(var(--rc-radius-md) - 1px) 0 0;
+  border-radius: calc(var(--rc-radius-md) - 1px) calc(var(--rc-radius-md) - 1px)
+    0 0;
   color: var(--rc-text-primary);
 
   .table-name {

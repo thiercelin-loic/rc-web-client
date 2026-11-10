@@ -1,62 +1,20 @@
 <div class="rc-workspace-grid rc-builder-grid">
   <div class="rc-canvas-container p-0 d-flex flex-column">
-    <!-- Standardized Workspace Header -->
-    <div class="rc-page-header rc-workspace-header rc-print-hide">
-      <div>
-        <h1 class="h5 fw-bold mb-0">Report Builder</h1>
-        <p class="small text-muted mb-0">
-          Interactive report canvas and visual page layouts.
-        </p>
-      </div>
-
-      @if (hasVisuals()) {
-        <div class="d-flex align-items-center gap-2">
-          <button
-            type="button"
-            class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-            (click)="clearCanvas()"
-            id="report-builder-clear-page-btn"
-            aria-label="Clear active report page"
-            title="Remove all visuals from active page"
-          >
-            <svg
-              width="13"
-              height="13"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              aria-hidden="true"
-            >
-              <polyline points="3 6 5 6 21 6"></polyline>
-              <path
-                d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
-              ></path>
-            </svg>
-            <span>Clear Page</span>
-          </button>
-        </div>
-      }
-    </div>
-
     <div
       class="rc-canvas-stage flex-grow-1 p-3 d-flex flex-column align-items-center"
     >
       <div
         class="rc-report-page-sheet w-100"
+        [class.rc-sheet-empty]="!hasVisuals()"
         [style.maxWidth.px]="activeCanvasDimensions().width"
         [style.minHeight.px]="activeCanvasDimensions().height"
       >
         @if (!hasVisuals()) {
           <div class="rc-card rc-empty-hero my-3">
-            <div
-              class="mb-3 mx-auto d-flex align-items-center justify-content-center rounded-circle"
-            >
+            <div class="rc-empty-hero-icon">
               <svg
-                width="28"
-                height="28"
+                width="24"
+                height="24"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -517,6 +475,295 @@
         }
       </div>
     </div>
+
+    <!-- Power BI-style Bottom Report Page Tabs Strip -->
+    <div
+      class="rc-report-pages-footer rc-print-hide d-flex align-items-stretch border-top"
+    >
+      <nav aria-label="Report Pages" class="d-flex align-items-stretch min-w-0">
+        <ul class="list-unstyled d-flex align-items-stretch mb-0 min-w-0">
+          @for (
+            page of state.reportPages();
+            track $index;
+            let i = $index
+          ) {
+            <li
+              class="rc-bottom-page-tab-group position-relative d-inline-flex align-items-center"
+              [class.active]="state.activePage() === page"
+              [class.rc-tab-dragging]="draggedPageIndex() === i"
+              [class.rc-tab-drop-left]="
+                dragOverIndex() === i && dragOverPosition() === 'left'
+              "
+              [class.rc-tab-drop-right]="
+                dragOverIndex() === i && dragOverPosition() === 'right'
+              "
+              [attr.draggable]="editingPageIndex() !== i"
+              (dragstart)="onPageDragStart($event, i)"
+              (dragover)="onPageDragOver($event, i)"
+              (dragenter)="onPageDragEnter($event, i)"
+              (dragleave)="onPageDragLeave($event, i)"
+              (drop)="onPageDrop($event, i)"
+              (dragend)="onPageDragEnd()"
+              (contextmenu)="onPageContextMenu($event, i)"
+            >
+              @if (editingPageIndex() === i) {
+                <input
+                  #renameInput
+                  type="text"
+                  class="rc-bottom-page-tab-input"
+                  [value]="editingPageValue()"
+                  (input)="editingPageValue.set(renameInput.value)"
+                  (keydown.enter)="commitRenamePage(page)"
+                  (keydown.escape)="cancelRenamePage()"
+                  (blur)="commitRenamePage(page)"
+                  aria-label="Rename report page"
+                />
+              } @else {
+                <button
+                  type="button"
+                  class="rc-bottom-page-tab"
+                  [class.active]="state.activePage() === page"
+                  [attr.aria-current]="
+                    state.activePage() === page ? 'page' : null
+                  "
+                  (click)="onSelectReportPage(page)"
+                  (dblclick)="startRenamePage(i, page)"
+                  (keydown)="onTabKeyDown($event, i, page)"
+                  [title]="
+                    'Page: ' +
+                    page +
+                    ' (Double-click to rename, drag to reorder)'
+                  "
+                >
+                  <span
+                    class="rc-page-tab-title d-inline-flex align-items-center gap-2 text-truncate"
+                  >
+                    <svg
+                      viewBox="0 -960 960 960"
+                      width="18"
+                      height="18"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path
+                        d="M160-240h640v-320H520v-160H160v480Zm0 80q-33 0-56.5-23.5T80-240v-480q0-33 23.5-56.5T160-800h640q33 0 56.5 23.5T880-720v480q0 33-23.5 56.5T800-160H160Zm0-80v-480 480Z"
+                      />
+                    </svg>
+                    {{ page }}
+                  </span>
+                </button>
+
+                <div
+                  class="rc-bottom-page-tab-actions d-inline-flex align-items-center"
+                >
+                  <button
+                    type="button"
+                    class="rc-tab-action-btn rc-page-menu-trigger"
+                    (click)="togglePageMenu($event, i)"
+                    [attr.aria-expanded]="pageMenuIndex() === i"
+                    aria-label="Page options"
+                    title="Page options"
+                  >
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.8"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="1.5"></circle>
+                      <circle cx="12" cy="5" r="1.5"></circle>
+                      <circle cx="12" cy="19" r="1.5"></circle>
+                    </svg>
+                  </button>
+
+                  @if (state.reportPages().length > 1) {
+                    <button
+                      type="button"
+                      class="rc-tab-action-btn rc-tab-remove-btn"
+                      (click)="onRemoveReportPage($event, page)"
+                      [attr.aria-label]="'Remove ' + page"
+                      title="Remove page"
+                    >
+                      <svg
+                        width="12"
+                        height="12"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                      </svg>
+                    </button>
+                  }
+                </div>
+              }
+
+              @if (pageMenuIndex() === i) {
+                <ul
+                  class="rc-page-menu-container dropdown-menu show start-0 bottom-100 mb-1 shadow-sm p-1 list-unstyled"
+                  role="menu"
+                  [attr.aria-label]="page + ' options'"
+                >
+                  <li role="none">
+                    <button
+                      type="button"
+                      class="dropdown-item py-1 d-flex align-items-center gap-2"
+                      (click)="startRenamePage(i, page)"
+                      role="menuitem"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M12 20h9"></path>
+                        <path
+                          d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"
+                        ></path>
+                      </svg>
+                      <span>Rename</span>
+                    </button>
+                  </li>
+
+                  <li role="none">
+                    <button
+                      type="button"
+                      class="dropdown-item py-1 d-flex align-items-center gap-2"
+                      [class.disabled]="i === 0"
+                      [disabled]="i === 0"
+                      [attr.aria-disabled]="i === 0 ? 'true' : null"
+                      (click)="moveTab(page, 'left')"
+                      role="menuitem"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="15 18 9 12 15 6"></polyline>
+                      </svg>
+                      <span>Move Left</span>
+                    </button>
+                  </li>
+
+                  <li role="none">
+                    <button
+                      type="button"
+                      class="dropdown-item py-1 d-flex align-items-center gap-2"
+                      [class.disabled]="
+                        i === state.reportPages().length - 1
+                      "
+                      [disabled]="i === state.reportPages().length - 1"
+                      [attr.aria-disabled]="
+                        i === state.reportPages().length - 1
+                          ? 'true'
+                          : null
+                      "
+                      (click)="moveTab(page, 'right')"
+                      role="menuitem"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="9 18 15 12 9 6"></polyline>
+                      </svg>
+                      <span>Move Right</span>
+                    </button>
+                  </li>
+
+                  <li
+                    role="separator"
+                    class="dropdown-divider my-1"
+                  ></li>
+
+                  <li role="none">
+                    <button
+                      type="button"
+                      class="dropdown-item py-1 text-danger d-flex align-items-center gap-2"
+                      [class.disabled]="state.reportPages().length <= 1"
+                      [disabled]="state.reportPages().length <= 1"
+                      (click)="onRemoveReportPage($event, page)"
+                      role="menuitem"
+                    >
+                      <svg
+                        width="16"
+                        height="16"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="1.8"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                        aria-hidden="true"
+                      >
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path
+                          d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"
+                        ></path>
+                      </svg>
+                      <span>Remove</span>
+                    </button>
+                  </li>
+                </ul>
+              }
+            </li>
+          }
+        </ul>
+      </nav>
+      <button
+        type="button"
+        class="rc-bottom-page-add-btn d-inline-flex align-items-center justify-content-center flex-shrink-0"
+        (click)="state.addReportPage()"
+        aria-label="Add new report page"
+        title="Add new report page"
+      >
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+        >
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <line x1="5" y1="12" x2="19" y2="12"></line>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <aside
@@ -624,7 +871,7 @@
                             context: { $implicit: archetype, size: 14 }
                           "
                         ></ng-container>
-                        <span>{{ archetype }}</span>
+                        <span class="text-truncate">{{ archetype }}</span>
                       </button>
                     </div>
                   }
@@ -668,14 +915,8 @@
                 <div class="d-flex flex-column gap-2">
                   @for (slot of activeArchetypeSlots(); track slot.id) {
                     <div class="p-2 rc-tools-filter-card">
-                      <div
-                        class="d-flex align-items-center justify-content-between mb-1"
-                      >
-                        <span
-                          class="rc-text-xs fw-semibold d-flex align-items-center gap-2"
-                        >
-                          <span>{{ slot.label }}</span>
-                        </span>
+                      <div class="mb-1">
+                        <span class="rc-text-xs fw-semibold">{{ slot.label }}</span>
                       </div>
 
                       <div

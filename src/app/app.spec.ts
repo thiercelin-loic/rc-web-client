@@ -190,17 +190,37 @@ describe('AppComponent', () => {
     });
   });
 
-  it('renders report page tab icon with currentColor and accessibility attributes for dark mode support', async () => {
+  it('does not render report page tabs in top ribbon as they are scoped to report builder', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const pageTabSvg = fixture.nativeElement.querySelector('.rc-page-tab-title svg') as SVGElement;
-    expect(pageTabSvg).toBeTruthy();
-    expect(pageTabSvg.getAttribute('fill')).toBe('currentColor');
-    expect(pageTabSvg.getAttribute('aria-hidden')).toBe('true');
-    expect(pageTabSvg.getAttribute('width')).toBe('18');
-    expect(pageTabSvg.getAttribute('height')).toBe('18');
+    const ribbonPageTab = fixture.nativeElement.querySelector('.rc-ribbon .rc-page-tab-title');
+    expect(ribbonPageTab).toBeNull();
+  });
+
+  it('renders the single semantic h1 page title on the left and project menu on the right of the ribbon', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const app = fixture.componentInstance;
+    const pageTitleH1 = fixture.nativeElement.querySelector('header.rc-zone-ribbon #rc-ribbon-page-title') as HTMLElement;
+    expect(pageTitleH1).toBeTruthy();
+    expect(pageTitleH1.tagName.toLowerCase()).toBe('h1');
+    expect(pageTitleH1.textContent?.trim()).toBe(app.currentPageTitle());
+
+    const rightCluster = fixture.nativeElement.querySelector('header.rc-zone-ribbon > div:last-child') as HTMLElement;
+    expect(rightCluster).toBeTruthy();
+
+    const projectContainer = rightCluster.querySelector('#rc-current-project-container');
+    const exportContainer = rightCluster.querySelector('#export-dropdown-container');
+    expect(projectContainer).toBeTruthy();
+    expect(exportContainer).toBeTruthy();
+
+    // Verify project container appears before export container in right cluster
+    const children = Array.from(rightCluster.children);
+    expect(children.indexOf(projectContainer!)).toBeLessThan(children.indexOf(exportContainer!));
   });
 });
 

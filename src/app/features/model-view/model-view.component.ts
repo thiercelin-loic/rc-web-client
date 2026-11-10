@@ -62,9 +62,23 @@ export interface RenderedRelationship {
 export type ModelSection = 'Inspector' | 'Properties' | 'Entities' | 'Definition';
 export type ModelLayoutMode = 'kimball' | 'collie';
 
-const TABLE_CARD_WIDTH = 220;
+const TABLE_CARD_WIDTH = 244;
 const TABLE_HEADER_HEIGHT = 38;
 const TABLE_ROW_HEIGHT = 22;
+
+export function isLikelyPrimaryKey(colName: string, tableName = ''): boolean {
+  const normCol = colName.toLowerCase().replace(/[\s_-]+/g, '');
+  const normTbl = tableName.toLowerCase().replace(/[\s_-]+/g, '');
+  return (
+    normCol === 'id' ||
+    normCol === `id${normTbl}` ||
+    normCol === `${normTbl}id` ||
+    normCol.startsWith('id') ||
+    normCol.endsWith('id') ||
+    normCol === 'code' ||
+    normCol === 'key'
+  );
+}
 
 function estimateTableCardHeight(columnCount: number): number {
   return TABLE_HEADER_HEIGHT + Math.max(columnCount, 1) * TABLE_ROW_HEIGHT + 16;
@@ -198,8 +212,8 @@ export class ModelViewComponent implements OnInit {
   public readonly expandedSections = signal<Record<ModelSection, boolean>>({
     Inspector: true,
     Properties: true,
-    Entities: true,
-    Definition: true,
+    Entities: false,
+    Definition: false,
   });
 
   public readonly expandedEntities = signal<Record<string, boolean>>({});
@@ -387,26 +401,40 @@ export class ModelViewComponent implements OnInit {
           this.state.announce(`Semantic model loaded: ${payload.name}`);
 
           const mappedTables = layoutStarSchemaTables(
-            payload.tables.map((tbl) => ({
-              name: tbl.name,
-              role: tbl.role,
-              isHidden: tbl.isHidden,
-              isDateTable:
-                tbl.isDateTable ??
-                /calendar|datum|date/i.test(tbl.name),
-              dateColumn: tbl.dateColumn || this.inferDateColumnName(tbl.columns),
-              description: tbl.description || '',
-              columns: tbl.columns.map((c) => ({
-                name: c.name,
-                dataType: c.dataType,
-                isPrimaryKey: c.isPrimaryKey,
-                isForeignKey: c.isForeignKey,
-                isHidden: c.isHidden,
-                description: c.description || '',
-                displayFolder: c.displayFolder || '',
-                summarizeBy: c.summarizeBy || (c.isPrimaryKey || c.isForeignKey ? 'none' : 'default'),
-              })),
-            })),
+            payload.tables.map((tbl) => {
+              const isDictTable =
+                tbl.name.toLowerCase().includes('dictionary');
+              const hasExplicitPk = (tbl.columns || []).some(
+                (c: any) => c.isPrimaryKey,
+              );
+              const pkCandidate = !hasExplicitPk
+                ? (tbl.columns || []).find((c: any) => isLikelyPrimaryKey(c.name, tbl.name))
+                : undefined;
+
+              return {
+                name: tbl.name,
+                role: tbl.role,
+                isHidden: !!tbl.isHidden || isDictTable,
+                isDateTable:
+                  tbl.isDateTable ??
+                  /calendar|datum|date/i.test(tbl.name),
+                dateColumn: tbl.dateColumn || this.inferDateColumnName(tbl.columns),
+                description: tbl.description || '',
+                columns: tbl.columns.map((c) => {
+                  const isPk = !!c.isPrimaryKey || (pkCandidate && c.name === pkCandidate.name);
+                  return {
+                    name: c.name,
+                    dataType: c.dataType,
+                    isPrimaryKey: isPk,
+                    isForeignKey: !!c.isForeignKey,
+                    isHidden: !!c.isHidden,
+                    description: c.description || '',
+                    displayFolder: c.displayFolder || '',
+                    summarizeBy: c.summarizeBy || (isPk || c.isForeignKey ? 'none' : 'default'),
+                  };
+                }),
+              };
+            }),
             this.layoutMode(),
           );
           this.tables.set(mappedTables);
@@ -466,24 +494,44 @@ export class ModelViewComponent implements OnInit {
 
   private syncFromSharedTables(sharedTables: readonly any[]): void {
     const mappedTables = layoutStarSchemaTables(
-      sharedTables.map((tbl) => ({
-        name: tbl.name,
-        role: tbl.role,
-        isHidden: !!tbl.isHidden,
-        isDateTable: !!tbl.isDateTable || /calendar|datum|date/i.test(tbl.name),
-        dateColumn: tbl.dateColumn || this.inferDateColumnName(tbl.columns || []),
-        description: tbl.description || '',
-        columns: (tbl.columns || []).map((c: any) => ({
-          name: c.name,
-          dataType: c.dataType,
-          isPrimaryKey: c.keyType === 'PK' || !!c.isPrimaryKey,
-          isForeignKey: c.keyType === 'FK' || !!c.isForeignKey,
-          isHidden: !!c.isHidden,
-          description: c.description || '',
-          displayFolder: c.displayFolder || '',
-          summarizeBy: c.summarizeBy || (c.keyType === 'PK' || c.keyType === 'FK' ? 'none' : 'default'),
-        })),
-      })),
+      sharedTables.map((tbl) => {
+        const isDictTable =
+          tbl.name.toLowerCase().includes('dictionary') ||
+          (tbl.expression && tbl.expression.toUpperCase().includes('INFO.VIEW'));
+        const hasExplicitPk = (tbl.columns || []).some(
+          (c: any) => c.keyType === 'PK' || !!c.isPrimaryKey,
+        );
+        const pkCandidate = !hasExplicitPk
+          ? (tbl.columns || []).find((c: any) => isLikelyPrimaryKey(c.name, tbl.name))
+          : undefined;
+
+        return {
+          name: tbl.name,
+          role: tbl.role,
+          isHidden: !!tbl.isHidden || isDictTable,
+          isDateTable: !!tbl.isDateTable || /calendar|datum|date/i.test(tbl.name),
+          dateColumn: tbl.dateColumn || this.inferDateColumnName(tbl.columns || []),
+          description: tbl.description || '',
+          columns: (tbl.columns || []).map((c: any) => {
+            const isPk =
+              c.keyType === 'PK' ||
+              !!c.isPrimaryKey ||
+              (pkCandidate && c.name === pkCandidate.name);
+            return {
+              name: c.name,
+              dataType: c.dataType,
+              isPrimaryKey: isPk,
+              isForeignKey: c.keyType === 'FK' || !!c.isForeignKey,
+              isHidden: !!c.isHidden,
+              description: c.description || '',
+              displayFolder: c.displayFolder || '',
+              summarizeBy:
+                c.summarizeBy ||
+                (isPk || c.keyType === 'FK' ? 'none' : 'default'),
+            };
+          }),
+        };
+      }),
       this.layoutMode(),
     );
     this.tables.set(mappedTables);
@@ -505,23 +553,41 @@ export class ModelViewComponent implements OnInit {
     const inferred: ModelRelationship[] = [];
     const activePairSet = new Set<string>();
 
-    const pkLookup = new Map<string, { table: string; col: string }>();
+    const dimPkLookup = new Map<string, { table: string; col: string; isDate: boolean }>();
     for (const tbl of currentTables) {
+      if (tbl.isHidden && tbl.name.toLowerCase().includes('dictionary')) {
+        continue;
+      }
       if (tbl.role === 'DIMENSION' || tbl.isDateTable) {
         for (const col of tbl.columns) {
           if (col.isPrimaryKey) {
-            pkLookup.set(col.name.toLowerCase(), { table: tbl.name, col: col.name });
+            dimPkLookup.set(col.name.toLowerCase(), {
+              table: tbl.name,
+              col: col.name,
+              isDate: !!tbl.isDateTable || /date/i.test(col.dataType),
+            });
           }
         }
       }
     }
 
     for (const tbl of currentTables) {
+      if (tbl.isHidden && tbl.name.toLowerCase().includes('dictionary')) {
+        continue;
+      }
       for (const col of tbl.columns) {
-        if (!col.isForeignKey) {
-          continue;
+        let target = col.isForeignKey ? dimPkLookup.get(col.name.toLowerCase()) : undefined;
+        if (!target) {
+          target = dimPkLookup.get(col.name.toLowerCase());
         }
-        const target = pkLookup.get(col.name.toLowerCase());
+        if (!target && /date/i.test(col.dataType)) {
+          for (const t of dimPkLookup.values()) {
+            if (t.isDate && t.table !== tbl.name) {
+              target = t;
+              break;
+            }
+          }
+        }
         if (target && target.table !== tbl.name) {
           const pairKey = [tbl.name.toLowerCase(), target.table.toLowerCase()].sort().join('::');
           const isFirstActive = !activePairSet.has(pairKey);
@@ -805,6 +871,43 @@ export class ModelViewComponent implements OnInit {
     );
     this.persistModelToBackend();
     this.state.announce(`Deleted relationship: ${relName}`);
+  }
+
+  public setTableRole(tableName = this.activeTable()?.name, role: 'FACT' | 'DIMENSION'): void {
+    if (!tableName) {
+      return;
+    }
+    this.tables.update((list) =>
+      layoutStarSchemaTables(
+        list.map((tbl) => (tbl.name === tableName ? { ...tbl, role } : tbl)),
+        this.layoutMode(),
+      ),
+    );
+    this.syncTablesToState();
+    this.persistModelToBackend();
+    this.state.announce(`Table ${tableName} role updated to ${role}`);
+  }
+
+  public toggleColumnPrimaryKey(
+    tableName = this.activeTable()?.name,
+    colName = this.selectedColumn(),
+  ): void {
+    if (!tableName || !colName) {
+      return;
+    }
+    this.tables.update((list) =>
+      list.map((tbl) => {
+        if (tbl.name !== tableName) return tbl;
+        return {
+          ...tbl,
+          columns: tbl.columns.map((c) =>
+            c.name === colName ? { ...c, isPrimaryKey: !c.isPrimaryKey } : c,
+          ),
+        };
+      }),
+    );
+    this.syncTablesToState();
+    this.persistModelToBackend();
   }
 
   public toggleTableHidden(tableName = this.activeTable()?.name): void {

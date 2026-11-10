@@ -92,15 +92,8 @@
     [class.d-none]="activeMobileTab() !== 'model'"
     [class.d-md-flex]="true"
   >
-    <!-- Standardized Workspace Header -->
-    <div class="rc-page-header rc-workspace-header">
-      <div>
-        <h1 class="h5 fw-bold mb-0">Model View</h1>
-        <p class="small text-muted mb-0">
-          Star schema relationships and entity mappings.
-        </p>
-      </div>
-
+    <!-- Standardized Workspace Action Toolbar -->
+    <div class="rc-page-header rc-workspace-header d-flex justify-content-end align-items-center">
       <div class="d-flex align-items-center gap-2">
         <button
           type="button"
@@ -137,8 +130,8 @@
     >
       <div
         class="dag-canvas-stage"
-        [style.width.px]="dagCanvasBounds().width"
-        [style.height.px]="dagCanvasBounds().height"
+        [style.min-width.px]="dagCanvasBounds().width"
+        [style.min-height.px]="dagCanvasBounds().height"
       >
         @if (tables().length === 0) {
           <div
@@ -157,8 +150,7 @@
         <svg
           class="dag-relationships-overlay"
           aria-hidden="true"
-          [attr.width]="dagCanvasBounds().width"
-          [attr.height]="dagCanvasBounds().height"
+          style="width: 100%; height: 100%;"
         >
           @for (item of renderedRelationships(); track item.rel.name) {
             <g
@@ -189,6 +181,7 @@
             class="table-card"
             [class.active]="selectedTable() === table.name"
             [class.fact-card]="table.role === 'FACT'"
+            [class.is-hidden]="table.isHidden"
             [style.top.px]="table.position.y"
             [style.left.px]="table.position.x"
             (click)="onSelectTable(table.name)"
@@ -215,13 +208,18 @@
                   <line x1="3" y1="9" x2="21" y2="9"></line>
                   <line x1="9" y1="21" x2="9" y2="9"></line>
                 </svg>
-                <span class="table-name font-monospace fw-semibold text-truncate">{{
+                <span class="table-name font-monospace fw-semibold text-truncate" [title]="table.name">{{
                   table.name
                 }}</span>
               </div>
-              <span class="rc-text-xs font-monospace text-muted flex-shrink-0">{{
-                table.columns.length
-              }}</span>
+              <div class="d-flex align-items-center gap-1">
+                @if (table.isHidden) {
+                  <span class="badge bg-secondary-subtle text-secondary rc-text-2xs" title="Hidden entity">Hidden</span>
+                }
+                <span class="rc-text-xs font-monospace text-muted flex-shrink-0">{{
+                  table.columns.length
+                }}</span>
+              </div>
             </div>
 
             <div class="table-cols">
@@ -271,7 +269,7 @@
                         ></path>
                       </svg>
                     }
-                    <span class="col-name font-monospace text-truncate">{{
+                    <span class="col-name font-monospace text-truncate" [title]="col.name">{{
                       col.name
                     }}</span>
                   </span>
@@ -380,118 +378,241 @@
               aria-labelledby="tools-header-inspector"
               class="rc-tools-section-body"
             >
-              <!-- Card 1: Relationship Properties -->
-              <div class="p-3 mb-3 rc-format-panel">
-                <div class="mb-2">
-                  <div class="rc-tools-heading">Relationship</div>
-                  <p class="rc-text-xs text-muted mb-0">
-                    Dimensional link mapping and cardinality.
+              @if (isCreatingRel()) {
+                <!-- Create Relationship Form -->
+                <div class="p-3 mb-3 rc-format-panel border border-primary">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div class="rc-tools-heading">New Relationship</div>
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-ghost rc-btn-xs text-muted"
+                      (click)="cancelNewRelationship()"
+                      aria-label="Cancel new relationship"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                  <p class="rc-text-xs text-muted mb-2">
+                    Map a foreign key to a dimension primary key.
                   </p>
-                </div>
 
-                <div class="mb-2 pb-2 border-bottom rc-tools-divider">
-                  <span class="rc-dock-label">Relationship Name</span>
-                  <div
-                    class="rc-readonly-field"
-                    [title]="selectedRel().name || 'No relationship selected'"
-                  >
-                    {{ selectedRel().name || 'No relationship selected' }}
+                  <div class="mb-2">
+                    <label for="new-rel-from-table" class="rc-dock-label">From Table</label>
+                    <select
+                      id="new-rel-from-table"
+                      class="form-select form-select-sm"
+                      [ngModel]="newRelFromTable()"
+                      (ngModelChange)="onNewRelFromTableChange($event)"
+                    >
+                      @for (tbl of tables(); track tbl.name) {
+                        <option [value]="tbl.name">{{ tbl.name }}</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="mb-2">
+                    <label for="new-rel-from-col" class="rc-dock-label">From Column</label>
+                    <select
+                      id="new-rel-from-col"
+                      class="form-select form-select-sm"
+                      [ngModel]="newRelFromCol()"
+                      (ngModelChange)="newRelFromCol.set($event)"
+                    >
+                      @for (col of newRelFromColumns(); track col.name) {
+                        <option [value]="col.name">{{ col.name }} ({{ col.dataType }})</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="mb-2">
+                    <label for="new-rel-to-table" class="rc-dock-label">To Table</label>
+                    <select
+                      id="new-rel-to-table"
+                      class="form-select form-select-sm"
+                      [ngModel]="newRelToTable()"
+                      (ngModelChange)="onNewRelToTableChange($event)"
+                    >
+                      @for (tbl of tables(); track tbl.name) {
+                        <option [value]="tbl.name">{{ tbl.name }}</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="mb-2">
+                    <label for="new-rel-to-col" class="rc-dock-label">To Column</label>
+                    <select
+                      id="new-rel-to-col"
+                      class="form-select form-select-sm"
+                      [ngModel]="newRelToCol()"
+                      (ngModelChange)="newRelToCol.set($event)"
+                    >
+                      @for (col of newRelToColumns(); track col.name) {
+                        <option [value]="col.name">{{ col.name }} ({{ col.dataType }})</option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="d-flex gap-2 mt-3">
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-sm rc-btn-primary flex-grow-1"
+                      (click)="createRelationship()"
+                    >
+                      Create
+                    </button>
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-sm rc-btn-outline flex-grow-1"
+                      (click)="cancelNewRelationship()"
+                    >
+                      Cancel
+                    </button>
                   </div>
                 </div>
+              } @else if (selectedRel().name) {
+                <!-- Card 1: Selected Relationship Properties -->
+                <div class="p-3 mb-3 rc-format-panel">
+                  <div class="d-flex justify-content-between align-items-center mb-2">
+                    <div>
+                      <div class="rc-tools-heading">Relationship</div>
+                      <p class="rc-text-xs text-muted mb-0">
+                        Dimensional link mapping and cardinality.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-ghost rc-btn-xs text-danger"
+                      (click)="deleteRelationship(selectedRel().name)"
+                      title="Delete this relationship"
+                      aria-label="Delete relationship"
+                    >
+                      Delete
+                    </button>
+                  </div>
 
-                <div class="mb-2 pb-2 border-bottom rc-tools-divider">
-                  <span class="rc-dock-label">From</span>
+                  <div class="mb-2 pb-2 border-bottom rc-tools-divider">
+                    <span class="rc-dock-label">Relationship Name</span>
+                    <div
+                      class="rc-readonly-field"
+                      [title]="selectedRel().name"
+                    >
+                      {{ selectedRel().name }}
+                    </div>
+                  </div>
+
+                  <div class="mb-2 pb-2 border-bottom rc-tools-divider">
+                    <span class="rc-dock-label">From</span>
+                    <div
+                      class="rc-readonly-field is-accent"
+                      [title]="selectedRel().fromTable + '[' + selectedRel().fromCol + ']'"
+                    >
+                      {{ selectedRel().fromTable + '[' + selectedRel().fromCol + ']' }}
+                    </div>
+                  </div>
+
+                  <div class="mb-2 pb-2 border-bottom rc-tools-divider">
+                    <span class="rc-dock-label">To</span>
+                    <div
+                      class="rc-readonly-field is-accent"
+                      [title]="selectedRel().toTable + '[' + selectedRel().toCol + ']'"
+                    >
+                      {{ selectedRel().toTable + '[' + selectedRel().toCol + ']' }}
+                    </div>
+                  </div>
+
+                  <div class="mb-2">
+                    <label for="cardinality-select" class="rc-dock-label">
+                      Cardinality
+                    </label>
+                    <select
+                      id="cardinality-select"
+                      class="form-select form-select-sm"
+                      [ngModel]="selectedRel().cardinality"
+                      (ngModelChange)="updateCardinality($event)"
+                    >
+                      <option value="ManyToOne">Many to One (* : 1)</option>
+                      <option value="OneToOne">One to One (1 : 1)</option>
+                      <option value="ManyToMany">Many to Many (* : *)</option>
+                    </select>
+                  </div>
+
+                  <div class="mb-2">
+                    <label for="crossfilter-select" class="rc-dock-label">
+                      Cross-Filter Direction
+                    </label>
+                    <select
+                      id="crossfilter-select"
+                      class="form-select form-select-sm"
+                      [ngModel]="selectedRel().crossFilter"
+                      (ngModelChange)="updateCrossFilter($event)"
+                    >
+                      <option value="Single">Single Direction (&rarr;)</option>
+                      <option value="Both">Bi-Directional (&harr;)</option>
+                    </select>
+                  </div>
+
                   <div
-                    class="rc-readonly-field is-accent"
-                    [title]="
-                      selectedRel().fromTable
-                        ? selectedRel().fromTable + '[' + selectedRel().fromCol + ']'
-                        : '—'
-                    "
+                    class="form-check form-switch mb-0 pt-2 border-top rc-tools-divider"
                   >
-                    {{
-                      selectedRel().fromTable
-                        ? selectedRel().fromTable + '[' + selectedRel().fromCol + ']'
-                        : '—'
-                    }}
+                    <input
+                      class="form-check-input"
+                      type="checkbox"
+                      id="rel-active-toggle"
+                      [checked]="selectedRel().isActive !== false"
+                      (change)="toggleRelActive()"
+                    />
+                    <label
+                      class="form-check-label fw-semibold rc-text-xs"
+                      for="rel-active-toggle"
+                    >
+                      Active Relationship
+                    </label>
                   </div>
                 </div>
-
-                <div class="mb-2 pb-2 border-bottom rc-tools-divider">
-                  <span class="rc-dock-label">To</span>
-                  <div
-                    class="rc-readonly-field is-accent"
-                    [title]="
-                      selectedRel().toTable
-                        ? selectedRel().toTable + '[' + selectedRel().toCol + ']'
-                        : '—'
-                    "
-                  >
-                    {{
-                      selectedRel().toTable
-                        ? selectedRel().toTable + '[' + selectedRel().toCol + ']'
-                        : '—'
-                    }}
-                  </div>
+              } @else {
+                <!-- Empty State: No Relationship Selected -->
+                <div class="p-3 mb-3 rc-format-panel text-center">
+                  <div class="rc-tools-heading mb-1">Relationship</div>
+                  <p class="rc-text-xs text-muted mb-2">
+                    No relationship selected. Select a relationship line on the canvas or link entities.
+                  </p>
+                  @if (tables().length >= 2) {
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-sm rc-btn-outline w-100 d-inline-flex align-items-center justify-content-center gap-1"
+                      (click)="startNewRelationship()"
+                      id="model-view-new-rel-btn"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                      </svg>
+                      <span>New Relationship</span>
+                    </button>
+                  }
                 </div>
-
-                <div class="mb-2">
-                  <label for="cardinality-select" class="rc-dock-label">
-                    Cardinality
-                  </label>
-                  <select
-                    id="cardinality-select"
-                    class="form-select form-select-sm"
-                    [ngModel]="selectedRel().cardinality"
-                    (ngModelChange)="updateCardinality($event)"
-                  >
-                    <option value="ManyToOne">Many to One (* : 1)</option>
-                    <option value="OneToOne">One to One (1 : 1)</option>
-                    <option value="ManyToMany">Many to Many (* : *)</option>
-                  </select>
-                </div>
-
-                <div class="mb-2">
-                  <label for="crossfilter-select" class="rc-dock-label">
-                    Cross-Filter Direction
-                  </label>
-                  <select
-                    id="crossfilter-select"
-                    class="form-select form-select-sm"
-                    [ngModel]="selectedRel().crossFilter"
-                    (ngModelChange)="updateCrossFilter($event)"
-                  >
-                    <option value="Single">Single Direction (&rarr;)</option>
-                    <option value="Both">Bi-Directional (&harr;)</option>
-                  </select>
-                </div>
-
-                <div
-                  class="form-check form-switch mb-0 pt-2 border-top rc-tools-divider"
-                >
-                  <input
-                    class="form-check-input"
-                    type="checkbox"
-                    id="rel-active-toggle"
-                    [checked]="selectedRel().isActive !== false"
-                    (change)="toggleRelActive()"
-                  />
-                  <label
-                    class="form-check-label fw-semibold rc-text-xs"
-                    for="rel-active-toggle"
-                  >
-                    Active Relationship
-                  </label>
-                </div>
-              </div>
+              }
 
               <!-- Card 2: Active Entity Properties -->
               <div class="p-3 rc-format-panel">
-                <div class="mb-2">
-                  <div class="rc-tools-heading">Active Entity</div>
-                  <p class="rc-text-xs text-muted mb-0">
-                    Selected table structure and key column.
-                  </p>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                  <div>
+                    <div class="rc-tools-heading">Active Entity</div>
+                    <p class="rc-text-xs text-muted mb-0">
+                      Selected table structure and key column.
+                    </p>
+                  </div>
+                  @if (activeTable()) {
+                    <button
+                      type="button"
+                      class="rc-btn rc-btn-ghost rc-btn-xs text-muted"
+                      (click)="toggleTableHidden()"
+                      [title]="activeTable()?.isHidden ? 'Show entity in canvas' : 'Hide entity in canvas'"
+                      aria-label="Toggle entity visibility"
+                    >
+                      {{ activeTable()?.isHidden ? 'Unhide' : 'Hide' }}
+                    </button>
+                  }
                 </div>
 
                 <div class="mb-2 pb-2 border-bottom rc-tools-divider">
@@ -504,14 +625,33 @@
                   </div>
                 </div>
 
-                <div class="rc-meta-row border-bottom rc-tools-divider">
+                <div class="rc-meta-row border-bottom rc-tools-divider d-flex justify-content-between align-items-center py-1">
                   <span class="rc-text-xs text-muted">Role:</span>
-                  <span class="font-monospace rc-text-xs fw-semibold text-secondary">
-                    {{ activeTable()?.role || '—' }}
-                  </span>
+                  <div class="btn-group btn-group-sm" role="group">
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="activeTable()?.role === 'FACT'"
+                      [class.btn-outline-secondary]="activeTable()?.role !== 'FACT'"
+                      style="font-size: 10px; padding: 1px 6px;"
+                      (click)="setTableRole(activeTable()?.name, 'FACT')"
+                    >
+                      FACT
+                    </button>
+                    <button
+                      type="button"
+                      class="btn btn-xs"
+                      [class.btn-primary]="activeTable()?.role === 'DIMENSION'"
+                      [class.btn-outline-secondary]="activeTable()?.role !== 'DIMENSION'"
+                      style="font-size: 10px; padding: 1px 6px;"
+                      (click)="setTableRole(activeTable()?.name, 'DIMENSION')"
+                    >
+                      DIM
+                    </button>
+                  </div>
                 </div>
 
-                <div class="rc-meta-row border-bottom rc-tools-divider">
+                <div class="rc-meta-row border-bottom rc-tools-divider py-1 d-flex justify-content-between">
                   <span class="rc-text-xs text-muted">Columns:</span>
                   <span
                     class="font-monospace rc-text-xs fw-semibold text-secondary"

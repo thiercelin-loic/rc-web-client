@@ -202,4 +202,68 @@ describe('ModelViewComponent', () => {
     );
     expect(sectionBadges.length).toBe(0);
   });
+
+  it('manages manual relationship creation lifecycle', async () => {
+    const fixture = TestBed.createComponent(ModelViewComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.tables.set(
+      layoutStarSchemaTables([
+        {
+          name: 'fact_ventes',
+          role: 'FACT',
+          columns: [
+            { name: 'id_vente', dataType: 'String', isPrimaryKey: true },
+            { name: 'date_key', dataType: 'Int32', isForeignKey: true },
+          ],
+        },
+        {
+          name: 'dim_date',
+          role: 'DIMENSION',
+          columns: [
+            { name: 'date_key', dataType: 'Int32', isPrimaryKey: true },
+          ],
+        },
+      ]),
+    );
+
+    expect(component.isCreatingRel()).toBe(false);
+    component.startNewRelationship();
+    expect(component.isCreatingRel()).toBe(true);
+
+    component.cancelNewRelationship();
+    expect(component.isCreatingRel()).toBe(false);
+
+    component.startNewRelationship();
+    const created = component.createRelationship('fact_ventes', 'date_key', 'dim_date', 'date_key');
+    expect(created).not.toBeNull();
+    expect(component.relationships().length).toBe(1);
+    expect(component.isCreatingRel()).toBe(false);
+  });
+
+  it('switches table role and updates primary key', async () => {
+    const fixture = TestBed.createComponent(ModelViewComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    component.tables.set(
+      layoutStarSchemaTables([
+        {
+          name: 'sales_summary',
+          role: 'DIMENSION',
+          columns: [{ name: 'ID_Vente', dataType: 'String' }],
+        },
+      ]),
+    );
+
+    component.setTableRole('sales_summary', 'FACT');
+    expect(component.tables()[0].role).toBe('FACT');
+
+    component.toggleColumnPrimaryKey('sales_summary', 'ID_Vente');
+    expect(component.tables()[0].columns[0].isPrimaryKey).toBe(true);
+    expect(component.getTablePrimaryKey(component.tables()[0])).toBe('ID_Vente');
+  });
 });

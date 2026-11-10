@@ -21,7 +21,7 @@ describe('AccessibiliteComponent (RGAA 4.1.2 & WCAG 2.1 AA Compliance)', () => {
     expect(component).toBeDefined();
   });
 
-  it('renders standardized workspace header with single h1 and contextual subtitle without redundant eyebrow', async () => {
+  it('renders accessibility content with structured sections without redundant eyebrow', async () => {
     const fixture = TestBed.createComponent(AccessibiliteComponent);
     await fixture.whenStable();
     fixture.detectChanges();
@@ -29,21 +29,17 @@ describe('AccessibiliteComponent (RGAA 4.1.2 & WCAG 2.1 AA Compliance)', () => {
     const rootContainer = fixture.nativeElement.querySelector('.rc-canvas-container');
     expect(rootContainer).toBeTruthy();
 
-    const workspaceHeader = rootContainer.querySelector('.rc-page-header.rc-workspace-header');
-    expect(workspaceHeader).toBeTruthy();
+    const mainContent = rootContainer.querySelector('#main-content');
+    expect(mainContent).toBeTruthy();
 
-    const allH1 = fixture.nativeElement.querySelectorAll('h1');
-    expect(allH1.length).toBe(1);
-    expect(allH1[0].textContent.trim()).toBe('Accessibility Statement');
+    const article = mainContent.querySelector('article');
+    expect(article).toBeTruthy();
+    expect(article.textContent).toContain('Commitment and Scope');
+    expect(article.textContent).toContain('RGAA 4.1.2');
 
-    const eyebrow = workspaceHeader.querySelector('.rc-page-eyebrow');
+    const eyebrow = rootContainer.querySelector('.rc-page-eyebrow');
     expect(eyebrow).toBeNull();
-    expect(workspaceHeader.textContent).not.toContain('Regulatory Compliance');
-
-    const subtitle = workspaceHeader.querySelector('.rc-page-subtitle');
-    expect(subtitle).toBeTruthy();
-    expect(subtitle.textContent).toContain('RGAA 4.1.2');
-    expect(subtitle.textContent).toContain('WCAG 2.1 Level AA');
+    expect(rootContainer.textContent).not.toContain('Regulatory Compliance');
   });
 
   it('strictly eliminates the "Back to Dashboard" button and any dashboard references', async () => {

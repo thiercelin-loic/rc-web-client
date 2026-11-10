@@ -30,10 +30,10 @@
 .rc-canvas-container {
   height: 100%;
   min-width: 0;
-  overflow-y: auto;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
   background-color: var(--rc-canvas-bg);
-  scrollbar-width: thin;
-  scrollbar-color: var(--rc-card-border) transparent;
 }
 
 .rc-canvas-stage {
@@ -144,15 +144,15 @@
 .rc-workspace-header,
 .rc-canvas-container > .rc-page-header {
   width: 100%;
-  min-height: 56px;
+  min-height: 38px;
   align-self: stretch;
   flex-shrink: 0;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 8px 16px;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 4px 12px;
   margin-bottom: 0;
   background-color: var(--rc-card-bg);
   border-bottom: 1px solid var(--rc-card-border) !important;
@@ -264,10 +264,13 @@
     border-top: none;
   }
 
+  &:last-child {
+    border-bottom: 1px solid var(--rc-card-border);
+  }
+
   &:hover,
   &.active {
     background: transparent;
-    border-bottom-color: transparent;
   }
 }
 

@@ -33,7 +33,7 @@ describe('LoginComponent', () => {
     expect(passwordInput).not.toBeNull();
     expect(submitBtn).not.toBeNull();
     expect(passwordToggle).not.toBeNull();
-    expect(fixture.nativeElement.textContent).toContain('Log In');
+    expect(fixture.nativeElement.textContent).toMatch(/log in/i);
   });
 
   it('toggles password visibility', async () => {

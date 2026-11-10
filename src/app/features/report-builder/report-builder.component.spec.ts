@@ -36,21 +36,20 @@ describe('ReportBuilderComponent', () => {
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const workspaceHeader = fixture.nativeElement.querySelector(
-      '.rc-canvas-container > .rc-page-header.rc-workspace-header',
+    const component = fixture.componentInstance;
+    const canvasContainer = fixture.nativeElement.querySelector(
+      '.rc-canvas-container',
     ) as HTMLElement;
-    expect(workspaceHeader).toBeTruthy();
+    expect(canvasContainer).toBeTruthy();
 
-    const titleEl = workspaceHeader.querySelector('h1');
-    const descriptionEl = workspaceHeader.querySelector('p');
-    expect(titleEl?.textContent?.trim()).toBe('Report Builder');
-    expect(descriptionEl?.textContent?.trim()).toBe(
-      'Interactive report canvas and visual page layouts.',
-    );
+    expect(component.hasVisuals()).toBe(false);
+    expect(fixture.nativeElement.querySelector('.rc-page-header.rc-workspace-header')).toBeNull();
 
-    // Ensure single semantic h1 on page
-    const allH1 = fixture.nativeElement.querySelectorAll('h1');
-    expect(allH1.length).toBe(1);
+    // Canvas renders directly without redundant header bars or clear page button
+    component.addVisual('Bar');
+    fixture.detectChanges();
+    expect(component.hasVisuals()).toBe(true);
+    expect(fixture.nativeElement.querySelector('#report-builder-clear-page-btn')).toBeNull();
   });
 
   it('adds and removes visuals on the canvas', async () => {
@@ -184,6 +183,38 @@ describe('ReportBuilderComponent', () => {
     tabButtons[3].click();
     fixture.detectChanges();
     expect(component.activeStudioTab()).toBe('Format');
+  });
+
+  it('renders Power BI-style bottom report page tabs strip and supports adding and renaming pages', async () => {
+    const fixture = TestBed.createComponent(ReportBuilderComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const footerStrip = fixture.nativeElement.querySelector('.rc-report-pages-footer') as HTMLElement;
+    expect(footerStrip).toBeTruthy();
+
+    const pageTabSvg = footerStrip.querySelector('.rc-page-tab-title svg') as SVGElement;
+    expect(pageTabSvg).toBeTruthy();
+    expect(pageTabSvg.getAttribute('fill')).toBe('currentColor');
+    expect(pageTabSvg.getAttribute('width')).toBe('18');
+    expect(pageTabSvg.getAttribute('height')).toBe('18');
+
+    const addBtn = footerStrip.querySelector('.rc-bottom-page-add-btn') as HTMLButtonElement;
+    expect(addBtn).toBeTruthy();
+    addBtn.click();
+    fixture.detectChanges();
+
+    const bottomTabs = footerStrip.querySelectorAll('.rc-bottom-page-tab');
+    expect(bottomTabs.length).toBe(2);
+
+    component.startRenamePage(0, 'Page 1');
+    expect(component.editingPageIndex()).toBe(0);
+    component.editingPageValue.set('Executive Overview');
+    component.commitRenamePage('Page 1');
+    fixture.detectChanges();
+
+    expect(component.state.reportPages()[0]).toBe('Executive Overview');
   });
 
   it('manages collapsible accordion sections in tools dock', async () => {

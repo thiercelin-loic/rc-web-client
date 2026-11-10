@@ -28,14 +28,16 @@ describe("RaxRequestsComponent", () => {
     expect(fixture.componentInstance.tabs().length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders a single semantic h1 in the standardized workspace header", async () => {
+  it("renders workspace action toolbar with query execution controls", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
-    const allH1 = fixture.nativeElement.querySelectorAll("h1");
-    expect(allH1.length).toBe(1);
-    expect(allH1[0].textContent?.trim()).toBe("RAX Requests");
+    const actionToolbar = fixture.nativeElement.querySelector(
+      ".rc-page-header.rc-workspace-header",
+    );
+    expect(actionToolbar).toBeTruthy();
+    expect(actionToolbar.querySelector("#btn-run-query")).toBeTruthy();
   });
 
   it("toggles accordion sections and supports bulk collapse/expand", async () => {

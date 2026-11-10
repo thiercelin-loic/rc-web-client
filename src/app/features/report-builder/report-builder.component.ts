@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  HostListener,
   OnInit,
   computed,
   effect,
@@ -797,10 +798,6 @@ export class ReportBuilderComponent implements OnInit {
 
   public updateVisualTitle(id: string, newTitle: string): void {
     this.state.updateVisualTitleOnActivePage(id, newTitle);
-  }
-
-  public clearCanvas(): void {
-    this.state.clearActivePageVisuals();
   }
 
   public switchToolsTab(tab: ToolsTab): void {
@@ -1708,5 +1705,187 @@ export class ReportBuilderComponent implements OnInit {
 
   private isValidArchetype(value: string): value is VisualArchetype {
     return (VISUAL_ARCHETYPES as readonly string[]).includes(value);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bottom Report Page Tabs Management
+  // ---------------------------------------------------------------------------
+
+  public readonly editingPageIndex = signal<number | null>(null);
+  public readonly editingPageValue = signal<string>("");
+  public readonly pageMenuIndex = signal<number | null>(null);
+  public readonly draggedPageIndex = signal<number | null>(null);
+  public readonly dragOverIndex = signal<number | null>(null);
+  public readonly dragOverPosition = signal<"left" | "right" | null>(null);
+
+  public onSelectReportPage(page: string): void {
+    this.pageMenuIndex.set(null);
+    this.state.selectPage(page);
+  }
+
+  public startRenamePage(index: number, page: string): void {
+    this.pageMenuIndex.set(null);
+    this.editingPageIndex.set(index);
+    this.editingPageValue.set(page);
+    setTimeout(() => {
+      const input = document.querySelector<HTMLInputElement>(
+        ".rc-bottom-page-tab-input",
+      );
+      if (input) {
+        input.focus();
+        input.select();
+      }
+    }, 10);
+  }
+
+  public commitRenamePage(oldName: string): void {
+    const newName = this.editingPageValue().trim();
+    this.editingPageIndex.set(null);
+    if (newName && newName !== oldName) {
+      this.state.renameReportPage(oldName, newName);
+    }
+  }
+
+  public cancelRenamePage(): void {
+    this.editingPageIndex.set(null);
+  }
+
+  public onRemoveReportPage(event: Event, page: string): void {
+    event.stopPropagation();
+    this.pageMenuIndex.set(null);
+    this.state.removeReportPage(page);
+  }
+
+  public togglePageMenu(event: Event, index: number): void {
+    event.stopPropagation();
+    this.pageMenuIndex.update((curr) => (curr === index ? null : index));
+  }
+
+  public onPageContextMenu(event: MouseEvent, index: number): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.pageMenuIndex.set(index);
+  }
+
+  public moveTab(page: string, direction: "left" | "right"): void {
+    this.pageMenuIndex.set(null);
+    this.state.moveReportPage(page, direction);
+  }
+
+  public onPageDragStart(event: DragEvent, index: number): void {
+    if (this.editingPageIndex() !== null) {
+      event.preventDefault();
+      return;
+    }
+    this.draggedPageIndex.set(index);
+    this.pageMenuIndex.set(null);
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", String(index));
+    }
+  }
+
+  public onPageDragEnter(event: DragEvent, _index: number): void {
+    event.preventDefault();
+  }
+
+  public onPageDragOver(event: DragEvent, index: number): void {
+    event.preventDefault();
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = "move";
+    }
+    const fromIndex = this.draggedPageIndex();
+    if (fromIndex === null || fromIndex === index) {
+      this.dragOverIndex.set(null);
+      this.dragOverPosition.set(null);
+      return;
+    }
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const midX = rect.left + rect.width / 2;
+    const pos = event.clientX < midX ? "left" : "right";
+    this.dragOverIndex.set(index);
+    this.dragOverPosition.set(pos);
+  }
+
+  public onPageDragLeave(event: DragEvent, index: number): void {
+    const target = event.currentTarget as HTMLElement;
+    if (!target.contains(event.relatedTarget as Node)) {
+      if (this.dragOverIndex() === index) {
+        this.dragOverIndex.set(null);
+        this.dragOverPosition.set(null);
+      }
+    }
+  }
+
+  public onPageDrop(event: DragEvent, dropIndex: number): void {
+    event.preventDefault();
+    const fromIndex = this.draggedPageIndex();
+    if (fromIndex !== null && fromIndex !== dropIndex) {
+      const pos = this.dragOverPosition();
+      let targetIndex = dropIndex;
+      if (fromIndex < dropIndex) {
+        targetIndex = pos === "left" ? dropIndex - 1 : dropIndex;
+      } else {
+        targetIndex = pos === "right" ? dropIndex + 1 : dropIndex;
+      }
+      const total = this.state.reportPages().length;
+      if (
+        targetIndex >= 0 &&
+        targetIndex < total &&
+        targetIndex !== fromIndex
+      ) {
+        this.state.reorderReportPages(fromIndex, targetIndex);
+      }
+    }
+    this.onPageDragEnd();
+  }
+
+  public onPageDragEnd(): void {
+    this.draggedPageIndex.set(null);
+    this.dragOverIndex.set(null);
+    this.dragOverPosition.set(null);
+  }
+
+  public onTabKeyDown(event: KeyboardEvent, index: number, page: string): void {
+    if (event.key === "F2") {
+      event.preventDefault();
+      this.startRenamePage(index, page);
+    } else if (event.key === "Delete") {
+      if (this.state.reportPages().length > 1) {
+        event.preventDefault();
+        this.state.removeReportPage(page);
+      }
+    } else if (event.altKey && event.key === "ArrowLeft") {
+      event.preventDefault();
+      this.state.moveReportPage(page, "left");
+    } else if (event.altKey && event.key === "ArrowRight") {
+      event.preventDefault();
+      this.state.moveReportPage(page, "right");
+    }
+  }
+
+  @HostListener("document:keydown.escape")
+  public onEscapeKey(): void {
+    if (this.pageMenuIndex() !== null) {
+      this.pageMenuIndex.set(null);
+    }
+    if (this.editingPageIndex() !== null) {
+      this.cancelRenamePage();
+    }
+    if (this.activeVisualMenuId() !== null) {
+      this.closeVisualMenu();
+    }
+  }
+
+  @HostListener("document:click", ["$event"])
+  public onDocumentClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
+    if (
+      this.pageMenuIndex() !== null &&
+      !target.closest(".rc-bottom-page-tab-group")
+    ) {
+      this.pageMenuIndex.set(null);
+    }
   }
 }
