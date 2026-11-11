@@ -96,8 +96,8 @@
     >
       <div class="d-flex align-items-center gap-2">
         <span
-          class="rc-tools-group-label text-uppercase text-secondary"
-          style="font-size: 10px; font-weight: 700; letter-spacing: 0.05em"
+          class="rc-tools-group-label text-uppercase text-secondary rc-fs-10 rc-fw-700 rc-ls-wide"
+         
         >
           Table:
         </span>
@@ -113,8 +113,8 @@
           <span>{{ activeTable()?.name || "No table selected" }}</span>
           @if (activeTable()?.isDateTable) {
             <span
-              class="text-secondary small"
-              style="font-size: 10px"
+              class="text-secondary small rc-fs-10"
+             
               title="Designated Date Table for Time Intelligence"
             >
               (Calendar: {{ activeTable()?.dateColumn || "Date" }})
@@ -123,7 +123,7 @@
         </span>
       </div>
 
-      <div class="vr my-1" style="opacity: 0.2"></div>
+      <div class="vr my-1 rc-opacity-20"></div>
 
       <!-- Calculations Group -->
       <div class="d-flex align-items-center gap-1">
@@ -147,7 +147,7 @@
               d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
             ></path>
           </svg>
-          <span style="font-size: 12px">New Measure</span>
+          <span class="rc-fs-12">New Measure</span>
         </button>
 
         <button
@@ -168,7 +168,7 @@
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span style="font-size: 12px">New Column</span>
+          <span class="rc-fs-12">New Column</span>
         </button>
 
         <button
@@ -190,11 +190,11 @@
             <line x1="3" y1="9" x2="21" y2="9"></line>
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
-          <span style="font-size: 12px">New Table</span>
+          <span class="rc-fs-12">New Table</span>
         </button>
       </div>
 
-      <div class="vr my-1" style="opacity: 0.2"></div>
+      <div class="vr my-1 rc-opacity-20"></div>
 
       <!-- Calendars / Date Table Group -->
       <div class="d-flex align-items-center gap-1">
@@ -244,7 +244,7 @@
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
-          <span style="font-size: 12px">Mark as Date Table</span>
+          <span class="rc-fs-12">Mark as Date Table</span>
         </button>
       </div>
     </section>
@@ -258,13 +258,13 @@
         class="rc-formula-target-wrap d-flex align-items-center gap-1 flex-shrink-0"
       >
         <span
-          class="px-2 py-1 rounded font-monospace"
-          style="font-size: 12px; font-weight: 700"
+          class="px-2 py-1 rounded font-monospace rc-fs-12 rc-fw-700"
+         
           title="Formula Expression"
         >
           fx
         </span>
-        <span class="text-secondary" style="font-size: 12px">=</span>
+        <span class="text-secondary rc-fs-12">=</span>
       </div>
 
       <div
@@ -314,13 +314,13 @@
               <li
                 role="option"
                 [attr.aria-selected]="selectedSuggestionIndex() === idx"
-                class="px-2 py-1 d-flex align-items-center justify-content-between gap-2"
+                class="px-2 py-1 d-flex align-items-center justify-content-between gap-2 rc-cursor-pointer rc-fs-12"
                 [style.background-color]="
                   selectedSuggestionIndex() === idx
                     ? 'var(--rc-surface-hover)'
                     : 'transparent'
                 "
-                style="cursor: pointer; font-size: 12px"
+               
                 (mousedown)="
                   applyFormulaSuggestion(item); $event.preventDefault()
                 "
@@ -331,8 +331,8 @@
                   {{ item.token }}
                 </span>
                 <span
-                  class="text-secondary small text-truncate"
-                  style="font-size: 11px"
+                  class="text-secondary small text-truncate rc-fs-11"
+                 
                 >
                   {{ item.category }} — {{ item.description }}
                 </span>
@@ -469,7 +469,7 @@
                 <!-- Dynamic Model Columns -->
                 @for (col of activeColumns(); track col.name) {
                   <th
-                    class="rc-th-cell border-bottom border-end px-2 py-1 user-select-none"
+                    class="rc-th-cell border-bottom border-end px-2 py-1 user-select-none rc-cursor-pointer rc-bg-card"
                     [class.is-sorted]="sortColumn() === col.name"
                     [style.opacity]="col.isHidden ? '0.6' : '1'"
                     (click)="toggleSort(col.name)"
@@ -483,7 +483,7 @@
                         ? ' — Sorted by ' + col.sortByColumn
                         : '')
                     "
-                    style="cursor: pointer; background-color: var(--rc-card-bg)"
+                   
                   >
                     <div
                       class="d-flex align-items-center gap-1.5 w-100"
@@ -513,18 +513,15 @@
 
                         <div class="d-flex align-items-center gap-1 min-w-0">
                           <span
-                            class="fw-semibold text-truncate"
-                            style="
-                              font-size: 12px;
-                              color: var(--rc-text-primary);
-                            "
+                            class="fw-semibold text-truncate rc-fs-12 rc-text-primary"
+                           
                           >
                             {{ col.name }}
                           </span>
                           @if (col.isHidden) {
                             <span
-                              class="text-secondary font-monospace"
-                              style="font-size: 9px"
+                              class="text-secondary font-monospace rc-fs-9"
+                             
                               title="Hidden in Report View"
                             >
                               (Hidden)
@@ -532,8 +529,8 @@
                           }
                           <!-- Sort Caret Indicator -->
                           <span
-                            class="rc-sort-icon d-inline-flex align-items-center"
-                            style="width: 12px; height: 12px"
+                            class="rc-sort-icon d-inline-flex align-items-center rc-w-12 rc-h-12"
+                           
                           >
                             @if (sortColumn() === col.name) {
                               @if (sortDirection() === "asc") {
@@ -595,11 +592,8 @@
                           }
 
                           <span
-                            class="fw-semibold text-truncate"
-                            style="
-                              font-size: 12px;
-                              color: var(--rc-text-primary);
-                            "
+                            class="fw-semibold text-truncate rc-fs-12 rc-text-primary"
+                           
                           >
                             {{ col.name }}
                           </span>
@@ -618,8 +612,8 @@
 
                           @if (col.isHidden) {
                             <span
-                              class="text-secondary font-monospace"
-                              style="font-size: 9px"
+                              class="text-secondary font-monospace rc-fs-9"
+                             
                               title="Hidden in Report View"
                             >
                               (Hidden)
@@ -629,8 +623,8 @@
 
                         <!-- Sort Caret Indicator -->
                         <span
-                          class="rc-sort-icon d-inline-flex align-items-center flex-shrink-0"
-                          style="width: 12px; height: 12px"
+                          class="rc-sort-icon d-inline-flex align-items-center flex-shrink-0 rc-w-12 rc-h-12"
+                         
                         >
                           @if (sortColumn() === col.name) {
                             @if (sortDirection() === "asc") {
@@ -688,14 +682,14 @@
                   <!-- Column Cells -->
                   @for (col of activeColumns(); track col.name) {
                     <td
-                      class="rc-td-cell border-bottom border-end px-2 py-1"
+                      class="rc-td-cell border-bottom border-end px-2 py-1 rc-fs-12 rc-text-primary"
                       [class]="getColumnAlignment(col)"
                       [style.opacity]="col.isHidden ? '0.6' : '1'"
-                      style="font-size: 12px; color: var(--rc-text-primary)"
+                     
                     >
                       <span
-                        class="font-monospace text-truncate d-inline-block"
-                        style="max-width: 100%"
+                        class="font-monospace text-truncate d-inline-block rc-max-w-full"
+                       
                       >
                         {{ formatCellValue(row[col.name], col) }}
                       </span>
@@ -728,7 +722,7 @@
                       <span class="fw-semibold text-body mb-1">
                         No data records in this table
                       </span>
-                      <p class="small text-muted mb-0" style="max-width: 360px">
+                      <p class="small text-muted mb-0 rc-max-w-360">
                         Use the global Import menu in the top ribbon to load a dataset.
                       </p>
                     </div>
@@ -741,11 +735,11 @@
 
         <!-- Table View Status Line (Power BI Footer Alignment) -->
         <footer
-          class="rc-table-status-bar px-3 py-1 border-top d-flex align-items-center justify-content-between flex-shrink-0"
-          style="background-color: var(--rc-card-bg); min-height: 28px"
+          class="rc-table-status-bar px-3 py-1 border-top d-flex align-items-center justify-content-between flex-shrink-0 rc-bg-card rc-min-h-28"
+         
         >
           <div class="d-flex align-items-center gap-2">
-            <span class="small text-secondary" style="font-size: 11px">
+            <span class="small text-secondary rc-fs-11">
               Table :
               <strong class="text-primary">{{ activeTable()?.name }}</strong>
               ({{ displayedRows().length }} rows,
@@ -842,8 +836,8 @@
               <span class="rc-section-title">Model Tables</span>
             </span>
             <span
-              class="badge rounded-pill text-secondary"
-              style="font-size: 11px"
+              class="badge rounded-pill text-secondary rc-fs-11"
+             
             >
               {{ tables().length }}
             </span>
@@ -909,8 +903,8 @@
                     </div>
 
                     <span
-                      class="badge text-secondary font-monospace"
-                      style="font-size: 10px"
+                      class="badge text-secondary font-monospace rc-fs-10"
+                     
                     >
                       {{ tbl.columns.length }} cols
                     </span>
@@ -950,8 +944,8 @@
               <span class="rc-section-title">Columns</span>
             </span>
             <span
-              class="badge rounded-pill text-secondary"
-              style="font-size: 11px"
+              class="badge rounded-pill text-secondary rc-fs-11"
+             
             >
               {{ activeColumns().length }}
             </span>
@@ -977,17 +971,17 @@
                       class="d-flex align-items-center justify-content-between mb-2"
                     >
                       <span
-                        class="text-uppercase fw-bold text-secondary"
-                        style="font-size: 10px; letter-spacing: 0.05em"
+                        class="text-uppercase fw-bold text-secondary rc-fs-10 rc-ls-wide"
+                       
                       >
                         Column Tools: {{ activeCol.name }}
                       </span>
                       <button
                         type="button"
-                        class="btn btn-xs py-0 px-2"
+                        class="btn btn-xs py-0 px-2 rc-fs-10"
                         [class.btn-outline-secondary]="!activeCol.isHidden"
                         [class.btn-outline-warning]="activeCol.isHidden"
-                        style="font-size: 10px"
+                       
                         (click)="toggleColumnHidden(activeCol.name)"
                         title="Toggle visibility in Report View"
                       >
@@ -998,14 +992,14 @@
                     <div class="row g-1 mb-1">
                       <div class="col-6">
                         <label
-                          class="form-label mb-0 text-secondary"
-                          style="font-size: 10px"
+                          class="form-label mb-0 text-secondary rc-fs-10"
+                         
                         >
                           Data Type
                         </label>
                         <select
-                          class="form-select form-select-sm py-0 px-1 font-monospace"
-                          style="font-size: 11px; height: 24px"
+                          class="form-select form-select-sm py-0 px-1 font-monospace rc-fs-11 rc-h-24"
+                         
                           [ngModel]="getColumnDataType(activeCol)"
                           (ngModelChange)="
                             updateColumnDataType(activeCol.name, $event)
@@ -1032,14 +1026,14 @@
 
                       <div class="col-6">
                         <label
-                          class="form-label mb-0 text-secondary"
-                          style="font-size: 10px"
+                          class="form-label mb-0 text-secondary rc-fs-10"
+                         
                         >
                           Format
                         </label>
                         <select
-                          class="form-select form-select-sm py-0 px-1"
-                          style="font-size: 11px; height: 24px"
+                          class="form-select form-select-sm py-0 px-1 rc-fs-11 rc-h-24"
+                         
                           [ngModel]="activeCol.format || 'General'"
                           (ngModelChange)="
                             setColumnFormat(activeCol.name, $event)
@@ -1059,14 +1053,14 @@
                     <div class="row g-1">
                       <div class="col-6">
                         <label
-                          class="form-label mb-0 text-secondary"
-                          style="font-size: 10px"
+                          class="form-label mb-0 text-secondary rc-fs-10"
+                         
                         >
                           Summarize By
                         </label>
                         <select
-                          class="form-select form-select-sm py-0 px-1"
-                          style="font-size: 11px; height: 24px"
+                          class="form-select form-select-sm py-0 px-1 rc-fs-11 rc-h-24"
+                         
                           [ngModel]="activeCol.summarizeBy || 'None'"
                           (ngModelChange)="
                             updateColumnSummarization(activeCol.name, $event)
@@ -1085,14 +1079,14 @@
 
                       <div class="col-6">
                         <label
-                          class="form-label mb-0 text-secondary"
-                          style="font-size: 10px"
+                          class="form-label mb-0 text-secondary rc-fs-10"
+                         
                         >
                           Sort by Column
                         </label>
                         <select
-                          class="form-select form-select-sm py-0 px-1 font-monospace"
-                          style="font-size: 11px; height: 24px"
+                          class="form-select form-select-sm py-0 px-1 font-monospace rc-fs-11 rc-h-24"
+                         
                           [ngModel]="activeCol.sortByColumn || ''"
                           (ngModelChange)="
                             updateSortByColumn(activeCol.name, $event)
@@ -1154,8 +1148,8 @@
                       </div>
 
                       <div
-                        class="d-flex align-items-center justify-content-between text-secondary"
-                        style="font-size: 11px"
+                        class="d-flex align-items-center justify-content-between text-secondary rc-fs-11"
+                       
                       >
                         <span>
                           Role: {{ col.keyType || "None" }}
@@ -1173,12 +1167,12 @@
                         ) {
                           <button
                             type="button"
-                            class="btn btn-link btn-xs p-0 text-decoration-none text-info"
+                            class="btn btn-link btn-xs p-0 text-decoration-none text-info rc-fs-11"
                             (click)="
                               editCalculatedColumn(col.name);
                               $event.stopPropagation()
                             "
-                            style="font-size: 11px"
+                           
                           >
                             Edit fx
                           </button>
@@ -1221,8 +1215,8 @@
               <span class="rc-section-title">Calculations</span>
             </span>
             <span
-              class="badge rounded-pill text-secondary"
-              style="font-size: 11px"
+              class="badge rounded-pill text-secondary rc-fs-11"
+             
             >
               {{ activeTableMeasures().length }}
             </span>
@@ -1233,14 +1227,14 @@
               <div
                 class="d-flex align-items-center justify-content-between mb-2"
               >
-                <span class="rc-tools-heading" style="font-size: 11px">
+                <span class="rc-tools-heading rc-fs-11">
                   Table Measures
                 </span>
                 <button
                   type="button"
-                  class="btn btn-xs btn-outline-primary py-1 px-2"
+                  class="btn btn-xs btn-outline-primary py-1 px-2 rc-fs-10"
                   (click)="onNewMeasure()"
-                  style="font-size: 10px"
+                 
                 >
                   + Add
                 </button>
@@ -1282,8 +1276,8 @@
                         </span>
                       </div>
                       <code
-                        class="small text-truncate font-monospace"
-                        style="font-size: 10px; color: var(--rc-text-secondary)"
+                        class="small text-truncate font-monospace rc-fs-10 rc-text-secondary"
+                       
                       >
                         {{ measure.formula }}
                       </code>

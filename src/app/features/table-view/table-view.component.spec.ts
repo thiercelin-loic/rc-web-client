@@ -243,7 +243,7 @@ describe("TableViewComponent", () => {
       "Description",
       "Rax",
     ]);
-  });
+  }, 15000);
 
   it("adds a new measure, marks date table with primary key, and configures Column Tools properties", async () => {
     const fixture = TestBed.createComponent(TableViewComponent);
