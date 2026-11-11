@@ -180,7 +180,7 @@
           <article
             class="table-card"
             [class.active]="selectedTable() === table.name"
-            [class.fact-card]="table.role === 'FACT'"
+            [class.rc-hub-card]="table.role === 'FACT'"
             [class.is-hidden]="table.isHidden"
             [style.top.px]="table.position.y"
             [style.left.px]="table.position.x"
@@ -546,8 +546,8 @@
                       [ngModel]="selectedRel().crossFilter"
                       (ngModelChange)="updateCrossFilter($event)"
                     >
-                      <option value="Single">Single Direction (&rarr;)</option>
-                      <option value="Both">Bi-Directional (&harr;)</option>
+                      <option value="Single">Single direction</option>
+                      <option value="Both">Both directions</option>
                     </select>
                   </div>
 
@@ -634,9 +634,9 @@
                       [class.btn-primary]="activeTable()?.role === 'FACT'"
                       [class.btn-outline-secondary]="activeTable()?.role !== 'FACT'"
                       style="font-size: 10px; padding: 1px 6px;"
-                      (click)="setTableRole(activeTable()?.name, 'FACT')"
+                      [attr.aria-pressed]="activeTable()?.role === 'FACT'" title="Table holds measures" (click)="setTableRole(activeTable()?.name, 'FACT')"
                     >
-                      FACT
+                      Measures
                     </button>
                     <button
                       type="button"
@@ -644,9 +644,9 @@
                       [class.btn-primary]="activeTable()?.role === 'DIMENSION'"
                       [class.btn-outline-secondary]="activeTable()?.role !== 'DIMENSION'"
                       style="font-size: 10px; padding: 1px 6px;"
-                      (click)="setTableRole(activeTable()?.name, 'DIMENSION')"
+                      [attr.aria-pressed]="activeTable()?.role === 'DIMENSION'" title="Table holds descriptive attributes" (click)="setTableRole(activeTable()?.name, 'DIMENSION')"
                     >
-                      DIM
+                      Attributes
                     </button>
                   </div>
                 </div>
