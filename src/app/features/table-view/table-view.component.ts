@@ -19,7 +19,6 @@ import {
   DEFAULT_SEMANTIC_MODEL,
   SemanticModelService,
 } from "../../core/semantic-model.service";
-import { IngestionWorkflowService } from "../../core/ingestion-workflow.service";
 
 export type TableViewSection = "Tables" | "Columns" | "Calculations";
 export type FormulaAuthoringMode = "column" | "table" | "measure";
@@ -43,12 +42,15 @@ const RAX_TABLE_FUNCTIONS: readonly FormulaSuggestion[] = [
   {
     token: "CALENDAR(DATE(2026, 1, 1), DATE(2026, 12, 31))",
     category: "Function",
-    description: "Generates a continuous date table between start and end dates",
+    description:
+      "Generates a continuous date table between start and end dates",
   },
   {
-    token: "ADDCOLUMNS(CALENDAR(DATE(2025, 1, 1), DATE(2026, 12, 31)), \"Offset Day\", DATEDIFF(TODAY(), [Date], DAY))",
+    token:
+      'ADDCOLUMNS(CALENDAR(DATE(2025, 1, 1), DATE(2026, 12, 31)), "Offset Day", DATEDIFF(TODAY(), [Date], DAY))',
     category: "Function",
-    description: "Builds a Calendar table enriched with Time Intelligence offset columns",
+    description:
+      "Builds a Calendar table enriched with Time Intelligence offset columns",
   },
   {
     token: "SUMMARIZECOLUMNS(",
@@ -58,12 +60,14 @@ const RAX_TABLE_FUNCTIONS: readonly FormulaSuggestion[] = [
   {
     token: "CALCULATE(SUM(",
     category: "Function",
-    description: "Evaluates an expression in a modified filter context (context transition)",
+    description:
+      "Evaluates an expression in a modified filter context (context transition)",
   },
   {
     token: "RELATED(",
     category: "Function",
-    description: "Propagates row context across N:1 relationships to fetch a related column",
+    description:
+      "Propagates row context across N:1 relationships to fetch a related column",
   },
   {
     token: "SUMX(",
@@ -78,17 +82,20 @@ const RAX_TABLE_FUNCTIONS: readonly FormulaSuggestion[] = [
   {
     token: "INFO.VIEW.COLUMNS()",
     category: "Function",
-    description: "Returns semantic model column metadata for Data Dictionary tables",
+    description:
+      "Returns semantic model column metadata for Data Dictionary tables",
   },
   {
     token: "INFO.VIEW.MEASURES()",
     category: "Function",
-    description: "Returns semantic model measure metadata for Data Dictionary tables",
+    description:
+      "Returns semantic model measure metadata for Data Dictionary tables",
   },
   {
     token: "INFO.VIEW.TABLES()",
     category: "Function",
-    description: "Returns semantic model table metadata for Data Dictionary tables",
+    description:
+      "Returns semantic model table metadata for Data Dictionary tables",
   },
 ];
 
@@ -103,7 +110,6 @@ const RAX_TABLE_FUNCTIONS: readonly FormulaSuggestion[] = [
 export class TableViewComponent implements OnInit {
   public readonly state = inject(StateManagerService);
   private readonly semanticModel = inject(SemanticModelService);
-  public readonly ingestion = inject(IngestionWorkflowService);
 
   // Active view & mobile responsive state
   public readonly activeMobileTab = signal<"grid" | "tools">("grid");
@@ -201,50 +207,56 @@ export class TableViewComponent implements OnInit {
   public readonly selectedSuggestionIndex = signal<number>(0);
 
   // Column formatting configuration overrides
-  public readonly columnFormats = signal<Record<string, ColumnFormatConfig>>({});
+  public readonly columnFormats = signal<Record<string, ColumnFormatConfig>>(
+    {},
+  );
 
-  public readonly formulaSuggestions = computed<readonly FormulaSuggestion[]>(() => {
-    const raw = this.formulaText().trim();
-    if (!raw || !this.isFormulaActive()) {
-      return [];
-    }
-    const lastTokenMatch = raw.match(/([a-zA-Z0-9_.'[\]]+)$/);
-    const searchToken = (lastTokenMatch ? lastTokenMatch[1] : raw).toLowerCase();
-    if (!searchToken) {
-      return [];
-    }
+  public readonly formulaSuggestions = computed<readonly FormulaSuggestion[]>(
+    () => {
+      const raw = this.formulaText().trim();
+      if (!raw || !this.isFormulaActive()) {
+        return [];
+      }
+      const lastTokenMatch = raw.match(/([a-zA-Z0-9_.'[\]]+)$/);
+      const searchToken = (
+        lastTokenMatch ? lastTokenMatch[1] : raw
+      ).toLowerCase();
+      if (!searchToken) {
+        return [];
+      }
 
-    const candidates: FormulaSuggestion[] = [...RAX_TABLE_FUNCTIONS];
-    for (const tbl of this.tables()) {
-      candidates.push({
-        token: `'${tbl.name}'`,
-        category: "Table",
-        description: `Model table (${tbl.columns.length} columns)`,
-      });
-      for (const col of tbl.columns) {
+      const candidates: FormulaSuggestion[] = [...RAX_TABLE_FUNCTIONS];
+      for (const tbl of this.tables()) {
         candidates.push({
-          token: `'${tbl.name}'[${col.name}]`,
-          category: "Column",
-          description: `${tbl.name} column (${col.dataType})`,
+          token: `'${tbl.name}'`,
+          category: "Table",
+          description: `Model table (${tbl.columns.length} columns)`,
+        });
+        for (const col of tbl.columns) {
+          candidates.push({
+            token: `'${tbl.name}'[${col.name}]`,
+            category: "Column",
+            description: `${tbl.name} column (${col.dataType})`,
+          });
+        }
+      }
+      for (const m of this.state.measures) {
+        candidates.push({
+          token: `[${m.label}]`,
+          category: "Measure",
+          description: `Explicit measure on ${m.table}: ${m.formula}`,
         });
       }
-    }
-    for (const m of this.state.measures) {
-      candidates.push({
-        token: `[${m.label}]`,
-        category: "Measure",
-        description: `Explicit measure on ${m.table}: ${m.formula}`,
-      });
-    }
 
-    return candidates
-      .filter(
-        (item) =>
-          item.token.toLowerCase().includes(searchToken) ||
-          item.description.toLowerCase().includes(searchToken),
-      )
-      .slice(0, 8);
-  });
+      return candidates
+        .filter(
+          (item) =>
+            item.token.toLowerCase().includes(searchToken) ||
+            item.description.toLowerCase().includes(searchToken),
+        )
+        .slice(0, 8);
+    },
+  );
 
   // Computed displayed rows (with Sort by Column and active calculations applied)
   public readonly displayedRows = computed<readonly TableRowData[]>(() => {
@@ -279,7 +291,9 @@ export class TableViewComponent implements OnInit {
     });
   });
 
-  public readonly activeTableMeasures = computed<readonly RaxMeasureDescriptor[]>(() => {
+  public readonly activeTableMeasures = computed<
+    readonly RaxMeasureDescriptor[]
+  >(() => {
     const tbl = this.activeTable();
     if (!tbl) return [];
     return this.state.measures.filter(
@@ -371,116 +385,6 @@ export class TableViewComponent implements OnInit {
     });
   }
 
-  public onImportCsv(event: Event): void {
-    const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
-    const file = input.files[0];
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const text = e.target?.result as string;
-      if (!text) return;
-      this.importCsvText(file.name, text);
-    };
-    reader.readAsText(file);
-    input.value = "";
-  }
-
-  public importCsvText(fileName: string, text: string): void {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length === 0) return;
-
-    const separator = lines[0].includes(";")
-      ? ";"
-      : lines[0].includes("\t")
-        ? "\t"
-        : ",";
-    const headerCols = lines[0]
-      .split(separator)
-      .map((h) => h.trim().replace(/^["']|["']$/g, ""));
-    const dataLines = lines.slice(1);
-
-    const rows: TableRowData[] = dataLines.map((line) => {
-      const parts = line
-        .split(separator)
-        .map((p) => p.trim().replace(/^["']|["']$/g, ""));
-      const record: Record<string, unknown> = {};
-      headerCols.forEach((col, idx) => {
-        const raw = parts[idx] ?? "";
-        if (raw === "") {
-          record[col] = null;
-        } else if (!isNaN(Number(raw))) {
-          record[col] = Number(raw);
-        } else if (
-          raw.toLowerCase() === "true" ||
-          raw.toLowerCase() === "false"
-        ) {
-          record[col] = raw.toLowerCase() === "true";
-        } else {
-          record[col] = raw;
-        }
-      });
-      return record;
-    });
-
-    const newTableName =
-      fileName.replace(/\.[^/.]+$/, "").replace(/[^a-zA-Z0-9_]/g, "_") ||
-      "user_dataset";
-    const sharedCols: SharedColumn[] = headerCols.map((name) => {
-      let dataType = "VARCHAR";
-      const sampleRow = rows.find(
-        (r) => r[name] !== null && r[name] !== undefined,
-      );
-      if (sampleRow) {
-        const val = sampleRow[name];
-        if (typeof val === "number") {
-          dataType = Number.isInteger(val) ? "INT" : "FLOAT";
-        } else if (typeof val === "boolean") {
-          dataType = "BOOLEAN";
-        } else if (
-          typeof val === "string" &&
-          (/^\d{4}-\d{2}-\d{2}/.test(val) || /^\d{2}\/\d{2}\/\d{4}/.test(val))
-        ) {
-          dataType = "DATE";
-        }
-      }
-      const lowerName = name.toLowerCase();
-      const isIdentifierOrYear =
-        lowerName.endsWith("_id") ||
-        lowerName.startsWith("id_") ||
-        lowerName === "id" ||
-        lowerName.includes("year") ||
-        lowerName.includes("annee") ||
-        lowerName.includes("number") ||
-        lowerName.includes("numero");
-
-      return {
-        name,
-        dataType,
-        keyType: lowerName === "id" || lowerName === `${newTableName.toLowerCase()}_id` ? "PK" : lowerName.endsWith("_id") || lowerName.startsWith("id_") ? "FK" : "None",
-        summarizeBy:
-          isIdentifierOrYear || (dataType !== "INT" && dataType !== "FLOAT" && dataType !== "DECIMAL")
-            ? "None"
-            : "Sum",
-      };
-    });
-
-    this.state.addTable({
-      id: `user_tbl_${newTableName}`,
-      name: newTableName,
-      role: "FACT",
-      columns: sharedCols,
-      rowCount: rows.length,
-    });
-    this.loadTableRows(newTableName, rows);
-    this.selectTable(newTableName);
-    this.semanticModel.syncFromStateManager(this.state).subscribe({
-      error: () => {},
-    });
-    this.state.announce(
-      `Imported table ${newTableName} with ${rows.length} user records.`,
-    );
-  }
-
   // ---------------------------------------------------------------------------
   // Accordion Management
   // ---------------------------------------------------------------------------
@@ -525,7 +429,9 @@ export class TableViewComponent implements OnInit {
           c.dataType.toUpperCase().includes("DATE") ||
           c.name.toLowerCase().includes("date"),
       );
-      this.dateColumnCandidate.set(tbl.dateColumn || dateCol?.name || tbl.columns[0]?.name || "");
+      this.dateColumnCandidate.set(
+        tbl.dateColumn || dateCol?.name || tbl.columns[0]?.name || "",
+      );
 
       const existingRows =
         this.tableDataStore()[tbl.name] ?? this.state.getTableRows(tbl.name);
@@ -561,8 +467,12 @@ export class TableViewComponent implements OnInit {
       c.name === colName ? { ...c, dataType } : c,
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
-    this.state.announce(`Changed column [${colName}] data type to ${dataType}.`);
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
+    this.state.announce(
+      `Changed column [${colName}] data type to ${dataType}.`,
+    );
   }
 
   public getColumnDataType(col: SharedColumn): string {
@@ -580,11 +490,14 @@ export class TableViewComponent implements OnInit {
       "BOOLEAN",
     ];
     if (standard.includes(raw)) return raw;
-    if (raw.includes("CHAR") || raw.includes("TEXT") || raw.includes("STRING")) return "STRING";
+    if (raw.includes("CHAR") || raw.includes("TEXT") || raw.includes("STRING"))
+      return "STRING";
     if (raw.includes("INT")) return raw.includes("64") ? "INT64" : "INT";
-    if (raw.includes("FLOAT") || raw.includes("DOUBLE")) return raw.includes("64") ? "FLOAT64" : "FLOAT";
+    if (raw.includes("FLOAT") || raw.includes("DOUBLE"))
+      return raw.includes("64") ? "FLOAT64" : "FLOAT";
     if (raw.includes("DEC") || raw.includes("NUMERIC")) return "DECIMAL";
-    if (raw.includes("DATE") || raw.includes("TIME")) return raw.includes("TIME") ? "DATETIME" : "DATE";
+    if (raw.includes("DATE") || raw.includes("TIME"))
+      return raw.includes("TIME") ? "DATETIME" : "DATE";
     if (raw.includes("BOOL")) return "BOOLEAN";
     return raw;
   }
@@ -617,7 +530,9 @@ export class TableViewComponent implements OnInit {
       c.name === colName ? { ...c, summarizeBy } : c,
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
     const label = summarizeBy === "None" ? "Do not summarize" : summarizeBy;
     this.state.announce(`Set summarization for [${colName}] to ${label}.`);
   }
@@ -630,9 +545,13 @@ export class TableViewComponent implements OnInit {
       c.name === colName ? { ...c, sortByColumn: normalized } : c,
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
     if (normalized) {
-      this.state.announce(`Column [${colName}] configured to sort by [${normalized}].`);
+      this.state.announce(
+        `Column [${colName}] configured to sort by [${normalized}].`,
+      );
     } else {
       this.state.announce(`Cleared custom sort column for [${colName}].`);
     }
@@ -650,7 +569,9 @@ export class TableViewComponent implements OnInit {
       return c;
     });
     this.state.addTable({ ...tbl, columns: updatedColumns });
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
     this.state.announce(
       nowHidden
         ? `Column [${colName}] hidden in Report View.`
@@ -682,7 +603,9 @@ export class TableViewComponent implements OnInit {
       c.name === colName ? { ...c, format } : c,
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
     this.state.announce(`Applied ${format} format to [${colName}].`);
   }
 
@@ -720,7 +643,9 @@ export class TableViewComponent implements OnInit {
     if (this.showFormulaSuggestions() && suggestions.length > 0) {
       if (event.key === "ArrowDown") {
         event.preventDefault();
-        this.selectedSuggestionIndex.update((i) => (i + 1) % suggestions.length);
+        this.selectedSuggestionIndex.update(
+          (i) => (i + 1) % suggestions.length,
+        );
         return;
       }
       if (event.key === "ArrowUp") {
@@ -756,11 +681,10 @@ export class TableViewComponent implements OnInit {
 
   public applyFormulaSuggestion(suggestion: FormulaSuggestion): void {
     const current = this.formulaText();
-    const replaced = current.replace(
-      /([a-zA-Z0-9_.'[\]]+)$/,
-      suggestion.token,
+    const replaced = current.replace(/([a-zA-Z0-9_.'[\]]+)$/, suggestion.token);
+    this.formulaText.set(
+      replaced === current ? `${current}${suggestion.token}` : replaced,
     );
-    this.formulaText.set(replaced === current ? `${current}${suggestion.token}` : replaced);
     this.showFormulaSuggestions.set(false);
   }
 
@@ -825,7 +749,9 @@ export class TableViewComponent implements OnInit {
     this.isFormulaActive.set(true);
     this.showFormulaSuggestions.set(false);
 
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
     this.state.announce(`Created new measure ${label} on ${tbl.name}.`);
   }
 
@@ -860,13 +786,20 @@ export class TableViewComponent implements OnInit {
       if (dateCol && c.name === dateCol.name) {
         return {
           ...c,
-          dataType: c.dataType.toUpperCase().includes("DATE") ? c.dataType : "DATE",
+          dataType: c.dataType.toUpperCase().includes("DATE")
+            ? c.dataType
+            : "DATE",
           keyType: "PK",
           summarizeBy: "None",
         };
       }
       const lower = c.name.toLowerCase();
-      if (lower.includes("year") || lower.includes("annee") || lower.includes("day") || lower.includes("month")) {
+      if (
+        lower.includes("year") ||
+        lower.includes("annee") ||
+        lower.includes("day") ||
+        lower.includes("month")
+      ) {
         return {
           ...c,
           summarizeBy: "None",
@@ -884,7 +817,9 @@ export class TableViewComponent implements OnInit {
     };
 
     this.state.addTable(updatedTable);
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
 
     if (dateCol) {
       this.dateColumnCandidate.set(dateCol.name);
@@ -926,9 +861,13 @@ export class TableViewComponent implements OnInit {
           formula: text,
           table: tbl.name,
         });
-        this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+        this.semanticModel
+          .syncFromStateManager(this.state)
+          .subscribe({ error: () => {} });
         this.isFormulaActive.set(false);
-        this.state.announce(`Updated explicit measure ${cleanLabel} on ${tbl.name}.`);
+        this.state.announce(
+          `Updated explicit measure ${cleanLabel} on ${tbl.name}.`,
+        );
         return;
       }
     }
@@ -979,7 +918,10 @@ export class TableViewComponent implements OnInit {
               dataType: inferredType,
               keyType: "None",
               expression: text,
-              summarizeBy: inferredType === "DECIMAL" || inferredType === "INT" ? "Sum" : "None",
+              summarizeBy:
+                inferredType === "DECIMAL" || inferredType === "INT"
+                  ? "Sum"
+                  : "None",
             },
           ];
 
@@ -1003,7 +945,9 @@ export class TableViewComponent implements OnInit {
 
       this.loadTableRows(tbl.name, evaluatedRows);
       this.selectedColumnName.set(colName);
-      this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+      this.semanticModel
+        .syncFromStateManager(this.state)
+        .subscribe({ error: () => {} });
 
       this.state.announce(
         `Calculated column ${target} committed successfully on ${tbl.name}.`,
@@ -1022,7 +966,9 @@ export class TableViewComponent implements OnInit {
     this.state.addTable(tableDef);
     this.loadTableRows(newTableName, rows);
     this.selectTable(newTableName);
-    this.semanticModel.syncFromStateManager(this.state).subscribe({ error: () => {} });
+    this.semanticModel
+      .syncFromStateManager(this.state)
+      .subscribe({ error: () => {} });
     this.state.announce(
       `Calculated table ${newTableName} created from RAX expression (${rows.length} rows).`,
     );
@@ -1083,7 +1029,12 @@ export class TableViewComponent implements OnInit {
 
       let sum = 0;
       for (const tRow of targetRows) {
-        if (pkCol && pkVal !== undefined && pkCol in tRow && tRow[pkCol] !== pkVal) {
+        if (
+          pkCol &&
+          pkVal !== undefined &&
+          pkCol in tRow &&
+          tRow[pkCol] !== pkVal
+        ) {
           continue;
         }
         if (filterPred) {
@@ -1125,7 +1076,8 @@ export class TableViewComponent implements OnInit {
           (targetDate.getMonth() - today.getMonth())
         );
       }
-      const diffMs = targetDate.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
+      const diffMs =
+        targetDate.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
       return Math.round(diffMs / 86400000);
     }
 
@@ -1135,7 +1087,12 @@ export class TableViewComponent implements OnInit {
       const condStr = ifMatch[1].trim();
       const trueBranch = ifMatch[2].trim();
       const falseBranch = ifMatch[3].trim();
-      const condResult = this.evaluateRowCondition(condStr, row, table, rowIndex);
+      const condResult = this.evaluateRowCondition(
+        condStr,
+        row,
+        table,
+        rowIndex,
+      );
       return this.evaluateRowContextExpression(
         condResult ? trueBranch : falseBranch,
         row,
@@ -1192,15 +1149,24 @@ export class TableViewComponent implements OnInit {
     );
 
     // 6. Safe arithmetic evaluation (+, -, *, /, parentheses, numbers)
-    if (/^[0-9+\-*/().\s]+$/.test(resolvedExpr) && resolvedExpr.trim().length > 0) {
+    if (
+      /^[0-9+\-*/().\s]+$/.test(resolvedExpr) &&
+      resolvedExpr.trim().length > 0
+    ) {
       const arithmeticResult = this.evaluateSafeArithmetic(resolvedExpr);
       if (arithmeticResult !== null && !isNaN(arithmeticResult)) {
         return Number(arithmeticResult.toFixed(2));
       }
     }
 
-    if (hasNumericReference && row["gross_amount"] !== undefined && row["cost_amount"] !== undefined) {
-      return Number((Number(row["gross_amount"]) - Number(row["cost_amount"])).toFixed(2));
+    if (
+      hasNumericReference &&
+      row["gross_amount"] !== undefined &&
+      row["cost_amount"] !== undefined
+    ) {
+      return Number(
+        (Number(row["gross_amount"]) - Number(row["cost_amount"])).toFixed(2),
+      );
     }
 
     return Number(((rowIndex + 1) * 14.5).toFixed(2));
@@ -1260,7 +1226,10 @@ export class TableViewComponent implements OnInit {
 
     const parseExpression = (): number => {
       let value = parseTerm();
-      while (pos < tokens.length && (tokens[pos] === "+" || tokens[pos] === "-")) {
+      while (
+        pos < tokens.length &&
+        (tokens[pos] === "+" || tokens[pos] === "-")
+      ) {
         const op = tokens[pos++];
         const right = parseTerm();
         value = op === "+" ? value + right : value - right;
@@ -1270,7 +1239,10 @@ export class TableViewComponent implements OnInit {
 
     const parseTerm = (): number => {
       let value = parseFactor();
-      while (pos < tokens.length && (tokens[pos] === "*" || tokens[pos] === "/")) {
+      while (
+        pos < tokens.length &&
+        (tokens[pos] === "*" || tokens[pos] === "/")
+      ) {
         const op = tokens[pos++];
         const right = parseFactor();
         value = op === "*" ? value * right : right !== 0 ? value / right : 0;
@@ -1309,11 +1281,36 @@ export class TableViewComponent implements OnInit {
     // 1. Data Dictionary table via INFO.VIEW.COLUMNS / INFO.VIEW.MEASURES / INFO.VIEW.TABLES
     if (upper.includes("INFO.VIEW.")) {
       const dictColumns: SharedColumn[] = [
-        { name: "Type", dataType: "VARCHAR", keyType: "None", summarizeBy: "None" },
-        { name: "Name", dataType: "VARCHAR", keyType: "None", summarizeBy: "None" },
-        { name: "Table", dataType: "VARCHAR", keyType: "None", summarizeBy: "None" },
-        { name: "Description", dataType: "VARCHAR", keyType: "None", summarizeBy: "None" },
-        { name: "Rax", dataType: "VARCHAR", keyType: "None", summarizeBy: "None" },
+        {
+          name: "Type",
+          dataType: "VARCHAR",
+          keyType: "None",
+          summarizeBy: "None",
+        },
+        {
+          name: "Name",
+          dataType: "VARCHAR",
+          keyType: "None",
+          summarizeBy: "None",
+        },
+        {
+          name: "Table",
+          dataType: "VARCHAR",
+          keyType: "None",
+          summarizeBy: "None",
+        },
+        {
+          name: "Description",
+          dataType: "VARCHAR",
+          keyType: "None",
+          summarizeBy: "None",
+        },
+        {
+          name: "Rax",
+          dataType: "VARCHAR",
+          keyType: "None",
+          summarizeBy: "None",
+        },
       ];
       const dictRows: TableRowData[] = [];
 
@@ -1359,7 +1356,8 @@ export class TableViewComponent implements OnInit {
           columns: dictColumns,
           rowCount: dictRows.length,
           expression: formula,
-          description: "Semantic model documentation table generated from INFO.VIEW functions.",
+          description:
+            "Semantic model documentation table generated from INFO.VIEW functions.",
         },
         rows: dictRows,
       };
@@ -1407,12 +1405,15 @@ export class TableViewComponent implements OnInit {
         this.activeTable()?.name ||
         "";
       const sourceRows = factTableName
-        ? (this.tableDataStore()[factTableName] ?? this.state.getTableRows(factTableName))
+        ? (this.tableDataStore()[factTableName] ??
+          this.state.getTableRows(factTableName))
         : [];
 
       const groupedMap = new Map<string, Record<string, unknown>>();
       for (const row of sourceRows) {
-        const keyParts = groupCols.map((g) => String(this.resolveRowField(row, g.col) ?? ""));
+        const keyParts = groupCols.map((g) =>
+          String(this.resolveRowField(row, g.col) ?? ""),
+        );
         const groupKey = keyParts.join("||");
         const existing = groupedMap.get(groupKey) ?? {};
         groupCols.forEach((g, idx) => {
@@ -1422,7 +1423,8 @@ export class TableViewComponent implements OnInit {
           const alias = agg[1].trim();
           const targetCol = agg[5].trim();
           const val = Number(this.resolveRowField(row, targetCol) ?? 0);
-          existing[alias] = Number(existing[alias] ?? 0) + (isNaN(val) ? 0 : val);
+          existing[alias] =
+            Number(existing[alias] ?? 0) + (isNaN(val) ? 0 : val);
         }
         groupedMap.set(groupKey, existing);
       }
@@ -1436,7 +1438,13 @@ export class TableViewComponent implements OnInit {
           columns:
             columns.length > 0
               ? columns
-              : [{ name: "SummaryValue", dataType: "DECIMAL", keyType: "None" }],
+              : [
+                  {
+                    name: "SummaryValue",
+                    dataType: "DECIMAL",
+                    keyType: "None",
+                  },
+                ],
           rowCount: aggRows.length,
           expression: formula,
         },
@@ -1446,9 +1454,12 @@ export class TableViewComponent implements OnInit {
 
     // 3. Calendar / Time Table via CALENDAR(...) or CALENDARAUTO() (with optional Offset columns)
     const isCalendar = upper.includes("CALENDAR");
-    const includeOffsets = upper.includes("OFFSET") || upper.includes("DATEDIFF");
+    const includeOffsets =
+      upper.includes("OFFSET") || upper.includes("DATEDIFF");
     const dateMatches = Array.from(
-      formula.matchAll(/DATE\s*\(\s*(\d{4})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\)/gi),
+      formula.matchAll(
+        /DATE\s*\(\s*(\d{4})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\)/gi,
+      ),
     );
 
     const startDate =
@@ -1469,20 +1480,75 @@ export class TableViewComponent implements OnInit {
         : new Date(startDate.getFullYear(), 11, 31);
 
     const calendarColumns: SharedColumn[] = [
-      { name: "Date", dataType: "DATE", keyType: "PK", summarizeBy: "None", format: "Date" },
-      { name: "Year", dataType: "INT", keyType: "None", summarizeBy: "None", format: "WholeNumber" },
-      { name: "Quarter", dataType: "VARCHAR", keyType: "None", summarizeBy: "None" },
-      { name: "Month", dataType: "VARCHAR", keyType: "None", summarizeBy: "None", sortByColumn: "MonthNum" },
-      { name: "MonthNum", dataType: "INT", keyType: "None", summarizeBy: "None", isHidden: true },
-      { name: "YearMonth", dataType: "VARCHAR", keyType: "None", summarizeBy: "None" },
-      { name: "Day", dataType: "INT", keyType: "None", summarizeBy: "None", format: "WholeNumber" },
+      {
+        name: "Date",
+        dataType: "DATE",
+        keyType: "PK",
+        summarizeBy: "None",
+        format: "Date",
+      },
+      {
+        name: "Year",
+        dataType: "INT",
+        keyType: "None",
+        summarizeBy: "None",
+        format: "WholeNumber",
+      },
+      {
+        name: "Quarter",
+        dataType: "VARCHAR",
+        keyType: "None",
+        summarizeBy: "None",
+      },
+      {
+        name: "Month",
+        dataType: "VARCHAR",
+        keyType: "None",
+        summarizeBy: "None",
+        sortByColumn: "MonthNum",
+      },
+      {
+        name: "MonthNum",
+        dataType: "INT",
+        keyType: "None",
+        summarizeBy: "None",
+        isHidden: true,
+      },
+      {
+        name: "YearMonth",
+        dataType: "VARCHAR",
+        keyType: "None",
+        summarizeBy: "None",
+      },
+      {
+        name: "Day",
+        dataType: "INT",
+        keyType: "None",
+        summarizeBy: "None",
+        format: "WholeNumber",
+      },
     ];
 
     if (includeOffsets) {
       calendarColumns.push(
-        { name: "Offset Day", dataType: "INT", keyType: "None", summarizeBy: "None" },
-        { name: "Offset Month", dataType: "INT", keyType: "None", summarizeBy: "None" },
-        { name: "Offset Year", dataType: "INT", keyType: "None", summarizeBy: "None" },
+        {
+          name: "Offset Day",
+          dataType: "INT",
+          keyType: "None",
+          summarizeBy: "None",
+        },
+        {
+          name: "Offset Month",
+          dataType: "INT",
+          keyType: "None",
+          summarizeBy: "None",
+        },
+        {
+          name: "Offset Year",
+          dataType: "INT",
+          keyType: "None",
+          summarizeBy: "None",
+        },
       );
     }
 
@@ -1502,50 +1568,6 @@ export class TableViewComponent implements OnInit {
     };
 
     return { tableDef: newTable, rows: calendarRows };
-  }
-
-  public onExportCsv(): void {
-    const tbl = this.activeTable();
-    const rows = this.displayedRows();
-    if (!tbl || rows.length === 0) {
-      this.state.announce("No table records available to export.", { safe: true });
-      return;
-    }
-
-    const cols = tbl.columns.map((c) => c.name);
-    const csvHeader = cols.join(",");
-    const csvLines = rows.map((row) =>
-      cols
-        .map((col) => {
-          const val = row[col];
-          if (val === null || val === undefined) return "";
-          const str = String(val).replace(/"/g, '""');
-          return str.includes(",") || str.includes('"') ? `"${str}"` : str;
-        })
-        .join(","),
-    );
-
-    const csvContent = [csvHeader, ...csvLines].join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url =
-      typeof URL !== "undefined" && URL.createObjectURL
-        ? URL.createObjectURL(blob)
-        : "blob:mock";
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `${tbl.name}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    if (
-      typeof URL !== "undefined" &&
-      URL.revokeObjectURL &&
-      url !== "blob:mock"
-    ) {
-      URL.revokeObjectURL(url);
-    }
-
-    this.state.announce(`Exported ${tbl.name} (${rows.length} rows) to CSV.`);
   }
 
   // ---------------------------------------------------------------------------
@@ -1685,7 +1707,11 @@ export class TableViewComponent implements OnInit {
     );
 
     for (let i = 0; i < totalDays; i++) {
-      const d = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate() + i);
+      const d = new Date(
+        startDate.getFullYear(),
+        startDate.getMonth(),
+        startDate.getDate() + i,
+      );
       const year = d.getFullYear();
       const monthNum = d.getMonth() + 1;
       const month = String(monthNum).padStart(2, "0");

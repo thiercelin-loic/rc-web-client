@@ -40,13 +40,9 @@ export class IngestionWorkflowService {
   public readonly rawSnapshotsBySource = signal<Record<string, SourceSnapshot>>({});
   public readonly pipelineSync = signal<PipelineSyncEvent | null>(null);
 
-  // Global Get Data modal state
-  public readonly isGetDataModalOpen = signal<boolean>(false);
-  public readonly selectedConnectorCategory = signal<
-    'all' | 'file' | 'database' | 'azure' | 'online' | 'other'
-  >('all');
+  // Global Import roll-list menu state
+  public readonly importMenuOpen = signal<boolean>(false);
   public readonly selectedConnectorId = signal<string>('excel');
-  public readonly connectorSearchQuery = signal<string>('');
 
   // Global Pre-Ingestion Navigator modal state
   public readonly isNavigatorModalOpen = signal<boolean>(false);
@@ -58,71 +54,32 @@ export class IngestionWorkflowService {
   public readonly navigatorSheets = signal<readonly WorkbookSheet[]>([]);
   public readonly selectedNavigatorSheetId = signal<string>('');
 
-  public readonly filteredConnectors = computed(() => {
-    const cat = this.selectedConnectorCategory();
-    const query = this.connectorSearchQuery().trim().toLowerCase();
-    return DATA_CONNECTORS.filter((c) => {
-      const matchesCat = cat === 'all' || c.category === cat;
-      const matchesQuery =
-        !query ||
-        c.name.toLowerCase().includes(query) ||
-        c.description.toLowerCase().includes(query);
-      return matchesCat && matchesQuery;
-    });
-  });
-
   public readonly selectedNavigatorSheet = computed(() => {
     const list = this.navigatorSheets();
     const id = this.selectedNavigatorSheetId();
     return list.find((s) => s.id === id) ?? list[0] ?? null;
   });
 
-  public openGetDataModal(): void {
-    this.isGetDataModalOpen.set(true);
-    this.state.announce('Get Data: select an ingestion connector source.');
+  public readonly fileConnectors = DATA_CONNECTORS;
+
+  public toggleImportMenu(): void {
+    this.importMenuOpen.update((open) => !open);
   }
 
-  public closeGetDataModal(): void {
-    this.isGetDataModalOpen.set(false);
+  public closeImportMenu(): void {
+    this.importMenuOpen.set(false);
   }
 
-  public selectConnectorCategory(
-    category: 'all' | 'file' | 'database' | 'azure' | 'online' | 'other',
-  ): void {
-    this.selectedConnectorCategory.set(category);
-  }
-
-  public selectConnector(connectorId: string): void {
-    this.selectedConnectorId.set(connectorId);
-  }
-
-  public connectSelectedConnector(fileInput?: HTMLInputElement): void {
-    const connectorId = this.selectedConnectorId();
+  public triggerFileConnector(connectorId: string, fileInput?: HTMLInputElement): void {
     const connector = DATA_CONNECTORS.find((c) => c.id === connectorId);
     if (!connector) return;
 
-    if (connector.category === 'file') {
-      this.isGetDataModalOpen.set(false);
-      if (fileInput) {
-        fileInput.accept =
-          connector.fileExtensions || '.csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro';
-        fileInput.click();
-      }
-    } else if (connector.id === 'rest') {
-      this.isGetDataModalOpen.set(false);
-      this.loadDirectDataset(
-        'api_telemetry.json',
-        'REST',
-        JSON.stringify([
-          { id: 101, metric: 'latency_ms', value: 42.5, region: 'us-east-1' },
-          { id: 102, metric: 'latency_ms', value: 38.1, region: 'eu-west-1' },
-          { id: 103, metric: 'latency_ms', value: 89.4, region: 'ap-southeast-1' },
-        ]),
-      );
-      this.state.announce('Connected REST API endpoint sample stream.');
-    } else {
-      this.isGetDataModalOpen.set(false);
-      this.state.announce(`Connected enterprise source: ${connector.name}.`);
+    this.selectedConnectorId.set(connectorId);
+    this.importMenuOpen.set(false);
+    if (fileInput) {
+      fileInput.accept =
+        connector.fileExtensions || '.csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro';
+      fileInput.click();
     }
   }
 

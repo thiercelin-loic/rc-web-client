@@ -223,23 +223,36 @@ describe('AppComponent', () => {
     expect(children.indexOf(projectContainer!)).toBeLessThan(children.indexOf(exportContainer!));
   });
 
-  it('provides global Get Data ribbon button and Load/Transform Navigator workflow', async () => {
+  it('provides global Import file roll-list menu matching Export and Load/Transform Navigator workflow', async () => {
     const fixture = TestBed.createComponent(AppComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
     const app = fixture.componentInstance;
-    const getDataBtn = fixture.nativeElement.querySelector('#ribbon-get-data-btn') as HTMLButtonElement;
-    expect(getDataBtn).toBeTruthy();
+    const importBtn = fixture.nativeElement.querySelector('#ribbon-import-btn') as HTMLButtonElement;
+    expect(importBtn).toBeTruthy();
+    expect(importBtn.textContent).toContain('Import');
 
-    getDataBtn.click();
+    importBtn.click();
     fixture.detectChanges();
-    expect(app.ingestion.isGetDataModalOpen()).toBe(true);
-    expect(fixture.nativeElement.querySelector('#get-data-modal-title')).toBeTruthy();
+    expect(app.ingestion.importMenuOpen()).toBe(true);
 
-    app.ingestion.closeGetDataModal();
+    const menuEl = fixture.nativeElement.querySelector('.rc-import-menu') as HTMLElement;
+    expect(menuEl).toBeTruthy();
+
+    const items = menuEl.querySelectorAll<HTMLButtonElement>('button.dropdown-item');
+    expect(items.length).toBe(app.ingestion.fileConnectors.length);
+    items.forEach((item, index) => {
+      const svg = item.querySelector('svg');
+      expect(svg).toBeTruthy();
+      expect(svg?.getAttribute('aria-hidden')).toBe('true');
+      expect(item.textContent).toContain(app.ingestion.fileConnectors[index].name);
+      expect(app.ingestion.fileConnectors[index].category).toBe('file');
+    });
+
+    app.onEscapeKey();
     fixture.detectChanges();
-    expect(app.ingestion.isGetDataModalOpen()).toBe(false);
+    expect(app.ingestion.importMenuOpen()).toBe(false);
 
     // Trigger Navigator and Load directly into StateManagerService
     app.ingestion.openNavigatorForText(

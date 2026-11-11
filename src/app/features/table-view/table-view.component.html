@@ -22,7 +22,9 @@
           (click)="activeMobileTab.set('grid')"
           id="mobile-tab-grid"
         >
-          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+          <span
+            class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+          >
             <svg
               width="14"
               height="14"
@@ -57,7 +59,9 @@
           (click)="activeMobileTab.set('tools')"
           id="mobile-tab-tools"
         >
-          <span class="rc-page-tab-title d-inline-flex align-items-center gap-2">
+          <span
+            class="rc-page-tab-title d-inline-flex align-items-center gap-2"
+          >
             <svg
               width="14"
               height="14"
@@ -85,59 +89,6 @@
     [class.d-md-flex]="true"
     aria-label="Table View Canvas"
   >
-    <!-- Standardized Workspace Action Toolbar -->
-    <header class="rc-page-header rc-workspace-header flex-shrink-0 d-flex justify-content-end align-items-center">
-      <div class="d-flex align-items-center gap-2">
-        <button
-          type="button"
-          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-1"
-          (click)="ingestion.openGetDataModal()"
-          title="Get Data — Connect workbooks, CSV, Parquet, databases, or REST streams"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-          </svg>
-          <span>Get Data</span>
-        </button>
-
-        <button
-          type="button"
-          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-1"
-          (click)="onExportCsv()"
-          title="Export displayed records to CSV"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          <span>Export CSV</span>
-        </button>
-      </div>
-    </header>
-
     <!-- Table Tools Contextual Ribbon Strip (Power BI Desktop Alignment) -->
     <section
       class="rc-table-tools-ribbon px-3 py-1 border-bottom d-flex align-items-center gap-3 flex-wrap"
@@ -146,19 +97,24 @@
       <div class="d-flex align-items-center gap-2">
         <span
           class="rc-tools-group-label text-uppercase text-secondary"
-          style="font-size: 10px; font-weight: 700; letter-spacing: 0.05em;"
+          style="font-size: 10px; font-weight: 700; letter-spacing: 0.05em"
         >
           Table:
         </span>
         <span
           class="rc-table-current-badge font-monospace fw-semibold px-2 py-1 rounded d-inline-flex align-items-center gap-1"
-          style="background-color: var(--rc-surface-subtle); color: var(--rc-text-primary); font-size: 12px; border: 1px solid var(--rc-card-border);"
+          style="
+            background-color: var(--rc-surface-subtle);
+            color: var(--rc-text-primary);
+            font-size: 12px;
+            border: 1px solid var(--rc-card-border);
+          "
         >
           <span>{{ activeTable()?.name || "No table selected" }}</span>
           @if (activeTable()?.isDateTable) {
             <span
               class="text-secondary small"
-              style="font-size: 10px;"
+              style="font-size: 10px"
               title="Designated Date Table for Time Intelligence"
             >
               (Calendar: {{ activeTable()?.dateColumn || "Date" }})
@@ -167,7 +123,7 @@
         </span>
       </div>
 
-      <div class="vr my-1" style="opacity: 0.2;"></div>
+      <div class="vr my-1" style="opacity: 0.2"></div>
 
       <!-- Calculations Group -->
       <div class="d-flex align-items-center gap-1">
@@ -187,9 +143,11 @@
             aria-hidden="true"
           >
             <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+            <path
+              d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
+            ></path>
           </svg>
-          <span style="font-size: 12px;">New Measure</span>
+          <span style="font-size: 12px">New Measure</span>
         </button>
 
         <button
@@ -210,7 +168,7 @@
             <line x1="12" y1="5" x2="12" y2="19"></line>
             <line x1="5" y1="12" x2="19" y2="12"></line>
           </svg>
-          <span style="font-size: 12px;">New Column</span>
+          <span style="font-size: 12px">New Column</span>
         </button>
 
         <button
@@ -232,24 +190,34 @@
             <line x1="3" y1="9" x2="21" y2="9"></line>
             <line x1="9" y1="3" x2="9" y2="21"></line>
           </svg>
-          <span style="font-size: 12px;">New Table</span>
+          <span style="font-size: 12px">New Table</span>
         </button>
       </div>
 
-      <div class="vr my-1" style="opacity: 0.2;"></div>
+      <div class="vr my-1" style="opacity: 0.2"></div>
 
       <!-- Calendars / Date Table Group -->
       <div class="d-flex align-items-center gap-1">
         @if (activeColumns().length > 0) {
           <select
             class="form-select form-select-sm py-0 px-2 font-monospace"
-            style="min-width: 140px; width: auto; height: 26px; font-size: 11px; background-color: var(--rc-surface-subtle); color: var(--rc-text-primary); border: 1px solid var(--rc-card-border);"
+            style="
+              min-width: 140px;
+              width: auto;
+              height: 26px;
+              font-size: 11px;
+              background-color: var(--rc-surface-subtle);
+              color: var(--rc-text-primary);
+              border: 1px solid var(--rc-card-border);
+            "
             [ngModel]="effectiveDateColumn()"
             (ngModelChange)="dateColumnCandidate.set($event)"
             aria-label="Choose a Date Column"
             title="Select the Date column key for Time Intelligence"
           >
-            <option value="" disabled [selected]="!effectiveDateColumn()">Choose date col...</option>
+            <option value="" disabled [selected]="!effectiveDateColumn()">
+              Choose date col...
+            </option>
             @for (col of activeColumns(); track col.name) {
               <option [value]="col.name">{{ col.name }}</option>
             }
@@ -276,7 +244,7 @@
             <line x1="8" y1="2" x2="8" y2="6"></line>
             <line x1="3" y1="10" x2="21" y2="10"></line>
           </svg>
-          <span style="font-size: 12px;">Mark as Date Table</span>
+          <span style="font-size: 12px">Mark as Date Table</span>
         </button>
       </div>
     </section>
@@ -286,30 +254,41 @@
       class="rc-table-formula-strip px-3 py-1 border-bottom d-flex align-items-center gap-2 position-relative"
       aria-label="Table and column formula bar"
     >
-      <div class="rc-formula-target-wrap d-flex align-items-center gap-1 flex-shrink-0">
+      <div
+        class="rc-formula-target-wrap d-flex align-items-center gap-1 flex-shrink-0"
+      >
         <span
-          class=" px-2 py-1 rounded font-monospace"
-          style="font-size: 12px; font-weight: 700;"
+          class="px-2 py-1 rounded font-monospace"
+          style="font-size: 12px; font-weight: 700"
           title="Formula Expression"
         >
           fx
         </span>
-        <span class="text-secondary" style="font-size: 12px;">=</span>
+        <span class="text-secondary" style="font-size: 12px">=</span>
       </div>
 
-      <div class="d-flex align-items-center gap-1 flex-grow-1 position-relative">
+      <div
+        class="d-flex align-items-center gap-1 flex-grow-1 position-relative"
+      >
         <input
           type="text"
           role="combobox"
           aria-autocomplete="list"
-          [attr.aria-expanded]="showFormulaSuggestions() && formulaSuggestions().length > 0"
+          [attr.aria-expanded]="
+            showFormulaSuggestions() && formulaSuggestions().length > 0
+          "
           aria-controls="table-formula-suggestions-listbox"
           class="form-control form-control-sm font-monospace rc-formula-input"
           [ngModel]="formulaText()"
           (ngModelChange)="onFormulaInputChange($event)"
           (keydown)="onFormulaKeydown($event)"
           placeholder="Enter RAX expression (e.g. 'Table'[Col1] - 'Table'[Col2], CALENDAR(...), or SUMMARIZECOLUMNS(...))"
-          style="background-color: var(--rc-card-bg); color: var(--rc-text-primary); border: 1px solid var(--rc-card-border); font-size: 12px;"
+          style="
+            background-color: var(--rc-card-bg);
+            color: var(--rc-text-primary);
+            border: 1px solid var(--rc-card-border);
+            font-size: 12px;
+          "
           aria-label="Formula text"
         />
 
@@ -319,21 +298,42 @@
             role="listbox"
             aria-label="RAX formula suggestions"
             class="list-unstyled mb-0 position-absolute start-0 top-100 mt-1 shadow-sm rounded border py-1 w-100"
-            style="z-index: 30; max-height: 220px; overflow-y: auto; background-color: var(--rc-card-bg); border-color: var(--rc-card-border) !important;"
+            style="
+              z-index: 30;
+              max-height: 220px;
+              overflow-y: auto;
+              background-color: var(--rc-card-bg);
+              border-color: var(--rc-card-border) !important;
+            "
           >
-            @for (item of formulaSuggestions(); track item.token; let idx = $index) {
+            @for (
+              item of formulaSuggestions();
+              track item.token;
+              let idx = $index
+            ) {
               <li
                 role="option"
                 [attr.aria-selected]="selectedSuggestionIndex() === idx"
                 class="px-2 py-1 d-flex align-items-center justify-content-between gap-2"
-                [style.background-color]="selectedSuggestionIndex() === idx ? 'var(--rc-surface-hover)' : 'transparent'"
-                style="cursor: pointer; font-size: 12px;"
-                (mousedown)="applyFormulaSuggestion(item); $event.preventDefault()"
+                [style.background-color]="
+                  selectedSuggestionIndex() === idx
+                    ? 'var(--rc-surface-hover)'
+                    : 'transparent'
+                "
+                style="cursor: pointer; font-size: 12px"
+                (mousedown)="
+                  applyFormulaSuggestion(item); $event.preventDefault()
+                "
               >
-                <span class="font-monospace fw-semibold text-primary text-truncate">
+                <span
+                  class="font-monospace fw-semibold text-primary text-truncate"
+                >
                   {{ item.token }}
                 </span>
-                <span class="text-secondary small text-truncate" style="font-size: 11px;">
+                <span
+                  class="text-secondary small text-truncate"
+                  style="font-size: 11px"
+                >
                   {{ item.category }} — {{ item.description }}
                 </span>
               </li>
@@ -386,17 +386,30 @@
     </section>
 
     <!-- Main Data Grid Surface -->
-    <div class="rc-table-viewport-container flex-grow-1 d-flex flex-column position-relative overflow-hidden">
+    <div
+      class="rc-table-viewport-container flex-grow-1 d-flex flex-column position-relative overflow-hidden"
+    >
       @if (!activeTable()) {
         <!-- Empty State Prompt -->
-        <div class="rc-canvas-stage p-4 d-flex align-items-center justify-content-center h-100">
+        <div
+          class="rc-canvas-stage p-4 d-flex align-items-center justify-content-center h-100"
+        >
           <div
             class="rc-card rc-empty-hero text-center p-5 rounded"
-            style="max-width: 480px; background-color: var(--rc-card-bg); border: 1px dashed var(--rc-card-border);"
+            style="
+              max-width: 480px;
+              background-color: var(--rc-card-bg);
+              border: 1px dashed var(--rc-card-border);
+            "
           >
             <div
               class="rc-icon-circle mx-auto mb-3 d-flex align-items-center justify-content-center rounded-circle"
-              style="width: 56px; height: 56px; background-color: var(--rc-surface-subtle); color: var(--rc-primary);"
+              style="
+                width: 56px;
+                height: 56px;
+                background-color: var(--rc-surface-subtle);
+                color: var(--rc-primary);
+              "
             >
               <svg
                 width="28"
@@ -415,23 +428,40 @@
             </div>
             <h2 class="h6 fw-bold mb-1">No Model Table Selected</h2>
             <p class="text-secondary small mb-3">
-              Select an entity from the semantic model on the right to browse row records, inspect datatypes, and author calculated columns.
+              Select an entity from the semantic model on the right to browse
+              row records, inspect datatypes, and author calculated columns.
             </p>
           </div>
         </div>
       } @else {
         <!-- Tabular Grid -->
-        <div class="rc-table-data-wrapper flex-grow-1 overflow-auto position-relative">
+        <div
+          class="rc-table-data-wrapper flex-grow-1 overflow-auto position-relative"
+        >
           <table
             class="rc-data-table table table-sm table-hover mb-0"
-            style="table-layout: auto; border-collapse: separate; border-spacing: 0;"
+            style="
+              table-layout: auto;
+              border-collapse: separate;
+              border-spacing: 0;
+            "
           >
-            <thead class="sticky-top" style="z-index: 10; background-color: var(--rc-card-bg);">
+            <thead
+              class="sticky-top"
+              style="z-index: 10; background-color: var(--rc-card-bg)"
+            >
               <tr>
                 <!-- Row Index Column -->
                 <th
                   class="rc-th-index text-center text-secondary border-bottom border-end user-select-none"
-                  style="width: 48px; min-width: 48px; background-color: var(--rc-surface-subtle); font-size: 11px; font-weight: 600; padding: 6px 4px;"
+                  style="
+                    width: 48px;
+                    min-width: 48px;
+                    background-color: var(--rc-surface-subtle);
+                    font-size: 11px;
+                    font-weight: 600;
+                    padding: 6px 4px;
+                  "
                 >
                   #
                 </th>
@@ -449,21 +479,34 @@
                       col.dataType +
                       ')' +
                       (col.isHidden ? ' — Hidden in Report View' : '') +
-                      (col.sortByColumn ? ' — Sorted by ' + col.sortByColumn : '')
+                      (col.sortByColumn
+                        ? ' — Sorted by ' + col.sortByColumn
+                        : '')
                     "
-                    style="cursor: pointer; background-color: var(--rc-card-bg);"
+                    style="cursor: pointer; background-color: var(--rc-card-bg)"
                   >
                     <div
                       class="d-flex align-items-center gap-1.5 w-100"
-                      [class.justify-content-end]="getColumnAlignment(col) === 'text-end'"
-                      [class.justify-content-center]="getColumnAlignment(col) === 'text-center'"
-                      [class.justify-content-between]="getColumnAlignment(col) === 'text-start'"
+                      [class.justify-content-end]="
+                        getColumnAlignment(col) === 'text-end'
+                      "
+                      [class.justify-content-center]="
+                        getColumnAlignment(col) === 'text-center'
+                      "
+                      [class.justify-content-between]="
+                        getColumnAlignment(col) === 'text-start'
+                      "
                     >
-                      @if (getColumnAlignment(col) === 'text-end') {
+                      @if (getColumnAlignment(col) === "text-end") {
                         <!-- Right-aligned header: Type badge on the left, Name & Sort caret on the right -->
                         <span
                           class="badge font-monospace text-secondary flex-shrink-0"
-                          style="font-size: 9px; opacity: 0.75; background-color: var(--rc-surface-subtle); border: 1px solid var(--rc-card-border);"
+                          style="
+                            font-size: 9px;
+                            opacity: 0.75;
+                            background-color: var(--rc-surface-subtle);
+                            border: 1px solid var(--rc-card-border);
+                          "
                         >
                           {{ col.dataType }}
                         </span>
@@ -471,14 +514,17 @@
                         <div class="d-flex align-items-center gap-1 min-w-0">
                           <span
                             class="fw-semibold text-truncate"
-                            style="font-size: 12px; color: var(--rc-text-primary);"
+                            style="
+                              font-size: 12px;
+                              color: var(--rc-text-primary);
+                            "
                           >
                             {{ col.name }}
                           </span>
                           @if (col.isHidden) {
                             <span
                               class="text-secondary font-monospace"
-                              style="font-size: 9px;"
+                              style="font-size: 9px"
                               title="Hidden in Report View"
                             >
                               (Hidden)
@@ -487,7 +533,7 @@
                           <!-- Sort Caret Indicator -->
                           <span
                             class="rc-sort-icon d-inline-flex align-items-center"
-                            style="width: 12px; height: 12px;"
+                            style="width: 12px; height: 12px"
                           >
                             @if (sortColumn() === col.name) {
                               @if (sortDirection() === "asc") {
@@ -524,7 +570,11 @@
                           @if (col.keyType === "PK") {
                             <span
                               class="badge px-1 py-0.5 rounded-pill"
-                              style="font-size: 9px; background-color: var(--rc-primary); color: #fff;"
+                              style="
+                                font-size: 9px;
+                                background-color: var(--rc-primary);
+                                color: #fff;
+                              "
                               title="Primary Key"
                             >
                               PK
@@ -532,7 +582,12 @@
                           } @else if (col.keyType === "FK") {
                             <span
                               class="badge px-1 py-0.5 rounded-pill"
-                              style="font-size: 9px; background-color: var(--rc-surface-hover); color: var(--rc-text-secondary); border: 1px solid var(--rc-card-border);"
+                              style="
+                                font-size: 9px;
+                                background-color: var(--rc-surface-hover);
+                                color: var(--rc-text-secondary);
+                                border: 1px solid var(--rc-card-border);
+                              "
                               title="Foreign Key"
                             >
                               FK
@@ -541,14 +596,22 @@
 
                           <span
                             class="fw-semibold text-truncate"
-                            style="font-size: 12px; color: var(--rc-text-primary);"
+                            style="
+                              font-size: 12px;
+                              color: var(--rc-text-primary);
+                            "
                           >
                             {{ col.name }}
                           </span>
 
                           <span
                             class="badge font-monospace text-secondary flex-shrink-0"
-                            style="font-size: 9px; opacity: 0.75; background-color: var(--rc-surface-subtle); border: 1px solid var(--rc-card-border);"
+                            style="
+                              font-size: 9px;
+                              opacity: 0.75;
+                              background-color: var(--rc-surface-subtle);
+                              border: 1px solid var(--rc-card-border);
+                            "
                           >
                             {{ col.dataType }}
                           </span>
@@ -556,7 +619,7 @@
                           @if (col.isHidden) {
                             <span
                               class="text-secondary font-monospace"
-                              style="font-size: 9px;"
+                              style="font-size: 9px"
                               title="Hidden in Report View"
                             >
                               (Hidden)
@@ -567,7 +630,7 @@
                         <!-- Sort Caret Indicator -->
                         <span
                           class="rc-sort-icon d-inline-flex align-items-center flex-shrink-0"
-                          style="width: 12px; height: 12px;"
+                          style="width: 12px; height: 12px"
                         >
                           @if (sortColumn() === col.name) {
                             @if (sortDirection() === "asc") {
@@ -604,12 +667,20 @@
               </tr>
             </thead>
             <tbody>
-              @for (row of displayedRows(); track $index; let rowIndex = $index) {
+              @for (
+                row of displayedRows();
+                track $index;
+                let rowIndex = $index
+              ) {
                 <tr class="rc-table-row">
                   <!-- Row Number -->
                   <td
                     class="rc-td-index text-center text-secondary border-bottom border-end font-monospace"
-                    style="background-color: var(--rc-surface-subtle); font-size: 11px; padding: 4px;"
+                    style="
+                      background-color: var(--rc-surface-subtle);
+                      font-size: 11px;
+                      padding: 4px;
+                    "
                   >
                     {{ rowIndex + 1 }}
                   </td>
@@ -620,9 +691,12 @@
                       class="rc-td-cell border-bottom border-end px-2 py-1"
                       [class]="getColumnAlignment(col)"
                       [style.opacity]="col.isHidden ? '0.6' : '1'"
-                      style="font-size: 12px; color: var(--rc-text-primary);"
+                      style="font-size: 12px; color: var(--rc-text-primary)"
                     >
-                      <span class="font-monospace text-truncate d-inline-block" style="max-width: 100%;">
+                      <span
+                        class="font-monospace text-truncate d-inline-block"
+                        style="max-width: 100%"
+                      >
                         {{ formatCellValue(row[col.name], col) }}
                       </span>
                     </td>
@@ -634,7 +708,9 @@
                     [attr.colspan]="activeColumns().length + 1"
                     class="text-center py-5 text-muted"
                   >
-                    <div class="d-flex flex-column align-items-center justify-content-center p-4">
+                    <div
+                      class="d-flex flex-column align-items-center justify-content-center p-4"
+                    >
                       <svg
                         width="36"
                         height="36"
@@ -652,29 +728,9 @@
                       <span class="fw-semibold text-body mb-1">
                         No data records in this table
                       </span>
-                      <p class="small text-muted mb-3" style="max-width: 360px;">
-                        Data must be provided by user ingestion or file import.
+                      <p class="small text-muted mb-0" style="max-width: 360px">
+                        Use the global Import menu in the top ribbon to load a dataset.
                       </p>
-                      <button
-                        type="button"
-                        class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-1"
-                        (click)="ingestion.openGetDataModal()"
-                      >
-                        <svg
-                          width="12"
-                          height="12"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          stroke-width="2"
-                          aria-hidden="true"
-                        >
-                          <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                          <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                          <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-                        </svg>
-                        <span>Get Data</span>
-                      </button>
                     </div>
                   </td>
                 </tr>
@@ -686,11 +742,14 @@
         <!-- Table View Status Line (Power BI Footer Alignment) -->
         <footer
           class="rc-table-status-bar px-3 py-1 border-top d-flex align-items-center justify-content-between flex-shrink-0"
-          style="background-color: var(--rc-card-bg); min-height: 28px;"
+          style="background-color: var(--rc-card-bg); min-height: 28px"
         >
           <div class="d-flex align-items-center gap-2">
-            <span class="small text-secondary" style="font-size: 11px;">
-              Table : <strong class="text-primary">{{ activeTable()?.name }}</strong> ({{ displayedRows().length }} rows, {{ activeColumns().length }} columns)
+            <span class="small text-secondary" style="font-size: 11px">
+              Table :
+              <strong class="text-primary">{{ activeTable()?.name }}</strong>
+              ({{ displayedRows().length }} rows,
+              {{ activeColumns().length }} columns)
             </span>
           </div>
 
@@ -698,7 +757,12 @@
             @if (sortColumn()) {
               <span
                 class="badge font-monospace"
-                style="font-size: 10px; background-color: var(--rc-surface-subtle); color: var(--rc-text-secondary); border: 1px solid var(--rc-card-border);"
+                style="
+                  font-size: 10px;
+                  background-color: var(--rc-surface-subtle);
+                  color: var(--rc-text-secondary);
+                  border: 1px solid var(--rc-card-border);
+                "
               >
                 Sorted by {{ sortColumn() }} ({{ sortDirection() }})
               </span>
@@ -724,7 +788,9 @@
           type="button"
           class="rc-btn rc-btn-xs rc-btn-ghost text-secondary px-1 py-0"
           (click)="toggleCollapseAll()"
-          [title]="isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'"
+          [title]="
+            isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
+          "
           aria-label="Toggle all sections"
         >
           <svg
@@ -755,7 +821,9 @@
             (click)="toggleSection('Tables')"
             [attr.aria-expanded]="isSectionExpanded('Tables')"
           >
-            <span class="rc-section-header-title-wrap d-flex align-items-center gap-2">
+            <span
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2"
+            >
               <svg
                 class="rc-section-chevron"
                 [class.is-rotated]="isSectionExpanded('Tables')"
@@ -773,7 +841,10 @@
               </svg>
               <span class="rc-section-title">Model Tables</span>
             </span>
-            <span class="badge rounded-pill text-secondary" style="font-size: 11px;">
+            <span
+              class="badge rounded-pill text-secondary"
+              style="font-size: 11px"
+            >
               {{ tables().length }}
             </span>
           </button>
@@ -788,7 +859,11 @@
                   placeholder="Filter tables..."
                   [ngModel]="tableSearchQuery()"
                   (ngModelChange)="tableSearchQuery.set($event)"
-                  style="background-color: var(--rc-surface-subtle); color: var(--rc-text-primary); border: 1px solid var(--rc-card-border);"
+                  style="
+                    background-color: var(--rc-surface-subtle);
+                    color: var(--rc-text-primary);
+                    border: 1px solid var(--rc-card-border);
+                  "
                   aria-label="Filter tables"
                 />
               </div>
@@ -805,7 +880,10 @@
                         ? 'var(--rc-surface-active)'
                         : 'var(--rc-surface-subtle)'
                     "
-                    style="border: 1px solid var(--rc-card-border); color: var(--rc-text-primary);"
+                    style="
+                      border: 1px solid var(--rc-card-border);
+                      color: var(--rc-text-primary);
+                    "
                     (click)="selectTable(tbl.name)"
                   >
                     <div class="d-flex align-items-center gap-2 text-truncate">
@@ -823,12 +901,17 @@
                         <line x1="3" y1="9" x2="21" y2="9"></line>
                         <line x1="9" y1="3" x2="9" y2="21"></line>
                       </svg>
-                      <span class="fw-semibold font-monospace small text-truncate">
+                      <span
+                        class="fw-semibold font-monospace small text-truncate"
+                      >
                         {{ tbl.name }}
                       </span>
                     </div>
 
-                    <span class="badge text-secondary font-monospace" style="font-size: 10px;">
+                    <span
+                      class="badge text-secondary font-monospace"
+                      style="font-size: 10px"
+                    >
                       {{ tbl.columns.length }} cols
                     </span>
                   </button>
@@ -846,7 +929,9 @@
             (click)="toggleSection('Columns')"
             [attr.aria-expanded]="isSectionExpanded('Columns')"
           >
-            <span class="rc-section-header-title-wrap d-flex align-items-center gap-2">
+            <span
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2"
+            >
               <svg
                 class="rc-section-chevron"
                 [class.is-rotated]="isSectionExpanded('Columns')"
@@ -864,7 +949,10 @@
               </svg>
               <span class="rc-section-title">Columns</span>
             </span>
-            <span class="badge rounded-pill text-secondary" style="font-size: 11px;">
+            <span
+              class="badge rounded-pill text-secondary"
+              style="font-size: 11px"
+            >
               {{ activeColumns().length }}
             </span>
           </button>
@@ -872,18 +960,25 @@
           @if (isSectionExpanded("Columns")) {
             <div class="rc-tools-section-body p-2">
               @if (!activeTable()) {
-                <p class="small text-muted mb-0">Select a table to view columns.</p>
+                <p class="small text-muted mb-0">
+                  Select a table to view columns.
+                </p>
               } @else {
                 <!-- Column Tools Inspector for Selected Column -->
                 @if (selectedColumn(); as activeCol) {
                   <div
                     class="p-2 mb-2 rounded"
-                    style="background-color: var(--rc-card-bg); border: 1px solid var(--rc-card-border);"
+                    style="
+                      background-color: var(--rc-card-bg);
+                      border: 1px solid var(--rc-card-border);
+                    "
                   >
-                    <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div
+                      class="d-flex align-items-center justify-content-between mb-2"
+                    >
                       <span
                         class="text-uppercase fw-bold text-secondary"
-                        style="font-size: 10px; letter-spacing: 0.05em;"
+                        style="font-size: 10px; letter-spacing: 0.05em"
                       >
                         Column Tools: {{ activeCol.name }}
                       </span>
@@ -892,7 +987,7 @@
                         class="btn btn-xs py-0 px-2"
                         [class.btn-outline-secondary]="!activeCol.isHidden"
                         [class.btn-outline-warning]="activeCol.isHidden"
-                        style="font-size: 10px;"
+                        style="font-size: 10px"
                         (click)="toggleColumnHidden(activeCol.name)"
                         title="Toggle visibility in Report View"
                       >
@@ -904,15 +999,17 @@
                       <div class="col-6">
                         <label
                           class="form-label mb-0 text-secondary"
-                          style="font-size: 10px;"
+                          style="font-size: 10px"
                         >
                           Data Type
                         </label>
                         <select
                           class="form-select form-select-sm py-0 px-1 font-monospace"
-                          style="font-size: 11px; height: 24px;"
+                          style="font-size: 11px; height: 24px"
                           [ngModel]="getColumnDataType(activeCol)"
-                          (ngModelChange)="updateColumnDataType(activeCol.name, $event)"
+                          (ngModelChange)="
+                            updateColumnDataType(activeCol.name, $event)
+                          "
                           aria-label="Column Data Type"
                         >
                           <option value="STRING">STRING (Text)</option>
@@ -926,7 +1023,9 @@
                           <option value="DATETIME">DATETIME</option>
                           <option value="BOOLEAN">BOOLEAN</option>
                           @if (isCustomDataType(activeCol.dataType)) {
-                            <option [value]="activeCol.dataType">{{ activeCol.dataType }}</option>
+                            <option [value]="activeCol.dataType">
+                              {{ activeCol.dataType }}
+                            </option>
                           }
                         </select>
                       </div>
@@ -934,15 +1033,17 @@
                       <div class="col-6">
                         <label
                           class="form-label mb-0 text-secondary"
-                          style="font-size: 10px;"
+                          style="font-size: 10px"
                         >
                           Format
                         </label>
                         <select
                           class="form-select form-select-sm py-0 px-1"
-                          style="font-size: 11px; height: 24px;"
+                          style="font-size: 11px; height: 24px"
                           [ngModel]="activeCol.format || 'General'"
-                          (ngModelChange)="setColumnFormat(activeCol.name, $event)"
+                          (ngModelChange)="
+                            setColumnFormat(activeCol.name, $event)
+                          "
                           aria-label="Column Format"
                         >
                           <option value="General">General</option>
@@ -959,15 +1060,17 @@
                       <div class="col-6">
                         <label
                           class="form-label mb-0 text-secondary"
-                          style="font-size: 10px;"
+                          style="font-size: 10px"
                         >
                           Summarize By
                         </label>
                         <select
                           class="form-select form-select-sm py-0 px-1"
-                          style="font-size: 11px; height: 24px;"
+                          style="font-size: 11px; height: 24px"
                           [ngModel]="activeCol.summarizeBy || 'None'"
-                          (ngModelChange)="updateColumnSummarization(activeCol.name, $event)"
+                          (ngModelChange)="
+                            updateColumnSummarization(activeCol.name, $event)
+                          "
                           aria-label="Column Summarization"
                         >
                           <option value="None">Do not summarize</option>
@@ -983,19 +1086,26 @@
                       <div class="col-6">
                         <label
                           class="form-label mb-0 text-secondary"
-                          style="font-size: 10px;"
+                          style="font-size: 10px"
                         >
                           Sort by Column
                         </label>
                         <select
                           class="form-select form-select-sm py-0 px-1 font-monospace"
-                          style="font-size: 11px; height: 24px;"
+                          style="font-size: 11px; height: 24px"
                           [ngModel]="activeCol.sortByColumn || ''"
-                          (ngModelChange)="updateSortByColumn(activeCol.name, $event)"
+                          (ngModelChange)="
+                            updateSortByColumn(activeCol.name, $event)
+                          "
                           aria-label="Sort by Column"
                         >
-                          <option value="">Default ({{ activeCol.name }})</option>
-                          @for (otherCol of activeColumns(); track otherCol.name) {
+                          <option value="">
+                            Default ({{ activeCol.name }})
+                          </option>
+                          @for (
+                            otherCol of activeColumns();
+                            track otherCol.name
+                          ) {
                             @if (otherCol.name !== activeCol.name) {
                               <option [value]="otherCol.name">
                                 {{ otherCol.name }}
@@ -1012,17 +1122,32 @@
                   @for (col of activeColumns(); track col.name) {
                     <div
                       class="p-2 rounded"
-                      [class.border-primary]="selectedColumn()?.name === col.name"
-                      style="background-color: var(--rc-surface-subtle); border: 1px solid var(--rc-card-border); cursor: pointer;"
+                      [class.border-primary]="
+                        selectedColumn()?.name === col.name
+                      "
+                      style="
+                        background-color: var(--rc-surface-subtle);
+                        border: 1px solid var(--rc-card-border);
+                        cursor: pointer;
+                      "
                       (click)="selectColumn(col.name)"
                     >
-                      <div class="d-flex align-items-center justify-content-between mb-1">
-                        <span class="fw-semibold small font-monospace text-truncate text-primary">
+                      <div
+                        class="d-flex align-items-center justify-content-between mb-1"
+                      >
+                        <span
+                          class="fw-semibold small font-monospace text-truncate text-primary"
+                        >
                           {{ col.name }}
                         </span>
                         <span
                           class="badge font-monospace"
-                          style="font-size: 10px; background-color: var(--rc-card-bg); color: var(--rc-text-secondary); border: 1px solid var(--rc-card-border);"
+                          style="
+                            font-size: 10px;
+                            background-color: var(--rc-card-bg);
+                            color: var(--rc-text-secondary);
+                            border: 1px solid var(--rc-card-border);
+                          "
                         >
                           {{ col.dataType }}
                         </span>
@@ -1030,7 +1155,7 @@
 
                       <div
                         class="d-flex align-items-center justify-content-between text-secondary"
-                        style="font-size: 11px;"
+                        style="font-size: 11px"
                       >
                         <span>
                           Role: {{ col.keyType || "None" }}
@@ -1041,12 +1166,19 @@
                             · Hidden
                           }
                         </span>
-                        @if (calculatedExpressions()[activeTable()!.name]?.[col.name] || col.expression) {
+                        @if (
+                          calculatedExpressions()[activeTable()!.name]?.[
+                            col.name
+                          ] || col.expression
+                        ) {
                           <button
                             type="button"
                             class="btn btn-link btn-xs p-0 text-decoration-none text-info"
-                            (click)="editCalculatedColumn(col.name); $event.stopPropagation()"
-                            style="font-size: 11px;"
+                            (click)="
+                              editCalculatedColumn(col.name);
+                              $event.stopPropagation()
+                            "
+                            style="font-size: 11px"
                           >
                             Edit fx
                           </button>
@@ -1068,7 +1200,9 @@
             (click)="toggleSection('Calculations')"
             [attr.aria-expanded]="isSectionExpanded('Calculations')"
           >
-            <span class="rc-section-header-title-wrap d-flex align-items-center gap-2">
+            <span
+              class="rc-section-header-title-wrap d-flex align-items-center gap-2"
+            >
               <svg
                 class="rc-section-chevron"
                 [class.is-rotated]="isSectionExpanded('Calculations')"
@@ -1086,22 +1220,27 @@
               </svg>
               <span class="rc-section-title">Calculations</span>
             </span>
-            <span class="badge rounded-pill text-secondary" style="font-size: 11px;">
+            <span
+              class="badge rounded-pill text-secondary"
+              style="font-size: 11px"
+            >
               {{ activeTableMeasures().length }}
             </span>
           </button>
 
           @if (isSectionExpanded("Calculations")) {
             <div class="rc-tools-section-body p-2">
-              <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="rc-tools-heading" style="font-size: 11px;">
+              <div
+                class="d-flex align-items-center justify-content-between mb-2"
+              >
+                <span class="rc-tools-heading" style="font-size: 11px">
                   Table Measures
                 </span>
                 <button
                   type="button"
                   class="btn btn-xs btn-outline-primary py-1 px-2"
                   (click)="onNewMeasure()"
-                  style="font-size: 10px;"
+                  style="font-size: 10px"
                 >
                   + Add
                 </button>
@@ -1116,24 +1255,35 @@
                   @for (measure of activeTableMeasures(); track measure.id) {
                     <div
                       class="p-2 rounded d-flex flex-column gap-1"
-                      style="background-color: var(--rc-surface-subtle); border: 1px solid var(--rc-card-border); cursor: pointer;"
+                      style="
+                        background-color: var(--rc-surface-subtle);
+                        border: 1px solid var(--rc-card-border);
+                        cursor: pointer;
+                      "
                       (click)="editMeasure(measure)"
                       title="Click to edit measure formula in the formula bar"
                     >
-                      <div class="d-flex align-items-center justify-content-between">
+                      <div
+                        class="d-flex align-items-center justify-content-between"
+                      >
                         <span class="fw-semibold small text-primary">
                           {{ measure.label }}
                         </span>
                         <span
                           class="badge font-monospace"
-                          style="font-size: 9px; background-color: var(--rc-card-bg); color: var(--rc-text-secondary); border: 1px solid var(--rc-card-border);"
+                          style="
+                            font-size: 9px;
+                            background-color: var(--rc-card-bg);
+                            color: var(--rc-text-secondary);
+                            border: 1px solid var(--rc-card-border);
+                          "
                         >
                           RAX
                         </span>
                       </div>
                       <code
                         class="small text-truncate font-monospace"
-                        style="font-size: 10px; color: var(--rc-text-secondary);"
+                        style="font-size: 10px; color: var(--rc-text-secondary)"
                       >
                         {{ measure.formula }}
                       </code>

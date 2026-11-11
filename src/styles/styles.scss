@@ -827,24 +827,6 @@ optgroup {
   background-color: var(--rc-surface-panel);
 }
 
-.rc-connector-row {
-  background-color: var(--rc-card-bg);
-  border-color: var(--rc-card-border);
-  transition:
-    background-color var(--rc-transition-fast),
-    border-color var(--rc-transition-fast);
-
-  &:hover {
-    background-color: var(--rc-surface-hover);
-    border-color: var(--rc-border-strong);
-  }
-
-  &.border-primary {
-    border-color: var(--rc-primary) !important;
-    background-color: var(--rc-status-warning-bg);
-  }
-}
-
 .rc-preview-table {
   width: 100%;
   border-collapse: separate;

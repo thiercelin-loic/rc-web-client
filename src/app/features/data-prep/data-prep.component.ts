@@ -18,7 +18,6 @@ import { StateManagerService } from '../../core/state-manager.service';
 import { IngestionWorkflowService } from '../../core/ingestion-workflow.service';
 import {
   AggregationFunction,
-  BackendSourceFormat,
   DATA_CONNECTORS,
   DataPrepColumn,
   DataPrepStep,
@@ -92,21 +91,6 @@ export class DataPrepComponent implements OnInit {
   // Ribbon panel and step definition view states
   public readonly activeToolPanel = signal<RibbonToolPanel>(null);
   public readonly definitionFormat = signal<'json' | 'm'>('json');
-
-  // Shared Get Data & Navigator modal state (backed by IngestionWorkflowService)
-  public readonly isGetDataModalOpen = this.ingestion.isGetDataModalOpen;
-  public readonly selectedConnectorCategory = this.ingestion.selectedConnectorCategory;
-  public readonly selectedConnectorId = this.ingestion.selectedConnectorId;
-  public readonly connectorSearchQuery = this.ingestion.connectorSearchQuery;
-
-  public readonly isNavigatorModalOpen = this.ingestion.isNavigatorModalOpen;
-  public readonly pendingFileName = this.ingestion.pendingFileName;
-  public readonly pendingFileFormat = this.ingestion.pendingFileFormat;
-  public readonly pendingBackendFormat = this.ingestion.pendingBackendFormat;
-  public readonly pendingRawText = this.ingestion.pendingRawText;
-  public readonly pendingRawBase64 = this.ingestion.pendingRawBase64;
-  public readonly navigatorSheets = this.ingestion.navigatorSheets;
-  public readonly selectedNavigatorSheetId = this.ingestion.selectedNavigatorSheetId;
 
   constructor() {
     effect(() => {
@@ -236,9 +220,6 @@ export class DataPrepComponent implements OnInit {
       this.partitionDateColumn() ? this.rangeEnd() : undefined,
     );
   });
-
-  public readonly filteredConnectors = this.ingestion.filteredConnectors;
-  public readonly selectedNavigatorSheet = this.ingestion.selectedNavigatorSheet;
 
   public readonly activeStepFormula = computed(() => {
     const src = this.selectedSource();
@@ -942,60 +923,6 @@ export class DataPrepComponent implements OnInit {
     }
   }
 
-  public onAddSource(_fileInput?: HTMLInputElement): void {
-    this.ingestion.openGetDataModal();
-  }
-
-  public onCloseGetDataModal(): void {
-    this.ingestion.closeGetDataModal();
-  }
-
-  public onSelectConnectorCategory(
-    category: 'all' | 'file' | 'database' | 'azure' | 'online' | 'other',
-  ): void {
-    this.ingestion.selectConnectorCategory(category);
-  }
-
-  public onSelectConnector(connectorId: string): void {
-    this.ingestion.selectConnector(connectorId);
-  }
-
-  public onConnectSelectedConnector(fileInput?: HTMLInputElement): void {
-    this.ingestion.connectSelectedConnector(fileInput);
-  }
-
-  public openNavigatorForBinary(
-    name: string,
-    format: 'CSV' | 'PARQUET' | 'XLSX' | 'REST',
-    backendFormat: BackendSourceFormat,
-    buffer: ArrayBuffer,
-    base64: string,
-  ): void {
-    this.ingestion.openNavigatorForBinary(name, format, backendFormat, buffer, base64);
-  }
-
-  public openNavigatorForText(
-    name: string,
-    format: 'CSV' | 'PARQUET' | 'XLSX' | 'REST',
-    backendFormat: BackendSourceFormat,
-    text: string,
-  ): void {
-    this.ingestion.openNavigatorForText(name, format, backendFormat, text);
-  }
-
-  public confirmNavigatorAndLoad(mode: 'load' | 'transform' = 'transform'): void {
-    this.ingestion.confirmNavigatorAndLoad(mode);
-    const id = this.selectedSourceId();
-    const stepCount = this.appliedSteps().length;
-    if (id && stepCount > 0) {
-      this.recomputePipelinePreview(id, stepCount - 1);
-    }
-  }
-
-  public cancelNavigator(): void {
-    this.ingestion.cancelNavigator();
-  }
-
   public onCopyFormula(): void {
     const formula = this.activeStepFormula();
     if (formula && typeof navigator !== 'undefined' && navigator.clipboard) {
@@ -1003,10 +930,6 @@ export class DataPrepComponent implements OnInit {
         this.state.announce('Step formula copied to clipboard.', { resetAfterMs: 3000 });
       });
     }
-  }
-
-  public onSourceFileSelected(event: Event): void {
-    this.ingestion.handleFileSelection(event);
   }
 
   public loadUserDataset(

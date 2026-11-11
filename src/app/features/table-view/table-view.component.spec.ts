@@ -329,33 +329,4 @@ describe("TableViewComponent", () => {
     // effectiveDateColumn should fallback gracefully
     expect(component.effectiveDateColumn()).toBeTruthy();
   });
-
-  it("exports table records to CSV", async () => {
-    const fixture = TestBed.createComponent(TableViewComponent);
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const component = fixture.componentInstance;
-    component.selectTable("fact_transactions");
-    component.loadTableRows("fact_transactions", [
-      { transaction_id: 1, volume: 10 },
-    ]);
-    fixture.detectChanges();
-
-    const clickSpy = vi.fn();
-    const origCreateElement = document.createElement.bind(document);
-    const createSpy = vi
-      .spyOn(document, "createElement")
-      .mockImplementation((tag: string) => {
-        const el = origCreateElement(tag);
-        if (tag === "a") {
-          el.click = clickSpy;
-        }
-        return el;
-      });
-
-    component.onExportCsv();
-    expect(clickSpy).toHaveBeenCalled();
-    createSpy.mockRestore();
-  });
 });

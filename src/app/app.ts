@@ -96,6 +96,7 @@ interface NavModuleItem {
       }
       .rc-page-menu-container,
       .rc-export-menu,
+      .rc-import-menu,
       .rc-user-menu,
       .rc-project-menu {
         z-index: var(--rc-z-modal, 1050);
@@ -113,6 +114,9 @@ interface NavModuleItem {
       }
       .rc-export-menu {
         min-width: 140px;
+      }
+      .rc-import-menu {
+        min-width: 185px;
       }
       .rc-user-menu {
         min-width: 220px;
@@ -134,6 +138,7 @@ interface NavModuleItem {
       }
       .rc-page-menu-container .dropdown-item,
       .rc-export-menu .dropdown-item,
+      .rc-import-menu .dropdown-item,
       .rc-user-menu .dropdown-item,
       .rc-project-menu .dropdown-item {
         color: var(--rc-text-pure) !important;
@@ -143,6 +148,7 @@ interface NavModuleItem {
       }
       .rc-page-menu-container .dropdown-item svg,
       .rc-export-menu .dropdown-item svg,
+      .rc-import-menu .dropdown-item svg,
       .rc-user-menu .dropdown-item svg,
       .rc-project-menu .dropdown-item svg {
         color: currentColor;
@@ -155,6 +161,8 @@ interface NavModuleItem {
         .dropdown-item:focus:not(:disabled):not(.disabled),
       .rc-export-menu .dropdown-item:hover:not(:disabled):not(.disabled),
       .rc-export-menu .dropdown-item:focus:not(:disabled):not(.disabled),
+      .rc-import-menu .dropdown-item:hover:not(:disabled):not(.disabled),
+      .rc-import-menu .dropdown-item:focus:not(:disabled):not(.disabled),
       .rc-user-menu .dropdown-item:hover:not(:disabled):not(.disabled),
       .rc-user-menu .dropdown-item:focus:not(:disabled):not(.disabled),
       .rc-project-menu .dropdown-item:hover:not(:disabled):not(.disabled),
@@ -565,39 +573,168 @@ interface NavModuleItem {
               }
             </div>
 
-            <input
-              #globalSourceFileInput
-              type="file"
-              accept=".csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro"
-              class="d-none"
-              (change)="ingestion.handleFileSelection($event)"
-              aria-label="Upload dataset file"
-            />
-            <button
-              type="button"
-              id="ribbon-get-data-btn"
-              class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-              (click)="ingestion.openGetDataModal()"
-              title="Get Data — Connect workbooks, CSV, Parquet, databases, or REST streams"
-              aria-label="Get Data"
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="1.8"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
+            <div id="import-dropdown-container" class="position-relative">
+              <input
+                #globalSourceFileInput
+                type="file"
+                accept=".csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro"
+                class="d-none"
+                (change)="ingestion.handleFileSelection($event)"
+                aria-label="Upload dataset file"
+              />
+              <button
+                type="button"
+                id="ribbon-import-btn"
+                class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+                (click)="ingestion.toggleImportMenu()"
+                [attr.aria-expanded]="ingestion.importMenuOpen()"
+                aria-haspopup="true"
+                title="Import file formats (.xlsx, .csv, .json, .xml, .parquet)"
+                aria-label="Import file formats"
               >
-                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-              </svg>
-              <span class="d-none d-sm-inline">Get Data</span>
-            </button>
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                  <polyline points="7 10 12 15 17 10"></polyline>
+                  <line x1="12" y1="15" x2="12" y2="3"></line>
+                </svg>
+                <span class="d-none d-sm-inline">Import</span>
+                <svg
+                  width="12"
+                  height="12"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                  style="transition: transform 0.2s;"
+                  [style.transform]="
+                    ingestion.importMenuOpen() ? 'rotate(180deg)' : 'none'
+                  "
+                >
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </button>
+              @if (ingestion.importMenuOpen()) {
+                <ul
+                  class="rc-import-menu dropdown-menu show end-0 top-100 mt-1 shadow-sm p-1 list-unstyled mb-0"
+                  role="menu"
+                  aria-label="Import formats"
+                >
+                  @for (connector of ingestion.fileConnectors; track connector.id) {
+                    <li role="none">
+                      <button
+                        type="button"
+                        class="dropdown-item py-1 d-flex align-items-center gap-2"
+                        role="menuitem"
+                        (click)="ingestion.triggerFileConnector(connector.id, globalSourceFileInput)"
+                      >
+                        @switch (connector.id) {
+                          @case ("excel") {
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                              <line x1="3" y1="9" x2="21" y2="9"></line>
+                              <line x1="3" y1="15" x2="21" y2="15"></line>
+                              <line x1="9" y1="3" x2="9" y2="21"></line>
+                              <line x1="15" y1="3" x2="15" y2="21"></line>
+                            </svg>
+                          }
+                          @case ("csv") {
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <polyline points="14 2 14 8 20 8"></polyline>
+                              <line x1="8" y1="13" x2="16" y2="13"></line>
+                              <line x1="8" y1="17" x2="16" y2="17"></line>
+                            </svg>
+                          }
+                          @case ("json") {
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"></path>
+                              <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"></path>
+                            </svg>
+                          }
+                          @case ("xml") {
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <polyline points="16 18 22 12 16 6"></polyline>
+                              <polyline points="8 6 2 12 8 18"></polyline>
+                            </svg>
+                          }
+                          @case ("parquet") {
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="1.8"
+                              stroke-linecap="round"
+                              stroke-linejoin="round"
+                              aria-hidden="true"
+                            >
+                              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+                              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+                              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                            </svg>
+                          }
+                        }
+                        <span>{{ connector.name }}</span>
+                      </button>
+                    </li>
+                  }
+                </ul>
+              }
+            </div>
 
             <div id="export-dropdown-container" class="position-relative">
               <button
@@ -1016,186 +1153,6 @@ interface NavModuleItem {
             </a>
           </div>
         </footer>
-
-        @if (ingestion.isGetDataModalOpen()) {
-          <div
-            class="rc-modal-backdrop"
-            (click)="ingestion.closeGetDataModal()"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="get-data-modal-title"
-          >
-            <div
-              class="rc-modal-dialog rc-modal-lg"
-              style="max-width: 780px"
-              (click)="$event.stopPropagation()"
-            >
-              <div class="rc-modal-header">
-                <div class="d-flex align-items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                  </svg>
-                  <h2 class="rc-modal-title" id="get-data-modal-title">Get Data</h2>
-                </div>
-                <button
-                  type="button"
-                  class="rc-modal-close"
-                  (click)="ingestion.closeGetDataModal()"
-                  aria-label="Close Get Data modal"
-                >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <line x1="18" y1="6" x2="6" y2="18"></line>
-                    <line x1="6" y1="6" x2="18" y2="18"></line>
-                  </svg>
-                </button>
-              </div>
-
-              <div class="p-3 border-bottom bg-body-tertiary">
-                <input
-                  type="search"
-                  class="form-control form-control-sm"
-                  placeholder="Search connectors (Excel, CSV, SQL, REST...)..."
-                  [value]="ingestion.connectorSearchQuery()"
-                  (input)="ingestion.connectorSearchQuery.set($any($event.target).value)"
-                  aria-label="Filter connectors"
-                />
-              </div>
-
-              <div class="rc-modal-body p-0 d-flex" style="height: 380px">
-                <nav
-                  class="border-end p-2"
-                  style="width: 200px; background-color: var(--rc-surface-subtle)"
-                  aria-label="Connector Categories"
-                >
-                  <ul class="list-unstyled mb-0 d-flex flex-column gap-1">
-                    <li>
-                      <button
-                        type="button"
-                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
-                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'all'"
-                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'all'"
-                        (click)="ingestion.selectConnectorCategory('all')"
-                      >
-                        All
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
-                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'file'"
-                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'file'"
-                        (click)="ingestion.selectConnectorCategory('file')"
-                      >
-                        File
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
-                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'database'"
-                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'database'"
-                        (click)="ingestion.selectConnectorCategory('database')"
-                      >
-                        Database
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
-                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'azure'"
-                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'azure'"
-                        (click)="ingestion.selectConnectorCategory('azure')"
-                      >
-                        Azure / Cloud
-                      </button>
-                    </li>
-                    <li>
-                      <button
-                        type="button"
-                        class="rc-btn rc-btn-sm w-100 justify-content-start text-start"
-                        [class.rc-btn-primary]="ingestion.selectedConnectorCategory() === 'online'"
-                        [class.rc-btn-ghost]="ingestion.selectedConnectorCategory() !== 'online'"
-                        (click)="ingestion.selectConnectorCategory('online')"
-                      >
-                        Online Services / Web
-                      </button>
-                    </li>
-                  </ul>
-                </nav>
-
-                <div class="flex-grow-1 p-3 overflow-y-auto" role="listbox" aria-label="Available Connectors">
-                  <div class="d-flex flex-column gap-1">
-                    @for (connector of ingestion.filteredConnectors(); track connector.id) {
-                      <div
-                        class="rc-connector-row p-2 rounded d-flex align-items-center justify-content-between cursor-pointer border"
-                        [class.border-primary]="ingestion.selectedConnectorId() === connector.id"
-                        [class.bg-body-secondary]="ingestion.selectedConnectorId() === connector.id"
-                        (click)="ingestion.selectConnector(connector.id)"
-                        (dblclick)="ingestion.connectSelectedConnector(globalSourceFileInput)"
-                        role="option"
-                        [attr.aria-selected]="ingestion.selectedConnectorId() === connector.id"
-                        tabindex="0"
-                        (keydown.enter)="ingestion.connectSelectedConnector(globalSourceFileInput)"
-                      >
-                        <div class="d-flex align-items-center gap-2">
-                          <div class="p-1 rounded bg-body-tertiary border">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                              @if (connector.category === 'file') {
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                              } @else if (connector.category === 'database') {
-                                <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                                <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                                <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
-                              } @else {
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="2" y1="12" x2="22" y2="12"></line>
-                                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
-                              }
-                            </svg>
-                          </div>
-                          <div>
-                            <div class="fw-semibold" style="font-size: 13px">{{ connector.name }}</div>
-                            <div class="text-muted" style="font-size: 11px">{{ connector.description }}</div>
-                          </div>
-                        </div>
-                        <span class="badge text-bg-light border font-monospace text-uppercase" style="font-size: 10px">{{ connector.category }}</span>
-                      </div>
-                    } @empty {
-                      <div class="p-4 text-center text-muted">No connectors found matching your query.</div>
-                    }
-                  </div>
-                </div>
-              </div>
-
-              <div class="rc-modal-footer">
-                <button
-                  type="button"
-                  class="rc-btn rc-btn-sm rc-btn-outline"
-                  (click)="ingestion.closeGetDataModal()"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
-                  (click)="ingestion.connectSelectedConnector(globalSourceFileInput)"
-                  id="get-data-connect-btn"
-                >
-                  <span>Connect</span>
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <polyline points="9 18 15 12 9 6"></polyline>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>
-        }
 
         @if (ingestion.isNavigatorModalOpen()) {
           <div
@@ -1706,6 +1663,12 @@ export class AppComponent {
     if (this.exportMenuOpen()) {
       this.exportMenuOpen.set(false);
     }
+    if (this.ingestion.importMenuOpen()) {
+      this.ingestion.closeImportMenu();
+    }
+    if (this.ingestion.isNavigatorModalOpen()) {
+      this.ingestion.cancelNavigator();
+    }
   }
 
   @HostListener("document:click", ["$event"])
@@ -1728,6 +1691,12 @@ export class AppComponent {
       !target.closest("#export-dropdown-container")
     ) {
       this.exportMenuOpen.set(false);
+    }
+    if (
+      this.ingestion.importMenuOpen() &&
+      !target.closest("#import-dropdown-container")
+    ) {
+      this.ingestion.closeImportMenu();
     }
   }
 }

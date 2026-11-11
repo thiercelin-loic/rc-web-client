@@ -183,30 +183,6 @@
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-          (click)="onAddSource()"
-          title="Connect New Structured Stream or File (CSV, TSV, XLSX, Parquet, JSON)"
-          id="data-prep-add-source-btn"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <line x1="12" y1="5" x2="12" y2="19"></line>
-            <line x1="5" y1="12" x2="19" y2="12"></line>
-          </svg>
-          <span>Add Source</span>
-        </button>
-
-        <button
-          type="button"
-          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'filter'"
           (click)="onAddFilter()"
           title="Add FilterRowsStep"
@@ -1157,14 +1133,7 @@
             <div
               class="p-3 text-center text-muted d-flex flex-column align-items-center justify-content-center"
             >
-              <span class="mb-2">No datasets connected</span>
-              <button
-                type="button"
-                class="rc-btn rc-btn-sm rc-btn-outline"
-                (click)="onAddSource()"
-              >
-                + Add Source
-              </button>
+              <span>No datasets connected</span>
             </div>
           }
         </div>
@@ -1476,29 +1445,10 @@
               <p class="mb-1 fw-semibold text-body">
                 No data records in preview buffer
               </p>
-              <p class="text-muted mb-3">
-                Data should be provided by users. Connect a CSV, TSV, XLSX,
-                Parquet, or JSON file to start data preparation.
+              <p class="text-muted mb-0">
+                Use the global Import menu in the top ribbon to load a CSV, TSV, XLSX,
+                Parquet, XML, or JSON file.
               </p>
-              <button
-                type="button"
-                class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
-                (click)="onAddSource()"
-              >
-                <svg
-                  width="13"
-                  height="13"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                  aria-hidden="true"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19"></line>
-                  <line x1="5" y1="12" x2="19" y2="12"></line>
-                </svg>
-                <span>Add User Dataset</span>
-              </button>
             </div>
           }
         </div>
