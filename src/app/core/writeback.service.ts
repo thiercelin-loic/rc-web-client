@@ -66,7 +66,10 @@ export class WritebackService {
         return receipt;
       }),
       catchError((error) => {
-        this.state.announceError(`write-back submission to ${command.targetTable}`);
+        this.state.announceError(
+          `Write-back submission to ${command.targetTable}`,
+          error,
+        );
         return throwError(() => error);
       })
     );
