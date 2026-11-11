@@ -512,12 +512,9 @@
                   </svg>
                   <span>Problems</span>
                   <span
-                    class="badge rounded-pill"
-                    [class.bg-danger]="activeTab().diagnostics.length > 0"
-                    [class.bg-secondary-subtle]="
-                      activeTab().diagnostics.length === 0
-                    "
-                    [class.text-secondary-emphasis]="
+                    class="rounded-pill"
+                    [class.rc-pill-danger]="activeTab().diagnostics.length > 0"
+                    [class.rc-pill-neutral]="
                       activeTab().diagnostics.length === 0
                     "
                   >
@@ -556,14 +553,7 @@
                     <polyline points="16 18 22 12 16 6"></polyline>
                     <polyline points="8 6 2 12 8 18"></polyline>
                   </svg>
-                  <span>Engine & Plan</span>
-                  @if (activeTab().lastResult) {
-                    <span
-                      class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
-                    >
-                      {{ activeTab().lastResult?.routedEngine }}
-                    </span>
-                  }
+                  <span>Execution Plan</span>
                 </span>
               </button>
             </div>
@@ -682,7 +672,7 @@
                   >
                     <thead>
                       <tr>
-                        <th style="width: 80px">Severity</th>
+                        <th style="width: 105px">Severity</th>
                         <th style="width: 50px">Line</th>
                         <th style="width: 50px">Col</th>
                         <th style="width: 120px">Code</th>
@@ -697,12 +687,63 @@
                         <tr [class.table-danger]="diag.severity === 'error'">
                           <td>
                             <span
-                              class="badge"
-                              [class.bg-danger]="diag.severity === 'error'"
-                              [class.bg-warning]="diag.severity === 'warning'"
-                              [class.bg-info]="diag.severity === 'info'"
+                              [class.rc-pill-danger]="diag.severity === 'error'"
+                              [class.rc-pill-warning]="
+                                diag.severity === 'warning'
+                              "
+                              [class.rc-pill-info]="diag.severity === 'info'"
                             >
-                              {{ diag.severity }}
+                              @if (diag.severity === "error") {
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  aria-hidden="true"
+                                >
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                  <line x1="15" y1="9" x2="9" y2="15"></line>
+                                  <line x1="9" y1="9" x2="15" y2="15"></line>
+                                </svg>
+                              } @else if (diag.severity === "warning") {
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  aria-hidden="true"
+                                >
+                                  <path
+                                    d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"
+                                  ></path>
+                                  <line x1="12" y1="9" x2="12" y2="13"></line>
+                                  <line
+                                    x1="12"
+                                    y1="17"
+                                    x2="12.01"
+                                    y2="17"
+                                  ></line>
+                                </svg>
+                              } @else {
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  stroke-width="2"
+                                  aria-hidden="true"
+                                >
+                                  <circle cx="12" cy="12" r="10"></circle>
+                                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                                </svg>
+                              }
+                              <span>{{ diag.severity }}</span>
                             </span>
                           </td>
                           <td>{{ diag.line }}</td>
@@ -749,7 +790,7 @@
             </div>
           }
 
-          <!-- Tab Panel: Engine & Plan -->
+          <!-- Tab Panel: Execution Plan -->
           @if (bottomActiveTab() === "plan") {
             <div
               class="h-100 p-3"
@@ -758,20 +799,26 @@
             >
               @if (activeTab().lastResult) {
                 <div class="d-flex flex-column gap-2">
-                  <div class="d-flex flex-wrap align-items-center gap-2">
-                    <span class="badge bg-primary-subtle text-primary-emphasis">
-                      Engine: {{ activeTab().lastResult?.routedEngine }}
+                  <div
+                    class="rc-plan-summary d-flex flex-wrap align-items-center gap-3 small px-1"
+                  >
+                    <span>
+                      <span class="text-muted">Engine:</span>
+                      <strong class="ms-1 font-monospace">{{
+                        activeTab().lastResult?.routedEngine
+                      }}</strong>
                     </span>
-                    <span
-                      class="badge bg-secondary-subtle text-secondary-emphasis"
-                    >
-                      Time: {{ activeTab().lastResult?.executionTimeMs }} ms
+                    <span>
+                      <span class="text-muted">Duration:</span>
+                      <strong class="ms-1 font-monospace"
+                        >{{ activeTab().lastResult?.executionTimeMs }} ms</strong
+                      >
                     </span>
-                    <span
-                      class="badge bg-secondary-subtle text-secondary-emphasis"
-                    >
-                      Cache Hit:
-                      {{ activeTab().lastResult?.cacheHit ? "Yes" : "No" }}
+                    <span>
+                      <span class="text-muted">Cache Hit:</span>
+                      <strong class="ms-1">{{
+                        activeTab().lastResult?.cacheHit ? "Yes" : "No"
+                      }}</strong>
                     </span>
                   </div>
                   <pre
@@ -942,8 +989,8 @@
                           <svg
                             class="rc-section-chevron flex-shrink-0"
                             [class.is-rotated]="expandedTables()[table.name]"
-                            width="10"
-                            height="10"
+                            width="12"
+                            height="12"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -1152,7 +1199,7 @@
           }
         </div>
 
-        <!-- Section 3: Templates & Snippets -->
+        <!-- Section 3: Query Templates -->
         <div
           class="rc-tools-section"
           role="region"
@@ -1182,7 +1229,7 @@
               >
                 <polyline points="9 18 15 12 9 6"></polyline>
               </svg>
-              <span class="rc-section-title">Templates & Snippets</span>
+              <span class="rc-section-title">Query Templates</span>
             </div>
             <span
               class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
@@ -1209,16 +1256,14 @@
                     [title]="'Click to load: ' + snippet.label"
                   >
                     <div
-                      class="d-flex align-items-center justify-content-between mb-1"
+                      class="d-flex align-items-center justify-content-between gap-2 mb-1"
                     >
                       <span class="small fw-semibold text-truncate">{{
                         snippet.label
                       }}</span>
-                      <span
-                        class="badge bg-secondary-subtle text-secondary-emphasis"
-                        style="font-size: 10px"
-                        >{{ snippet.category }}</span
-                      >
+                      <span class="rc-snippet-category flex-shrink-0">{{
+                        snippet.category
+                      }}</span>
                     </div>
                     <pre
                       class="small text-muted font-monospace mb-0 rc-snippet-preview"

@@ -317,4 +317,79 @@ describe("RaxRequestsComponent", () => {
       { Region: "AMER", "Region Revenue": 100, "Region Qty": 5 },
     ]);
   });
+
+  it("enforces zero-demo domain-neutral snippets and safe empty model guards", async () => {
+    localStorage.clear();
+    const fixture = TestBed.createComponent(RaxRequestsComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+
+    // Empty model: no synthetic retail fallbacks in snippets or generators
+    const emptySnippetsJson = JSON.stringify(comp.quickSnippets);
+    expect(emptySnippetsJson).not.toContain("fact_transactions");
+    expect(emptySnippetsJson).not.toContain("dim_region");
+    expect(emptySnippetsJson).not.toContain("gross_amount");
+    expect(emptySnippetsJson).not.toContain("region_name");
+    expect(comp.quickSnippets.every((s) => s.category === "Metadata (INFO)")).toBe(true);
+
+    comp.updateActiveContent("EVALUATE 1");
+    comp.defineAllMeasures();
+    expect(comp.activeTab().content).toBe("EVALUATE 1");
+
+    comp.generateModelTmdl();
+    expect(comp.activeTab().content).toBe("EVALUATE 1");
+
+    // Domain-neutral loaded table without FACT role populates dynamic snippets
+    comp["state"].addTable({
+      id: "tbl-iot",
+      name: "telemetry_logs",
+      role: "DIMENSION",
+      columns: [
+        { name: "sensor_id", dataType: "VARCHAR", keyType: "PK" },
+        { name: "reading_mv", dataType: "DOUBLE", keyType: "None" },
+      ],
+      rowCount: 10,
+    });
+
+    const loadedCodes = comp.quickSnippets.map((s) => s.code).join("\n");
+    expect(loadedCodes).toContain("'telemetry_logs'[reading_mv]");
+    expect(loadedCodes).toContain("'telemetry_logs'[sensor_id]");
+    expect(comp.quickSnippets.some((s) => s.label.includes("&"))).toBe(false);
+  });
+
+  it("renders 12x12 twisties, single-concept headings, and accessible diagnostic pills", async () => {
+    localStorage.clear();
+    const fixture = TestBed.createComponent(RaxRequestsComponent);
+    await fixture.whenStable();
+    const comp = fixture.componentInstance;
+
+    comp["state"].addTable({
+      id: "tbl-iot",
+      name: "telemetry_logs",
+      role: "DIMENSION",
+      columns: [{ name: "sensor_id", dataType: "VARCHAR", keyType: "PK" }],
+      rowCount: 5,
+    });
+    comp.updateActiveContent("EVALUATE FILTER(ALL(telemetry_logs), TRUE)");
+    comp.validateQuery();
+    fixture.detectChanges();
+
+    const el: HTMLElement = fixture.nativeElement;
+    const chevrons = Array.from(el.querySelectorAll("svg.rc-section-chevron"));
+    expect(chevrons.length).toBeGreaterThan(0);
+    for (const svg of chevrons) {
+      expect(svg.getAttribute("width")).toBe("12");
+      expect(svg.getAttribute("height")).toBe("12");
+    }
+
+    const planTab = el.querySelector("#tab-btn-plan")?.textContent?.trim();
+    expect(planTab).toBe("Execution Plan");
+
+    const diagPill = el.querySelector(".rc-pill-warning");
+    expect(diagPill).toBeTruthy();
+    expect(diagPill?.querySelector('svg[aria-hidden="true"]')).toBeTruthy();
+    expect(diagPill?.textContent?.trim()).toBe("warning");
+  });
 });

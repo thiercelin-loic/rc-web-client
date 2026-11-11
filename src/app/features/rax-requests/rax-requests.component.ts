@@ -217,28 +217,16 @@ export class RaxRequestsComponent implements OnInit {
 
   public get quickSnippets(): readonly RaxSnippet[] {
     const tables = this.availableTables();
-    const primaryTable =
-      tables.find((t) => t.role === "FACT") ?? tables[0];
-    const tName = primaryTable?.name ?? "fact_transactions";
-    const numCols =
-      primaryTable?.columns.filter((c) =>
-        /INT|DOUBLE|DECIMAL|FLOAT|NUMBER|NUMERIC/i.test(c.dataType),
-      ) ?? [];
-    const textCols =
-      primaryTable?.columns.filter((c) =>
-        /CHAR|TEXT|STRING/i.test(c.dataType),
-      ) ?? [];
-    const numCol1 = numCols[0]?.name ?? primaryTable?.columns[0]?.name ?? "gross_amount";
-    const numCol2 = numCols[1]?.name ?? numCol1;
-    const dimTable =
-      tables.find((t) => t.role === "DIMENSION") ?? primaryTable;
-    const dimTableName = dimTable?.name ?? "dim_region";
-    const dimColName =
-      textCols[0]?.name ??
-      dimTable?.columns[0]?.name ??
-      "region_name";
+    const isNumericCol = (dataType: string): boolean =>
+      /INT|DOUBLE|DECIMAL|FLOAT|NUMBER|NUMERIC/i.test(dataType);
+    const isTextCol = (dataType: string): boolean =>
+      /CHAR|TEXT|STRING/i.test(dataType);
 
-    return [
+    const primaryTable =
+      tables.find((t) => t.columns.some((c) => isNumericCol(c.dataType))) ??
+      tables[0];
+
+    const snippets: RaxSnippet[] = [
       {
         label: "List Model Tables (INFO.VIEW.TABLES)",
         category: "Metadata (INFO)",
@@ -274,27 +262,55 @@ export class RaxRequestsComponent implements OnInit {
         category: "Metadata (INFO)",
         code: 'Data Dictionary =\nVAR _columns = SELECTCOLUMNS(FILTER(INFO.VIEW.COLUMNS(), NOT([IsHidden])), "Type", "Column", "Name", [Name], "Table", [Table], "Description", [Description], "Dax", [Expression])\nVAR _measures = SELECTCOLUMNS(FILTER(INFO.VIEW.MEASURES(), NOT([IsHidden])), "Type", "Measure", "Name", [Name], "Table", [Table], "Description", [Description], "Dax", [Expression])\nVAR _tables = SELECTCOLUMNS(FILTER(INFO.VIEW.TABLES(), NOT([IsHidden])), "Type", "Table", "Name", [Name], "Table", "n/a", "Description", [Description], "Dax", [Expression])\nRETURN\nUNION(_columns, _measures, _tables)',
       },
-      {
-        label: "Summarize Metrics by Dimension (SUMMARIZECOLUMNS)",
-        category: "Evaluation",
-        code: `EVALUATE\nSUMMARIZECOLUMNS(\n  '${dimTableName}'[${dimColName}],\n  "Total ${numCol1}", SUM('${tName}'[${numCol1}]),\n  "Record Count", COUNTROWS('${tName}')\n)\nORDER BY [Total ${numCol1}] DESC`,
-      },
-      {
-        label: "Define & Evaluate Ad-Hoc KPI Measure",
-        category: "Evaluation",
-        code: `DEFINE\n  MEASURE '${tName}'[Net KPI] = SUM('${tName}'[${numCol1}]) - SUM('${tName}'[${numCol2}])\nEVALUATE\nROW("Net KPI", [Net KPI])`,
-      },
-      {
-        label: "Step-by-Step Variable Evaluation (VAR / RETURN)",
-        category: "Evaluation",
-        code: `EVALUATE\nVAR BaseTotal = SUM('${tName}'[${numCol1}])\nVAR RowTotal = COUNTROWS('${tName}')\nVAR AvgPerRow = DIVIDE(BaseTotal, RowTotal, 0)\nRETURN\nROW("Base Total", BaseTotal, "Row Count", RowTotal, "Average", AvgPerRow)`,
-      },
-      {
-        label: "TMDL Measure Definition & Description Script",
-        category: "TMDL",
-        code: `createOrReplace\n  table '${tName}'\n    /// Aggregated total across active records\n    measure 'Total ${numCol1}' = CALCULATE(SUM('${tName}'[${numCol1}]))\n      formatString: "#,0.00"`,
-      },
     ];
+
+    if (primaryTable && primaryTable.columns.length > 0) {
+      const tName = primaryTable.name;
+      const numCols = primaryTable.columns.filter((c) =>
+        isNumericCol(c.dataType),
+      );
+      const textCols = primaryTable.columns.filter((c) =>
+        isTextCol(c.dataType),
+      );
+      const numCol1 = numCols[0]?.name ?? primaryTable.columns[0].name;
+      const numCol2 = numCols[1]?.name ?? numCol1;
+      const groupTable =
+        textCols.length > 0
+          ? primaryTable
+          : (tables.find((t) =>
+              t.columns.some((c) => isTextCol(c.dataType)),
+            ) ?? primaryTable);
+      const groupColName =
+        textCols[0]?.name ??
+        groupTable.columns.find((c) => isTextCol(c.dataType))?.name ??
+        groupTable.columns[0]?.name ??
+        numCol1;
+
+      snippets.push(
+        {
+          label: "Summarize Records by Column (SUMMARIZECOLUMNS)",
+          category: "Evaluation",
+          code: `EVALUATE\nSUMMARIZECOLUMNS(\n  '${groupTable.name}'[${groupColName}],\n  "Total ${numCol1}", SUM('${tName}'[${numCol1}]),\n  "Record Count", COUNTROWS('${tName}')\n)\nORDER BY [Total ${numCol1}] DESC`,
+        },
+        {
+          label: "Define and Evaluate Ad-Hoc Measure",
+          category: "Evaluation",
+          code: `DEFINE\n  MEASURE '${tName}'[Net Metric] = SUM('${tName}'[${numCol1}]) - SUM('${tName}'[${numCol2}])\nEVALUATE\nROW("Net Metric", [Net Metric])`,
+        },
+        {
+          label: "Step-by-Step Variable Evaluation (VAR / RETURN)",
+          category: "Evaluation",
+          code: `EVALUATE\nVAR BaseTotal = SUM('${tName}'[${numCol1}])\nVAR RowTotal = COUNTROWS('${tName}')\nVAR AvgPerRow = DIVIDE(BaseTotal, RowTotal, 0)\nRETURN\nROW("Base Total", BaseTotal, "Row Count", RowTotal, "Average", AvgPerRow)`,
+        },
+        {
+          label: "TMDL Measure Definition Script",
+          category: "TMDL",
+          code: `createOrReplace\n  table '${tName}'\n    /// Aggregated total across active records\n    measure 'Total ${numCol1}' = CALCULATE(SUM('${tName}'[${numCol1}]))\n      formatString: "#,0.00"`,
+        },
+      );
+    }
+
+    return snippets;
   }
 
   public readonly activeTab = computed<RaxQueryTab>(() => ({
@@ -652,23 +668,34 @@ export class RaxRequestsComponent implements OnInit {
   public defineAllMeasures(event?: Event): void {
     event?.stopPropagation();
     const measures = this.availableMeasures();
+    const firstTable = this.availableTables()[0]?.name ?? "";
     if (measures.length === 0) {
-      const fallbackTable =
-        this.availableTables()[0]?.name ?? "fact_transactions";
-      const template = `DEFINE\n  MEASURE '${fallbackTable}'[Total Records] = COUNTROWS('${fallbackTable}')\n\nEVALUATE\nROW("Total Records", [Total Records])`;
+      if (!firstTable) {
+        this.patchActiveTab({
+          diagnostics: [],
+          statusText:
+            "Load a table in the semantic model to generate measure definitions",
+        });
+        this.state.announce(
+          "No tables or measures available in the active semantic model.",
+        );
+        return;
+      }
+      const template = `DEFINE\n  MEASURE '${firstTable}'[Total Records] = COUNTROWS('${firstTable}')\n\nEVALUATE\nROW("Total Records", [Total Records])`;
       this.patchActiveTab({
         content: template,
         diagnostics: [],
         statusText: "Generated measure definition template",
       });
+      this.state.announce("Generated measure definition template.");
       return;
     }
 
     const defineLines = measures.map((m) => {
-      const tableName =
-        m.table || this.availableTables()[0]?.name || "Measures Table";
+      const tableName = m.table || firstTable;
+      const tablePrefix = tableName ? `'${tableName}'` : "";
       const descComment = m.description ? `  /// ${m.description}\n` : "";
-      return `${descComment}  MEASURE '${tableName}'[${m.label}] = ${m.formula}`;
+      return `${descComment}  MEASURE ${tablePrefix}[${m.label}] = ${m.formula}`;
     });
     const rowArgs = measures
       .map((m) => `"${m.label}", [${m.label}]`)
@@ -692,21 +719,33 @@ export class RaxRequestsComponent implements OnInit {
   public generateModelTmdl(event?: Event): void {
     event?.stopPropagation();
     const measures = this.availableMeasures();
-    const fallbackTable = this.availableTables()[0]?.name ?? "Measures Table";
+    const firstTable = this.availableTables()[0]?.name ?? "";
 
     if (measures.length === 0) {
-      const emptyTmdl = `createOrReplace\n  table '${fallbackTable}'\n    /// Explicit measure description\n    measure 'Sample Measure' = COUNTROWS('${fallbackTable}')\n      formatString: "#,0"`;
+      if (!firstTable) {
+        this.patchActiveTab({
+          diagnostics: [],
+          statusText:
+            "Load a table in the semantic model to generate TMDL",
+        });
+        this.state.announce(
+          "No tables or measures available in the active semantic model.",
+        );
+        return;
+      }
+      const emptyTmdl = `createOrReplace\n  table '${firstTable}'\n    /// Record count across ${firstTable}\n    measure 'Row Count' = COUNTROWS('${firstTable}')\n      formatString: "#,0"`;
       this.patchActiveTab({
         content: emptyTmdl,
         diagnostics: [],
         statusText: "Generated TMDL template",
       });
+      this.state.announce("Generated TMDL template.");
       return;
     }
 
     const grouped = new Map<string, RaxMeasureDescriptor[]>();
     for (const m of measures) {
-      const tName = m.table || fallbackTable;
+      const tName = m.table || firstTable || "Model";
       const list = grouped.get(tName) ?? [];
       list.push(m);
       grouped.set(tName, list);
@@ -930,12 +969,13 @@ export class RaxRequestsComponent implements OnInit {
       return [];
     }
     const diagnostics = this.analyzeSyntax(content);
-    const hasErrors = diagnostics.some((d) => d.severity === "error");
-    const statusText = hasErrors
-      ? `Validation found ${diagnostics.length} problem(s)`
-      : diagnostics.length > 0
-        ? `Syntax valid (${diagnostics.length} warning)`
-        : "Syntax valid (0 problems)";
+    const errors = diagnostics.filter((d) => d.severity === "error");
+    const statusText =
+      errors.length > 0
+        ? `Validation found ${diagnostics.length} problem(s) — [${errors[0].errorCode}] Line ${errors[0].line}: ${errors[0].message}`
+        : diagnostics.length > 0
+          ? `Syntax valid (${diagnostics.length} warning: ${diagnostics[0].message})`
+          : "Syntax valid (0 problems)";
     this.patchActiveTab({
       diagnostics,
       statusText,
@@ -943,7 +983,7 @@ export class RaxRequestsComponent implements OnInit {
     if (diagnostics.length > 0) {
       this.bottomActiveTab.set("problems");
     }
-    this.state.announce(statusText);
+    this.state.announce(statusText, { error: errors.length > 0 });
     return diagnostics;
   }
 
@@ -962,15 +1002,18 @@ export class RaxRequestsComponent implements OnInit {
     }
 
     const diagnostics = this.analyzeSyntax(tab.content);
-    const hasErrors = diagnostics.some((d) => d.severity === "error");
-    if (hasErrors) {
+    const errors = diagnostics.filter((d) => d.severity === "error");
+    if (errors.length > 0) {
+      const firstErr = errors[0];
+      const detail = `[${firstErr.errorCode}] Line ${firstErr.line}: ${firstErr.message}`;
       this.patchActiveTab({
         diagnostics,
-        statusText: `Execution blocked: ${diagnostics.length} syntax error(s)`,
+        statusText: `Execution blocked (${errors.length} error(s)) — ${detail}`,
       });
       this.bottomActiveTab.set("problems");
       this.state.announce(
-        `RAX execution blocked due to ${diagnostics.length} syntax error(s).`,
+        `RAX execution blocked (${errors.length} syntax error(s)) — ${detail}`,
+        { error: true },
       );
       return;
     }
@@ -1442,7 +1485,7 @@ export class RaxRequestsComponent implements OnInit {
    */
   private extractAndSaveMeasuresFromScript(script: string): number {
     let savedCount = 0;
-    const defaultTable = this.availableTables()[0]?.name ?? "fact_transactions";
+    const defaultTable = this.availableTables()[0]?.name ?? "";
 
     if (/^\s*(createOrReplace|table\s+)/im.test(script)) {
       let currentTable = defaultTable;
