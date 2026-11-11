@@ -61,6 +61,7 @@ export interface WorkbookSheet {
   readonly id: string;
   readonly name: string;
   readonly kind: "Sheet" | "Table";
+  readonly sheetName?: string;
   readonly columns: readonly DataPrepColumn[];
   readonly rows: readonly Record<string, unknown>[];
 }

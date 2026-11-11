@@ -229,6 +229,7 @@ export class IngestionWorkflowService {
           step: 'Navigation',
           item: sheet.name,
           kind: sheet.kind,
+          sheetName: sheet.sheetName ?? sheet.name,
         },
       },
       {
@@ -1020,101 +1021,196 @@ export class IngestionWorkflowService {
     return { columns: cols, rows: currentRows, quarantined };
   }
 
-  private extractSheetsFromBinary(buffer: ArrayBuffer, fileName: string): WorkbookSheet[] {
-    let sheetNames: string[] = [];
+  private extractSheetsFromBinary(buffer: ArrayBuffer, _fileName: string): WorkbookSheet[] {
     try {
       const entries = unpackZipArchive(buffer);
-      if (entries['xl/workbook.xml']) {
-        const xml = new TextDecoder().decode(entries['xl/workbook.xml']);
-        const matches = xml.matchAll(/name="([^"]+)"/g);
-        for (const m of matches) {
-          if (m[1] && !sheetNames.includes(m[1])) {
-            sheetNames.push(m[1]);
+      if (!entries['xl/workbook.xml']) {
+        return [];
+      }
+
+      const decoder = new TextDecoder();
+      const parser = new DOMParser();
+
+      // 1. Parse Shared Strings Table (xl/sharedStrings.xml) if present
+      const sharedStrings: string[] = [];
+      if (entries['xl/sharedStrings.xml']) {
+        const sstXml = decoder.decode(entries['xl/sharedStrings.xml']);
+        const sstDoc = parser.parseFromString(sstXml, 'application/xml');
+        const siNodes = Array.from(sstDoc.getElementsByTagName('si'));
+        const items =
+          siNodes.length > 0 ? siNodes : Array.from(sstDoc.getElementsByTagNameNS('*', 'si'));
+        for (const si of items) {
+          const tNodes = Array.from(si.getElementsByTagName('t'));
+          const texts =
+            tNodes.length > 0 ? tNodes : Array.from(si.getElementsByTagNameNS('*', 't'));
+          sharedStrings.push(texts.map((t) => t.textContent ?? '').join(''));
+        }
+      }
+
+      // 2. Parse Workbook Relationships (xl/_rels/workbook.xml.rels)
+      const relsTargetById = new Map<string, string>();
+      if (entries['xl/_rels/workbook.xml.rels']) {
+        const relsXml = decoder.decode(entries['xl/_rels/workbook.xml.rels']);
+        const relsDoc = parser.parseFromString(relsXml, 'application/xml');
+        const relNodes = Array.from(relsDoc.getElementsByTagName('Relationship'));
+        const rels =
+          relNodes.length > 0
+            ? relNodes
+            : Array.from(relsDoc.getElementsByTagNameNS('*', 'Relationship'));
+        for (const rel of rels) {
+          const id = rel.getAttribute('Id') ?? '';
+          const rawTarget = rel.getAttribute('Target') ?? '';
+          if (id && rawTarget) {
+            const normalized = rawTarget.startsWith('/xl/')
+              ? rawTarget.slice(1)
+              : rawTarget.startsWith('xl/')
+                ? rawTarget
+                : `xl/${rawTarget.replace(/^\/+/, '')}`;
+            relsTargetById.set(id, normalized);
           }
         }
       }
+
+      // 3. Parse Workbook Sheet metadata (xl/workbook.xml)
+      const wbXml = decoder.decode(entries['xl/workbook.xml']);
+      const wbDoc = parser.parseFromString(wbXml, 'application/xml');
+      const sheetNodes = Array.from(wbDoc.getElementsByTagName('sheet'));
+      const sheetsMeta =
+        sheetNodes.length > 0
+          ? sheetNodes
+          : Array.from(wbDoc.getElementsByTagNameNS('*', 'sheet'));
+
+      const extractedSheets: WorkbookSheet[] = [];
+
+      sheetsMeta.forEach((sheetEl, idx) => {
+        const sheetName = sheetEl.getAttribute('name') || `Sheet${idx + 1}`;
+        const rId =
+          sheetEl.getAttribute('r:id') ||
+          sheetEl.getAttributeNS(
+            'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
+            'id',
+          ) ||
+          '';
+        const targetPath =
+          (rId && relsTargetById.get(rId)) || `xl/worksheets/sheet${idx + 1}.xml`;
+        const sheetBytes =
+          entries[targetPath] ?? entries[`xl/worksheets/sheet${idx + 1}.xml`];
+        if (!sheetBytes) {
+          return;
+        }
+
+        const sheetXml = decoder.decode(sheetBytes);
+        const parsedGrid = this.parseWorksheetXml(sheetXml, sharedStrings, parser);
+        extractedSheets.push({
+          id: `sheet_${idx + 1}`,
+          name: sheetName,
+          kind: 'Sheet',
+          sheetName,
+          columns: parsedGrid.columns,
+          rows: parsedGrid.rows,
+        });
+      });
+
+      return extractedSheets;
     } catch {
-      // Deflated ZIP entries require server-side parsing; fall back to standard sheet metadata
+      return [];
+    }
+  }
+
+  private parseWorksheetXml(
+    sheetXml: string,
+    sharedStrings: readonly string[],
+    parser: DOMParser,
+  ): { columns: DataPrepColumn[]; rows: Record<string, unknown>[] } {
+    const doc = parser.parseFromString(sheetXml, 'application/xml');
+    const rowNodes = Array.from(doc.getElementsByTagName('row'));
+    const rowsList =
+      rowNodes.length > 0 ? rowNodes : Array.from(doc.getElementsByTagNameNS('*', 'row'));
+
+    let maxCols = 0;
+    const rawMatrix: Array<Record<number, unknown>> = [];
+
+    for (const rowEl of rowsList) {
+      const cellNodes = Array.from(rowEl.getElementsByTagName('c'));
+      const cells =
+        cellNodes.length > 0 ? cellNodes : Array.from(rowEl.getElementsByTagNameNS('*', 'c'));
+      let nextColIdx = 0;
+      const rowValues: Record<number, unknown> = {};
+      let hasNonEmpty = false;
+
+      for (const cellEl of cells) {
+        const ref = cellEl.getAttribute('r') ?? '';
+        const colIdx = ref ? this.columnIndexFromCellRef(ref, nextColIdx) : nextColIdx;
+        nextColIdx = colIdx + 1;
+        if (colIdx + 1 > maxCols) {
+          maxCols = colIdx + 1;
+        }
+
+        const cellType = cellEl.getAttribute('t') ?? '';
+        let val: unknown = null;
+
+        if (cellType === 'inlineStr') {
+          const tNodes = Array.from(cellEl.getElementsByTagName('t'));
+          const texts =
+            tNodes.length > 0 ? tNodes : Array.from(cellEl.getElementsByTagNameNS('*', 't'));
+          val = texts.map((t) => t.textContent ?? '').join('');
+        } else {
+          const vNode =
+            cellEl.getElementsByTagName('v')[0] ??
+            cellEl.getElementsByTagNameNS('*', 'v')[0];
+          const rawV = vNode?.textContent ?? '';
+          if (rawV !== '') {
+            if (cellType === 's') {
+              const sstIdx = Number.parseInt(rawV, 10);
+              val = sharedStrings[sstIdx] ?? rawV;
+            } else if (cellType === 'b') {
+              val = rawV === '1' || rawV.toLowerCase() === 'true';
+            } else if (cellType === 'str' || cellType === 'e') {
+              val = rawV;
+            } else {
+              const num = Number(rawV);
+              val = Number.isNaN(num) ? rawV : Number.isInteger(num) ? num : Number(num.toFixed(6));
+            }
+          }
+        }
+
+        if (val !== null && val !== undefined && val !== '') {
+          hasNonEmpty = true;
+        }
+        rowValues[colIdx] = val;
+      }
+
+      if (hasNonEmpty) {
+        rawMatrix.push(rowValues);
+      }
     }
 
-    const baseName = fileName.replace(/\.[^/.]+$/, '');
-    if (sheetNames.length === 0) {
-      sheetNames = ['Sheet1', baseName];
-    }
-
-    const sampleCols: DataPrepColumn[] = [
-      { name: 'Column1', type: 'String', icon: 'String' },
-      { name: 'Column2', type: 'String', icon: 'String' },
-      { name: 'Column3', type: 'String', icon: 'String' },
-      { name: 'Column4', type: 'String', icon: 'String' },
-      { name: 'Column5', type: 'String', icon: 'String' },
-      { name: 'Column6', type: 'String', icon: 'String' },
-      { name: 'Column7', type: 'String', icon: 'String' },
-    ];
-    const sampleRows: Record<string, unknown>[] = [
-      {
-        Column1: 'Segment',
-        Column2: 'Country',
-        Column3: 'Product',
-        Column4: 'Discount Band',
-        Column5: 'Units Sold',
-        Column6: 'Manufacturing Price',
-        Column7: 'Sale Price',
-      },
-      {
-        Column1: 'Government',
-        Column2: 'Canada',
-        Column3: 'Carretera',
-        Column4: 'None',
-        Column5: '1618.5',
-        Column6: '3',
-        Column7: '20',
-      },
-      {
-        Column1: 'Government',
-        Column2: 'Germany',
-        Column3: 'Carretera',
-        Column4: 'None',
-        Column5: '1321',
-        Column6: '3',
-        Column7: '20',
-      },
-      {
-        Column1: 'Midmarket',
-        Column2: 'France',
-        Column3: 'Carretera',
-        Column4: 'None',
-        Column5: '2178',
-        Column6: '3',
-        Column7: '15',
-      },
-      {
-        Column1: 'Midmarket',
-        Column2: 'Germany',
-        Column3: 'Carretera',
-        Column4: 'None',
-        Column5: '888',
-        Column6: '3',
-        Column7: '15',
-      },
-      {
-        Column1: 'Enterprise',
-        Column2: 'Canada',
-        Column3: 'Carretera',
-        Column4: 'None',
-        Column5: '2470',
-        Column6: '3',
-        Column7: '15',
-      },
-    ];
-
-    return sheetNames.map((name, idx) => ({
-      id: `sheet_${idx + 1}`,
-      name,
-      kind: idx === 0 && name.toLowerCase().startsWith('sheet') ? 'Sheet' : 'Table',
-      columns: sampleCols,
-      rows: sampleRows,
+    const columns: DataPrepColumn[] = Array.from({ length: maxCols }, (_, i) => ({
+      name: `Column${i + 1}`,
+      type: 'String',
+      icon: 'String',
     }));
+
+    const rows: Record<string, unknown>[] = rawMatrix.map((rowValues) => {
+      const record: Record<string, unknown> = {};
+      for (let i = 0; i < maxCols; i++) {
+        record[`Column${i + 1}`] = rowValues[i] ?? null;
+      }
+      return record;
+    });
+
+    return { columns, rows };
+  }
+
+  private columnIndexFromCellRef(cellRef: string, fallback: number): number {
+    const match = cellRef.match(/^[A-Za-z]+/);
+    if (!match) return fallback;
+    const letters = match[0].toUpperCase();
+    let idx = 0;
+    for (let i = 0; i < letters.length; i++) {
+      idx = idx * 26 + (letters.charCodeAt(i) - 64);
+    }
+    return Math.max(0, idx - 1);
   }
 
   private extractSheetsFromText(fileName: string, text: string): WorkbookSheet[] {

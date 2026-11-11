@@ -54,12 +54,6 @@ export type RibbonToolPanel =
 
 export const INITIAL_INGESTION_SOURCES: readonly IngestionSource[] = [];
 export const INITIAL_PREP_STEPS: readonly DataPrepStep[] = [];
-const DEFAULT_SAMPLE_COLUMNS: readonly DataPrepColumn[] = [];
-const DEFAULT_SAMPLE_ROWS: readonly Record<string, unknown>[] = [];
-const SOURCE_DATA_MAP: Record<
-  string,
-  { columns: DataPrepColumn[]; rows: Record<string, unknown>[] }
-> = {};
 
 @Component({
   selector: 'rc-data-prep',
@@ -82,8 +76,8 @@ export class DataPrepComponent implements OnInit {
   public readonly editingColumnName = signal<string | null>(null);
   public readonly editingColumnValue = signal<string>('');
 
-  public readonly columns = signal<readonly DataPrepColumn[]>(DEFAULT_SAMPLE_COLUMNS);
-  public readonly rows = signal<readonly Record<string, unknown>[]>(DEFAULT_SAMPLE_ROWS);
+  public readonly columns = signal<readonly DataPrepColumn[]>([]);
+  public readonly rows = signal<readonly Record<string, unknown>[]>([]);
   public readonly stepsBySource = this.ingestion.stepsBySource;
   private readonly rawSnapshotsBySource = this.ingestion.rawSnapshotsBySource;
   public readonly quarantinedRecords = signal<readonly DataPrepQuarantineRow[]>([]);
@@ -314,7 +308,6 @@ export class DataPrepComponent implements OnInit {
       this.syncDefaultFormSelections();
       return;
     }
-    const fallback = SOURCE_DATA_MAP[source.id];
     this.api.getDataPrepPreview(source.id, source.format).subscribe({
       next: (data: DataPrepPreview) => {
         if (data.columns && data.columns.length > 0) {
@@ -329,9 +322,6 @@ export class DataPrepComponent implements OnInit {
             ...m,
             [source.id]: { columns: cols, rows: data.rows || [] },
           }));
-        } else if (fallback) {
-          this.columns.set(fallback.columns);
-          this.rows.set(fallback.rows);
         }
         if (data.appliedSteps && data.appliedSteps.length > 0) {
           const apiSteps = data.appliedSteps.map((s, idx) => ({
@@ -354,10 +344,6 @@ export class DataPrepComponent implements OnInit {
         this.syncDefaultFormSelections();
       },
       error: () => {
-        if (fallback) {
-          this.columns.set(fallback.columns);
-          this.rows.set(fallback.rows);
-        }
         this.state.announce(
           `Data preparation preview loaded from sovereign buffer for ${source.name}.`,
           { safe: true },
@@ -458,7 +444,11 @@ export class DataPrepComponent implements OnInit {
 
     // Also synchronize asynchronously with backend RQueryTransformationEngine if raw payload exists
     const src = this.sources().find((s) => s.id === sourceId);
-    if (src && (snapshot.rawText || snapshot.rawBase64)) {
+    const isUnpromotedSnapshot = snapshot.columns[0]?.name === 'Column1';
+    const promoteIdx = activeSlice.findIndex(
+      (s) => s.type === 'PromoteHeaders' || s.type === 'PromoteHeadersStep',
+    );
+    if (src && (snapshot.rawText || snapshot.rawBase64) && (!isUnpromotedSnapshot || promoteIdx >= 0)) {
       const lookupTables: Record<string, ReadonlyArray<Record<string, unknown>>> = {};
       this.sources().forEach((other) => {
         if (other.id !== sourceId) {
@@ -476,8 +466,26 @@ export class DataPrepComponent implements OnInit {
         }
       });
 
+      const navStep = steps.find((s) => s.type === 'Navigation' || s.type === 'NavigationStep');
+      const sheetName = (navStep?.definition?.['sheetName'] ?? navStep?.definition?.['item']) as
+        | string
+        | undefined;
+
       const backendSteps = activeSlice
-        .filter((s) => s.type !== 'FileSource' && s.type !== 'FileSourceStep')
+        .filter((s, idx) => {
+          if (
+            s.type === 'FileSource' ||
+            s.type === 'FileSourceStep' ||
+            s.type === 'Navigation' ||
+            s.type === 'NavigationStep'
+          ) {
+            return false;
+          }
+          if (isUnpromotedSnapshot && idx === promoteIdx) {
+            return false;
+          }
+          return true;
+        })
         .map((s) => this.toBackendStepPayload(s));
 
       this.api
@@ -486,6 +494,7 @@ export class DataPrepComponent implements OnInit {
           format: src.backendFormat ?? (src.format === 'REST' ? 'JSON' : src.format),
           rawPayload: snapshot.rawText,
           rawPayloadBase64: snapshot.rawBase64,
+          sheetName,
           steps: backendSteps,
           lookupTables,
         })
@@ -865,7 +874,7 @@ export class DataPrepComponent implements OnInit {
     this.state.announce('Incremental refresh running across ingestion partition...', {
       loading: true,
     });
-    const tableId = src ? tableNameFromSource(src.name) : 'fact_sales';
+    const tableId = src ? tableNameFromSource(src.name) : '';
     this.api.runIncrementalRefresh(tableId).subscribe({
       next: (res) => {
         const count = res?.recordsUpserted ?? 0;

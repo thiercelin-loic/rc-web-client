@@ -96,6 +96,34 @@ export interface RaxMeasureDescriptor {
   readonly isHidden?: boolean;
 }
 
+export interface RaxStudioDiagnostic {
+  readonly severity: "error" | "warning" | "info";
+  readonly line: number;
+  readonly startColumn: number;
+  readonly errorCode: string;
+  readonly message: string;
+}
+
+export interface RaxStudioQueryResult {
+  readonly cacheKey: string;
+  readonly cacheHit: boolean;
+  readonly routedEngine: "DUCKDB" | "MYSQL";
+  readonly executionTimeMs: number;
+  readonly executedSql: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  readonly rows: Array<Record<string, any>>;
+}
+
+export interface RaxStudioQueryTab {
+  readonly id: string;
+  readonly name: string;
+  readonly content: string;
+  readonly isExecuting: boolean;
+  readonly lastResult: RaxStudioQueryResult | null;
+  readonly diagnostics: readonly RaxStudioDiagnostic[];
+  readonly statusText: string;
+}
+
 const EMPTY_MEASURE: RaxMeasureDescriptor = {
   id: "",
   label: "No measure selected",
@@ -243,13 +271,41 @@ export class StateManagerService {
     return this.sharedTablesSignal();
   }
 
+  // RAX Studio Query Tabs state (persisted across workspace route navigation)
+  public readonly raxQueryTabs = signal<RaxStudioQueryTab[]>([
+    {
+      id: "query-tab-1",
+      name: "Query 1.rax",
+      content: "EVALUATE\nINFO.VIEW.TABLES()",
+      isExecuting: false,
+      lastResult: null,
+      diagnostics: [],
+      statusText: "Ready",
+    },
+  ]);
+  public readonly activeRaxQueryTabId = signal<string>("query-tab-1");
+  public raxTabSequence = 1;
+
   // Shared table rows store (tableName -> rows array) populated by user ingestion / imports
   private readonly sharedTableRowsSignal = signal<Record<string, readonly Record<string, unknown>[]>>(
     this.getStoredTableRows(),
   );
   public readonly tableRowsMap = this.sharedTableRowsSignal.asReadonly();
   public getTableRows(tableName: string): readonly Record<string, unknown>[] {
-    return this.sharedTableRowsSignal()[tableName] ?? [];
+    if (!tableName) {
+      return [];
+    }
+    const map = this.sharedTableRowsSignal();
+    if (map[tableName]) {
+      return map[tableName];
+    }
+    const lower = tableName.trim().toLowerCase();
+    for (const [key, rows] of Object.entries(map)) {
+      if (key.toLowerCase() === lower) {
+        return rows;
+      }
+    }
+    return [];
   }
   public setTableRows(tableName: string, rows: readonly Record<string, unknown>[]): void {
     this.sharedTableRowsSignal.update((current) => {

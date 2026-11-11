@@ -10,6 +10,7 @@ import {
   INITIAL_PREP_STEPS,
 } from './data-prep.component';
 import { StateManagerService } from '../../core/state-manager.service';
+import { packZipArchive } from '../../core/zip-archive';
 
 describe('DataPrepComponent', () => {
   beforeEach(() => {
@@ -327,5 +328,99 @@ describe('DataPrepComponent', () => {
     expect(component.columns().map((c) => c.name)).toEqual(['Segment', 'Country', 'Product']);
     expect(component.rows().length).toBe(2);
     expect(component.activeStepFormula()).toContain('Table.PromoteHeaders');
+  });
+
+  it('extracts real worksheet names, shared strings, and cell rows from an OpenXML .xlsx binary archive', async () => {
+    const fixture = TestBed.createComponent(DataPrepComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const encoder = new TextEncoder();
+
+    const workbookXml = `<?xml version="1.0" encoding="UTF-8"?>
+      <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+                xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+        <sheets>
+          <sheet name="Stats NBA" sheetId="1" r:id="rId1"/>
+        </sheets>
+      </workbook>`;
+    const relsXml = `<?xml version="1.0" encoding="UTF-8"?>
+      <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+        <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
+      </Relationships>`;
+    const sharedStringsXml = `<?xml version="1.0" encoding="UTF-8"?>
+      <sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="6" uniqueCount="6">
+        <si><t>Joueur</t></si>
+        <si><t>Saison</t></si>
+        <si><t>Matchs Joués (GP)</t></si>
+        <si><t>Minutes (MIN)</t></si>
+        <si><t>Jimmy Butler</t></si>
+        <si><t>2014-15</t></si>
+      </sst>`;
+    const sheet1Xml = `<?xml version="1.0" encoding="UTF-8"?>
+      <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+        <sheetData>
+          <row r="1">
+            <c r="A1" t="s"><v>0</v></c>
+            <c r="B1" t="s"><v>1</v></c>
+            <c r="C1" t="s"><v>2</v></c>
+            <c r="D1" t="s"><v>3</v></c>
+          </row>
+          <row r="2">
+            <c r="A2" t="s"><v>4</v></c>
+            <c r="B2" t="s"><v>5</v></c>
+            <c r="C2"><v>60</v></c>
+            <c r="D2"><v>18.6</v></c>
+          </row>
+        </sheetData>
+      </worksheet>`;
+
+    const xlsxBytes = packZipArchive([
+      { name: 'xl/workbook.xml', data: encoder.encode(workbookXml) },
+      { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(relsXml) },
+      { name: 'xl/sharedStrings.xml', data: encoder.encode(sharedStringsXml) },
+      { name: 'xl/worksheets/sheet1.xml', data: encoder.encode(sheet1Xml) },
+    ]);
+
+    component.ingestion.openNavigatorForBinary(
+      'Performances_NBA_10_Saisons.xlsx',
+      'XLSX',
+      'XLSX',
+      xlsxBytes.buffer as ArrayBuffer,
+      '',
+    );
+
+    const sheets = component.ingestion.navigatorSheets();
+    expect(sheets.map((s) => s.name)).toEqual(['Stats NBA']);
+    expect(sheets[0].rows[0]).toEqual({
+      Column1: 'Joueur',
+      Column2: 'Saison',
+      Column3: 'Matchs Joués (GP)',
+      Column4: 'Minutes (MIN)',
+    });
+    expect(sheets[0].rows[1]).toEqual({
+      Column1: 'Jimmy Butler',
+      Column2: '2014-15',
+      Column3: 60,
+      Column4: 18.6,
+    });
+
+    component.ingestion.confirmNavigatorAndLoad('transform');
+    fixture.detectChanges();
+
+    expect(component.columns().map((c) => c.name)).toEqual([
+      'Joueur',
+      'Saison',
+      'Matchs Joués (GP)',
+      'Minutes (MIN)',
+    ]);
+    expect(component.rows().length).toBe(1);
+    expect(component.rows()[0]).toEqual({
+      Joueur: 'Jimmy Butler',
+      Saison: '2014-15',
+      'Matchs Joués (GP)': 60,
+      'Minutes (MIN)': 18.6,
+    });
   });
 });

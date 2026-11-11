@@ -116,7 +116,7 @@ export class ApiService {
       );
   }
 
-  public runIncrementalRefresh(tableId = "fact_sales"): Observable<IncrementalRefreshResult> {
+  public runIncrementalRefresh(tableId = ""): Observable<IncrementalRefreshResult> {
     if (!this.http) {
       return of({ recordsUpserted: 0 });
     }
