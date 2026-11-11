@@ -34,6 +34,15 @@ interface NavModuleItem {
   readonly iconPath: string;
 }
 
+interface FullscreenDocument extends Document {
+  readonly webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void> | void;
+}
+
+interface FullscreenElement extends HTMLElement {
+  webkitRequestFullscreen?: () => Promise<void> | void;
+}
+
 @Component({
   selector: "rc-root",
   imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule],
@@ -632,13 +641,21 @@ interface NavModuleItem {
                   role="menu"
                   aria-label="Import formats"
                 >
-                  @for (connector of ingestion.fileConnectors; track connector.id) {
+                  @for (
+                    connector of ingestion.fileConnectors;
+                    track connector.id
+                  ) {
                     <li role="none">
                       <button
                         type="button"
                         class="dropdown-item py-1 d-flex align-items-center gap-2"
                         role="menuitem"
-                        (click)="ingestion.triggerFileConnector(connector.id, globalSourceFileInput)"
+                        (click)="
+                          ingestion.triggerFileConnector(
+                            connector.id,
+                            globalSourceFileInput
+                          )
+                        "
                       >
                         @switch (connector.id) {
                           @case ("excel") {
@@ -653,7 +670,14 @@ interface NavModuleItem {
                               stroke-linejoin="round"
                               aria-hidden="true"
                             >
-                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                              <rect
+                                x="3"
+                                y="3"
+                                width="18"
+                                height="18"
+                                rx="2"
+                                ry="2"
+                              ></rect>
                               <line x1="3" y1="9" x2="21" y2="9"></line>
                               <line x1="3" y1="15" x2="21" y2="15"></line>
                               <line x1="9" y1="3" x2="9" y2="21"></line>
@@ -672,7 +696,9 @@ interface NavModuleItem {
                               stroke-linejoin="round"
                               aria-hidden="true"
                             >
-                              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                              <path
+                                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                              ></path>
                               <polyline points="14 2 14 8 20 8"></polyline>
                               <line x1="8" y1="13" x2="16" y2="13"></line>
                               <line x1="8" y1="17" x2="16" y2="17"></line>
@@ -690,8 +716,12 @@ interface NavModuleItem {
                               stroke-linejoin="round"
                               aria-hidden="true"
                             >
-                              <path d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"></path>
-                              <path d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"></path>
+                              <path
+                                d="M8 3H7a2 2 0 0 0-2 2v5a2 2 0 0 1-2 2 2 2 0 0 1 2 2v5c0 1.1.9 2 2 2h1"
+                              ></path>
+                              <path
+                                d="M16 21h1a2 2 0 0 0 2-2v-5c0-1.1.9-2 2-2a2 2 0 0 1-2-2V5a2 2 0 0 0-2-2h-1"
+                              ></path>
                             </svg>
                           }
                           @case ("xml") {
@@ -723,8 +753,12 @@ interface NavModuleItem {
                               aria-hidden="true"
                             >
                               <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
-                              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+                              <path
+                                d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"
+                              ></path>
+                              <path
+                                d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"
+                              ></path>
                             </svg>
                           }
                         }
@@ -914,6 +948,62 @@ interface NavModuleItem {
                 </ul>
               }
             </div>
+
+            <button
+              type="button"
+              id="ribbon-fullscreen-btn"
+              class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+              (click)="toggleFullscreen()"
+              [attr.aria-label]="
+                isFullscreen()
+                  ? 'Exit full screen mode'
+                  : 'Enter full screen mode'
+              "
+              [title]="
+                isFullscreen()
+                  ? 'Exit full screen mode (Esc)'
+                  : 'Enter full screen mode'
+              "
+            >
+              @if (isFullscreen()) {
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M8 3v3a2 2 0 0 1-2 2H3"></path>
+                  <path d="M21 8h-3a2 2 0 0 1-2-2V3"></path>
+                  <path d="M3 16h3a2 2 0 0 1 2 2v3"></path>
+                  <path d="M16 21v-3a2 2 0 0 1 2-2h3"></path>
+                </svg>
+              } @else {
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.8"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M8 3H5a2 2 0 0 0-2 2v3"></path>
+                  <path d="M21 8V5a2 2 0 0 0-2-2h-3"></path>
+                  <path d="M3 16v3a2 2 0 0 0 2 2h3"></path>
+                  <path d="M16 21h3a2 2 0 0 0 2-2v-3"></path>
+                </svg>
+              }
+              <span class="d-none d-md-inline">{{
+                isFullscreen() ? "Exit Full Screen" : "Full Screen"
+              }}</span>
+            </button>
 
             <button
               type="button"
@@ -1169,14 +1259,33 @@ interface NavModuleItem {
             >
               <div class="rc-modal-header">
                 <div class="d-flex align-items-center gap-2">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
+                    <rect
+                      x="3"
+                      y="3"
+                      width="18"
+                      height="18"
+                      rx="2"
+                      ry="2"
+                    ></rect>
                     <line x1="3" y1="9" x2="21" y2="9"></line>
                     <line x1="9" y1="21" x2="9" y2="9"></line>
                   </svg>
                   <div>
-                    <h2 class="rc-modal-title" id="navigator-modal-title">Navigator</h2>
-                    <div class="text-muted" style="font-size: 11px">{{ ingestion.pendingFileName() }}</div>
+                    <h2 class="rc-modal-title" id="navigator-modal-title">
+                      Navigator
+                    </h2>
+                    <div class="text-muted" style="font-size: 11px">
+                      {{ ingestion.pendingFileName() }}
+                    </div>
                   </div>
                 </div>
                 <button
@@ -1185,7 +1294,15 @@ interface NavModuleItem {
                   (click)="ingestion.cancelNavigator()"
                   aria-label="Close Navigator"
                 >
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    aria-hidden="true"
+                  >
                     <line x1="18" y1="6" x2="6" y2="18"></line>
                     <line x1="6" y1="6" x2="18" y2="18"></line>
                   </svg>
@@ -1197,28 +1314,66 @@ interface NavModuleItem {
                   class="border-end p-2 d-flex flex-column"
                   style="width: 250px; background-color: var(--rc-surface-subtle)"
                 >
-                  <div class="overflow-y-auto flex-grow-1" role="tree" aria-label="Workbook Sheets">
-                    <div class="fw-semibold text-truncate px-2 py-1 text-secondary" style="font-size: 11px">
+                  <div
+                    class="overflow-y-auto flex-grow-1"
+                    role="tree"
+                    aria-label="Workbook Sheets"
+                  >
+                    <div
+                      class="fw-semibold text-truncate px-2 py-1 text-secondary"
+                      style="font-size: 11px"
+                    >
                       {{ ingestion.pendingFileName() }}
                     </div>
-                    <ul class="list-unstyled mb-0 d-flex flex-column gap-1 ps-2">
-                      @for (sheet of ingestion.navigatorSheets(); track sheet.id) {
+                    <ul
+                      class="list-unstyled mb-0 d-flex flex-column gap-1 ps-2"
+                    >
+                      @for (
+                        sheet of ingestion.navigatorSheets();
+                        track sheet.id
+                      ) {
                         <li>
                           <button
                             type="button"
                             class="rc-btn rc-btn-sm w-100 justify-content-start text-start d-flex align-items-center gap-2"
-                            [class.rc-btn-primary]="ingestion.selectedNavigatorSheetId() === sheet.id"
-                            [class.rc-btn-ghost]="ingestion.selectedNavigatorSheetId() !== sheet.id"
-                            (click)="ingestion.selectedNavigatorSheetId.set(sheet.id)"
+                            [class.rc-btn-primary]="
+                              ingestion.selectedNavigatorSheetId() === sheet.id
+                            "
+                            [class.rc-btn-ghost]="
+                              ingestion.selectedNavigatorSheetId() !== sheet.id
+                            "
+                            (click)="
+                              ingestion.selectedNavigatorSheetId.set(sheet.id)
+                            "
                           >
-                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                              @if (sheet.kind === 'Table') {
-                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                            <svg
+                              width="13"
+                              height="13"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              stroke-width="2"
+                              aria-hidden="true"
+                            >
+                              @if (sheet.kind === "Table") {
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                ></rect>
                                 <line x1="3" y1="9" x2="21" y2="9"></line>
                                 <line x1="3" y1="15" x2="21" y2="15"></line>
                                 <line x1="9" y1="3" x2="9" y2="21"></line>
                               } @else {
-                                <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                                <rect
+                                  x="3"
+                                  y="3"
+                                  width="18"
+                                  height="18"
+                                  rx="2"
+                                ></rect>
                                 <line x1="3" y1="9" x2="21" y2="9"></line>
                                 <line x1="9" y1="21" x2="9" y2="9"></line>
                               }
@@ -1231,15 +1386,36 @@ interface NavModuleItem {
                   </div>
                 </div>
 
-                <div class="flex-grow-1 d-flex flex-column overflow-hidden bg-body">
+                <div
+                  class="flex-grow-1 d-flex flex-column overflow-hidden bg-body"
+                >
                   @if (ingestion.selectedNavigatorSheet(); as sheet) {
-                    <div class="p-2 px-3 border-bottom d-flex align-items-center justify-content-between bg-body-tertiary">
+                    <div
+                      class="p-2 px-3 border-bottom d-flex align-items-center justify-content-between bg-body-tertiary"
+                    >
                       <div class="d-flex align-items-center gap-2">
-                        <span class="fw-bold" style="font-size: 13px">{{ sheet.name }}</span>
-                        <span class="badge text-bg-secondary" style="font-size: 10px">{{ sheet.kind }}</span>
-                        <span class="text-muted" style="font-size: 11px">({{ sheet.rows.length }} rows preview)</span>
+                        <span class="fw-bold" style="font-size: 13px">{{
+                          sheet.name
+                        }}</span>
+                        <span
+                          class="badge text-bg-secondary"
+                          style="font-size: 10px"
+                          >{{ sheet.kind }}</span
+                        >
+                        <span class="text-muted" style="font-size: 11px">
+                          ({{
+                            sheet.rows.length > 100
+                              ? "first 100 of " +
+                                sheet.rows.length +
+                                " rows preview"
+                              : sheet.rows.length + " rows preview"
+                          }})
+                        </span>
                       </div>
-                      <div class="text-muted fst-italic" style="font-size: 11px">
+                      <div
+                        class="text-muted fst-italic"
+                        style="font-size: 11px"
+                      >
                         Unpromoted raw data preview
                       </div>
                     </div>
@@ -1250,17 +1426,21 @@ interface NavModuleItem {
                           <tr>
                             @for (col of sheet.columns; track col.name) {
                               <th>
-                                <span class="fw-semibold" style="font-size: 11px">{{ col.name }}</span>
+                                <span
+                                  class="fw-semibold"
+                                  style="font-size: 11px"
+                                  >{{ col.name }}</span
+                                >
                               </th>
                             }
                           </tr>
                         </thead>
                         <tbody>
-                          @for (row of sheet.rows; track $index) {
+                          @for (row of sheet.rows.slice(0, 100); track $index) {
                             <tr [class.table-light]="$index === 0">
                               @for (col of sheet.columns; track col.name) {
                                 <td [class.fw-bold]="$index === 0">
-                                  {{ row[col.name] ?? '—' }}
+                                  {{ row[col.name] ?? "—" }}
                                 </td>
                               }
                             </tr>
@@ -1269,16 +1449,73 @@ interface NavModuleItem {
                       </table>
                     </div>
                   } @else {
-                    <div class="p-4 text-center text-muted h-100 d-flex align-items-center justify-content-center">
-                      Select an item on the left to preview its table data.
+                    <div
+                      class="p-4 text-center text-muted h-100 d-flex align-items-center justify-content-center"
+                    >
+                      @if (ingestion.navigatorError(); as navError) {
+                        <span role="alert" class="text-danger fw-medium">{{
+                          navError
+                        }}</span>
+                      } @else {
+                        <span
+                          >Select an item on the left to preview its table
+                          data.</span
+                        >
+                      }
                     </div>
                   }
                 </div>
               </div>
 
               <div class="rc-modal-footer justify-content-between">
-                <div class="text-muted" style="font-size: 11px">
-                  Generates: <code>Source</code> &rarr; <code>Navigation</code> &rarr; <code>Promoted Headers</code> &rarr; <code>Changed Type</code>.
+                <div
+                  class="text-muted d-inline-flex align-items-center flex-wrap gap-1"
+                  style="font-size: 11px"
+                >
+                  <span>Generates:</span>
+                  <code>Source</code>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                  <code>Navigation</code>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                  <code>Promoted Headers</code>
+                  <svg
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2.5"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="9 18 15 12 9 6"></polyline>
+                  </svg>
+                  <code>Changed Type</code>
                 </div>
                 <div class="d-flex align-items-center gap-2">
                   <button
@@ -1291,6 +1528,7 @@ interface NavModuleItem {
                   <button
                     type="button"
                     class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+                    [disabled]="!ingestion.selectedNavigatorSheet()"
                     (click)="ingestion.confirmNavigatorAndLoad('transform')"
                     id="navigator-transform-btn"
                   >
@@ -1299,11 +1537,20 @@ interface NavModuleItem {
                   <button
                     type="button"
                     class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
+                    [disabled]="!ingestion.selectedNavigatorSheet()"
                     (click)="ingestion.confirmNavigatorAndLoad('load')"
                     id="navigator-load-btn"
                   >
                     <span>Load</span>
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <svg
+                      width="12"
+                      height="12"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      aria-hidden="true"
+                    >
                       <polyline points="20 6 9 17 4 12"></polyline>
                     </svg>
                   </button>
@@ -1425,6 +1672,7 @@ export class AppComponent {
   public readonly projectMenuOpen = signal<boolean>(false);
   public readonly editingProject = signal<boolean>(false);
   public readonly editingProjectValue = signal<string>("");
+  public readonly isFullscreen = signal<boolean>(this.readFullscreenState());
 
   public exchangeLabel(exchange: ExchangeLogEntry): string {
     if (exchange.level === "request") {
@@ -1641,6 +1889,77 @@ export class AppComponent {
   public onSelectReportPage(page: string): void {
     this.state.selectPage(page);
     this.router.navigate(["/report-builder"]);
+  }
+
+  /** Toggles browser full-screen mode on the document root element. */
+  public async toggleFullscreen(): Promise<void> {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const doc = document as FullscreenDocument;
+    const root = document.documentElement as FullscreenElement | null;
+    const currentlyFullscreen = Boolean(this.getFullscreenElement(doc));
+
+    try {
+      if (currentlyFullscreen) {
+        if (typeof doc.exitFullscreen === "function") {
+          await doc.exitFullscreen();
+        } else if (typeof doc.webkitExitFullscreen === "function") {
+          await doc.webkitExitFullscreen();
+        } else {
+          this.state.announce(
+            "Full screen exit is not supported in this browser.",
+            { safe: true },
+          );
+          return;
+        }
+      } else {
+        if (root && typeof root.requestFullscreen === "function") {
+          await root.requestFullscreen();
+        } else if (root && typeof root.webkitRequestFullscreen === "function") {
+          await root.webkitRequestFullscreen();
+        } else {
+          this.state.announce(
+            "Full screen mode is not supported in this browser.",
+            { safe: true },
+          );
+          return;
+        }
+      }
+      this.syncFullscreenState(true);
+    } catch {
+      this.syncFullscreenState(false);
+      this.state.announce("Unable to toggle full screen mode.", { safe: true });
+    }
+  }
+
+  @HostListener("document:fullscreenchange")
+  @HostListener("document:webkitfullscreenchange")
+  public onFullscreenChange(): void {
+    this.syncFullscreenState(true);
+  }
+
+  private getFullscreenElement(doc: FullscreenDocument): Element | null {
+    return doc.fullscreenElement ?? doc.webkitFullscreenElement ?? null;
+  }
+
+  private readFullscreenState(): boolean {
+    if (typeof document === "undefined") {
+      return false;
+    }
+    return Boolean(this.getFullscreenElement(document as FullscreenDocument));
+  }
+
+  private syncFullscreenState(announceChange: boolean): void {
+    const active = this.readFullscreenState();
+    const previous = this.isFullscreen();
+    this.isFullscreen.set(active);
+    if (announceChange && active !== previous) {
+      this.state.announce(
+        active ? "Entered full screen mode." : "Exited full screen mode.",
+      );
+    }
   }
 
   @HostListener("document:keydown.escape")

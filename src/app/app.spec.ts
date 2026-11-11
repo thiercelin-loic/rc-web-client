@@ -44,13 +44,13 @@ describe('AppComponent', () => {
     httpMock.expectNone('/api/reports/export/pdf');
     expect(app.state.statusIsError()).toBe(true);
     expect(app.state.statusMessage()).toBe(
-      'Export of Workspace-Report-300DPI.pdf failed. Please try again or contact support.'
+      'Export of Workspace-Report-300DPI.pdf failed: page "Page 1" has no visuals to export — add at least one visual on the canvas first.'
     );
 
     const footerEl = fixture.nativeElement.querySelector('footer.rc-zone-status') as HTMLElement;
     expect(footerEl.classList.contains('rc-zone-status-error')).toBe(true);
     expect(footerEl.textContent).toContain(
-      'Export of Workspace-Report-300DPI.pdf failed. Please try again or contact support.'
+      'Export of Workspace-Report-300DPI.pdf failed: page "Page 1" has no visuals to export — add at least one visual on the canvas first.'
     );
   });
 
@@ -270,6 +270,190 @@ describe('AppComponent', () => {
     expect(app.ingestion.isNavigatorModalOpen()).toBe(false);
     expect(app.state.sharedTables.some((t) => t.name === 'sales_global')).toBe(true);
     expect(app.state.getTableRows('sales_global').length).toBe(2);
+  });
+
+  it('caps Navigator preview DOM rows at 100 while loading full JSON dataset rows', async () => {
+    const fixture = TestBed.createComponent(AppComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const app = fixture.componentInstance;
+    const records = Array.from({ length: 125 }, (_, i) => ({
+      joueur: `Joueur ${i + 1}`,
+      buts: i,
+    }));
+
+    app.ingestion.openNavigatorForText(
+      'Performances_Ligue1_10_Saisons.json',
+      'REST',
+      'JSON',
+      JSON.stringify(records, null, 2),
+    );
+    fixture.detectChanges();
+
+    const bodyRows = fixture.nativeElement.querySelectorAll('.rc-preview-table tbody tr');
+    expect(bodyRows.length).toBe(100);
+
+    app.ingestion.confirmNavigatorAndLoad('load');
+    fixture.detectChanges();
+    expect(app.state.getTableRows('Performances_Ligue1_10_Saisons').length).toBe(125);
+  });
+
+  it('renders Full Screen button before project container and toggles full screen mode with telemetry', async () => {
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
+    const originalRequestFullscreen = Object.getOwnPropertyDescriptor(document.documentElement, 'requestFullscreen');
+    const originalExitFullscreen = Object.getOwnPropertyDescriptor(document, 'exitFullscreen');
+
+    let currentFullscreenEl: Element | null = null;
+    const requestFullscreenMock = vi.fn(async () => {
+      currentFullscreenEl = document.documentElement;
+      document.dispatchEvent(new Event('fullscreenchange'));
+    });
+    const exitFullscreenMock = vi.fn(async () => {
+      currentFullscreenEl = null;
+      document.dispatchEvent(new Event('fullscreenchange'));
+    });
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => currentFullscreenEl,
+    });
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: requestFullscreenMock,
+    });
+    Object.defineProperty(document, 'exitFullscreen', {
+      configurable: true,
+      value: exitFullscreenMock,
+    });
+
+    try {
+      const fixture = TestBed.createComponent(AppComponent);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const app = fixture.componentInstance;
+      const rightCluster = fixture.nativeElement.querySelector('header.rc-zone-ribbon > div:last-child') as HTMLElement;
+      const fullscreenBtn = rightCluster.querySelector('#ribbon-fullscreen-btn') as HTMLButtonElement;
+      const projectContainer = rightCluster.querySelector('#rc-current-project-container') as HTMLElement;
+
+      expect(fullscreenBtn).toBeTruthy();
+      expect(projectContainer).toBeTruthy();
+
+      const children = Array.from(rightCluster.children);
+      expect(children.indexOf(fullscreenBtn)).toBeLessThan(children.indexOf(projectContainer));
+
+      expect(app.isFullscreen()).toBe(false);
+      expect(fullscreenBtn.getAttribute('aria-label')).toBe('Enter full screen mode');
+      expect(fullscreenBtn.textContent).toContain('Full Screen');
+      expect(fullscreenBtn.querySelector('svg')?.getAttribute('aria-hidden')).toBe('true');
+
+      // Enter full screen via click
+      fullscreenBtn.click();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(requestFullscreenMock).toHaveBeenCalledTimes(1);
+      expect(app.isFullscreen()).toBe(true);
+      expect(app.state.statusMessage()).toBe('Entered full screen mode.');
+      expect(fullscreenBtn.getAttribute('aria-label')).toBe('Exit full screen mode');
+      expect(fullscreenBtn.textContent).toContain('Exit Full Screen');
+
+      // Exit full screen via click
+      fullscreenBtn.click();
+      await Promise.resolve();
+      fixture.detectChanges();
+
+      expect(exitFullscreenMock).toHaveBeenCalledTimes(1);
+      expect(app.isFullscreen()).toBe(false);
+      expect(app.state.statusMessage()).toBe('Exited full screen mode.');
+      expect(fullscreenBtn.getAttribute('aria-label')).toBe('Enter full screen mode');
+      expect(fullscreenBtn.textContent).toContain('Full Screen');
+
+      // External Escape / browser fullscreenchange syncs signal
+      currentFullscreenEl = document.documentElement;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      fixture.detectChanges();
+      expect(app.isFullscreen()).toBe(true);
+
+      currentFullscreenEl = null;
+      document.dispatchEvent(new Event('fullscreenchange'));
+      fixture.detectChanges();
+      expect(app.isFullscreen()).toBe(false);
+      expect(app.state.statusMessage()).toBe('Exited full screen mode.');
+    } finally {
+      if (originalFullscreenElement) {
+        Object.defineProperty(document, 'fullscreenElement', originalFullscreenElement);
+      } else {
+        delete (document as unknown as Record<string, unknown>)['fullscreenElement'];
+      }
+      if (originalRequestFullscreen) {
+        Object.defineProperty(document.documentElement, 'requestFullscreen', originalRequestFullscreen);
+      } else {
+        delete (document.documentElement as unknown as Record<string, unknown>)['requestFullscreen'];
+      }
+      if (originalExitFullscreen) {
+        Object.defineProperty(document, 'exitFullscreen', originalExitFullscreen);
+      } else {
+        delete (document as unknown as Record<string, unknown>)['exitFullscreen'];
+      }
+    }
+  });
+
+  it('announces graceful feedback when full screen toggle is rejected or unsupported', async () => {
+    const originalFullscreenElement = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
+    const originalRequestFullscreen = Object.getOwnPropertyDescriptor(document.documentElement, 'requestFullscreen');
+    const originalWebkitRequestFullscreen = Object.getOwnPropertyDescriptor(document.documentElement, 'webkitRequestFullscreen');
+
+    Object.defineProperty(document, 'fullscreenElement', {
+      configurable: true,
+      get: () => null,
+    });
+    Object.defineProperty(document.documentElement, 'requestFullscreen', {
+      configurable: true,
+      value: undefined,
+    });
+    Object.defineProperty(document.documentElement, 'webkitRequestFullscreen', {
+      configurable: true,
+      value: undefined,
+    });
+
+    try {
+      const fixture = TestBed.createComponent(AppComponent);
+      await fixture.whenStable();
+      fixture.detectChanges();
+
+      const app = fixture.componentInstance;
+      await app.toggleFullscreen();
+      expect(app.isFullscreen()).toBe(false);
+      expect(app.state.statusMessage()).toBe('Full screen mode is not supported in this browser.');
+
+      Object.defineProperty(document.documentElement, 'requestFullscreen', {
+        configurable: true,
+        value: vi.fn().mockRejectedValue(new Error('Permission denied')),
+      });
+
+      await app.toggleFullscreen();
+      expect(app.isFullscreen()).toBe(false);
+      expect(app.state.statusIsError()).toBe(true);
+      expect(app.state.statusMessage()).toBe('Unable to toggle full screen mode.');
+    } finally {
+      if (originalFullscreenElement) {
+        Object.defineProperty(document, 'fullscreenElement', originalFullscreenElement);
+      } else {
+        delete (document as unknown as Record<string, unknown>)['fullscreenElement'];
+      }
+      if (originalRequestFullscreen) {
+        Object.defineProperty(document.documentElement, 'requestFullscreen', originalRequestFullscreen);
+      } else {
+        delete (document.documentElement as unknown as Record<string, unknown>)['requestFullscreen'];
+      }
+      if (originalWebkitRequestFullscreen) {
+        Object.defineProperty(document.documentElement, 'webkitRequestFullscreen', originalWebkitRequestFullscreen);
+      } else {
+        delete (document.documentElement as unknown as Record<string, unknown>)['webkitRequestFullscreen'];
+      }
+    }
   });
 });
 
