@@ -423,4 +423,110 @@ describe('DataPrepComponent', () => {
       'Minutes (MIN)': 18.6,
     });
   });
+
+  it('unnests structured JSON documents in Navigator instead of parsing syntax lines as CSV', async () => {
+    const fixture = TestBed.createComponent(DataPrepComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const component = fixture.componentInstance;
+    const sampleJson = JSON.stringify(
+      [
+        {
+          joueur: 'Gianluigi Donnarumma',
+          position: 'Gardien',
+          statistiques_par_saison: [
+            {
+              saison: '2014-15',
+              matchs_joues: 35,
+              minutes_jouees: 1803,
+              buts_encaisses: 32,
+            },
+            {
+              saison: '2015-16',
+              matchs_joues: 30,
+              minutes_jouees: 2700,
+              buts_encaisses: 29,
+            },
+          ],
+        },
+      ],
+      null,
+      2,
+    );
+
+    component.ingestion.openNavigatorForText(
+      'Performances_Ligue1_10_Saisons.json',
+      'REST',
+      'JSON',
+      sampleJson,
+    );
+
+    const sheets = component.ingestion.navigatorSheets();
+    expect(sheets.map((s) => s.name)).toEqual(['Performances_Ligue1_10_Saisons']);
+    expect(sheets[0].columns.map((c) => c.name)).toEqual([
+      'Column1',
+      'Column2',
+      'Column3',
+      'Column4',
+      'Column5',
+      'Column6',
+    ]);
+    expect(sheets[0].rows[0]).toEqual({
+      Column1: 'joueur',
+      Column2: 'position',
+      Column3: 'saison',
+      Column4: 'matchs_joues',
+      Column5: 'minutes_jouees',
+      Column6: 'buts_encaisses',
+    });
+
+    component.ingestion.confirmNavigatorAndLoad('transform');
+    fixture.detectChanges();
+
+    expect(component.columns().map((c) => `${c.name}:${c.type}`)).toEqual([
+      'joueur:String',
+      'position:String',
+      'saison:String',
+      'matchs_joues:Int64',
+      'minutes_jouees:Int64',
+      'buts_encaisses:Int64',
+    ]);
+    expect(component.rows().length).toBe(2);
+    expect(component.rows()[0]).toEqual({
+      joueur: 'Gianluigi Donnarumma',
+      position: 'Gardien',
+      saison: '2014-15',
+      matchs_joues: 35,
+      minutes_jouees: 1803,
+      buts_encaisses: 32,
+    });
+  });
+
+  it('mounts all transformation and apply actions in a single right-aligned workspace toolbar', async () => {
+    const fixture = TestBed.createComponent(DataPrepComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const el = fixture.nativeElement as HTMLElement;
+    const header = el.querySelector('.rc-page-header.rc-workspace-header');
+    expect(header).toBeTruthy();
+    expect(el.querySelector('.rc-rquery-ribbon')).toBeNull();
+
+    const expectedIds = [
+      '#data-prep-filter-btn',
+      '#data-prep-change-type-btn',
+      '#data-prep-unpivot-btn',
+      '#data-prep-groupby-btn',
+      '#data-prep-custom-column-btn',
+      '#data-prep-merge-queries-btn',
+      '#data-prep-shaping-btn',
+      '#data-prep-range-params-btn',
+      '#data-prep-refresh-btn',
+      '#data-prep-apply-close-btn',
+    ];
+    for (const id of expectedIds) {
+      expect(header?.querySelector(id)).toBeTruthy();
+    }
+  });
 });

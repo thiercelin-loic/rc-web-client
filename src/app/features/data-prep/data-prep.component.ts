@@ -580,7 +580,16 @@ export class DataPrepComponent implements OnInit {
       true,
     );
     this.closeColumnMenu();
-    this.state.announce(`Transformed column [${colName}] type to ${newType}.`);
+    const quarantined = this.quarantinedRecords();
+    if (quarantined.length > 0) {
+      const firstErr = quarantined[0];
+      this.state.announce(
+        `Transformed column [${colName}] type to ${newType}: ${quarantined.length} row(s) quarantined (e.g., Row ${firstErr.sourceLineNumber}: ${firstErr.errorReason}).`,
+        { error: true },
+      );
+    } else {
+      this.state.announce(`Transformed column [${colName}] type to ${newType}.`);
+    }
   }
 
   public startRenameColumn(colName: string): void {
@@ -882,10 +891,13 @@ export class DataPrepComponent implements OnInit {
           resetAfterMs: 4000,
         });
       },
-      error: () => {
-        this.state.announce('Incremental refresh: failed to reach ingestion pipeline worker.', {
-          safe: true,
-        });
+      error: (err: unknown) => {
+        this.state.announceError(
+          `Incremental refresh on "${tableId || 'active dataset'}"`,
+          err instanceof Error && err.message
+            ? err
+            : 'unable to reach ingestion pipeline worker',
+        );
       },
     });
   }
@@ -1162,7 +1174,16 @@ export class DataPrepComponent implements OnInit {
       },
     });
     this.activeToolPanel.set(null);
-    this.state.announce(`Added custom column [${newCol}] = ${expr}.`);
+    const quarantined = this.quarantinedRecords();
+    if (quarantined.length > 0) {
+      const firstErr = quarantined[0];
+      this.state.announce(
+        `Added custom column [${newCol}] = ${expr}: ${quarantined.length} row(s) quarantined (e.g., Row ${firstErr.sourceLineNumber}: ${firstErr.errorReason}).`,
+        { error: true },
+      );
+    } else {
+      this.state.announce(`Added custom column [${newCol}] = ${expr}.`);
+    }
   }
 
   public onMergeQueries(): void {

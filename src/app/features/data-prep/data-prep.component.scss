@@ -1,34 +1,39 @@
-// ============================================================================
+﻿// ============================================================================
 // Data Preparation Studio Styles (R-Query Pipelines & Preview Grid)
 // Shared workspace grid, headers, tabs, and 320px Tools dock live in src/styles/_workspace.scss
 // ============================================================================
 
-.rc-rquery-ribbon {
-  min-height: 48px;
-  background-color: var(--rc-card-bg);
-  border-bottom: 1px solid var(--rc-card-border);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 16px;
-  gap: 12px;
-  flex-wrap: wrap;
+.rc-dataprep-header {
+  flex-wrap: nowrap;
 }
 
-.ribbon-action-group {
+.rc-dataprep-toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  gap: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
 }
 
-.ribbon-right-group {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+.rc-toolbar-divider {
+  width: 1px;
+  height: 20px;
+  margin: 0 4px;
+  background-color: var(--rc-border-strong);
+  flex-shrink: 0;
+}
 
-  .refresh-hint {
-    font-size: var(--rc-font-size-xs);
+@media (max-width: 767.98px) {
+  .rc-dataprep-header {
+    flex-wrap: wrap;
+  }
+
+  .rc-dataprep-toolbar-actions {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 }
 
@@ -248,7 +253,9 @@
     display: inline-flex;
     align-items: center;
     border-radius: var(--rc-radius-sm);
-    transition: color var(--rc-transition-fast), background-color var(--rc-transition-fast);
+    transition:
+      color var(--rc-transition-fast),
+      background-color var(--rc-transition-fast);
 
     &:hover {
       color: var(--rc-text-primary);
@@ -384,7 +391,7 @@
 
 .quarantine-card {
   background-color: var(--rc-status-danger-bg);
-  border: 1px solid var(--rc-status-danger-border, #fca5a5);
+  border: 1px solid var(--rc-status-danger-border);
   border-radius: var(--rc-radius-sm);
   padding: 12px;
 
@@ -393,7 +400,7 @@
     align-items: center;
     gap: 8px;
     margin-bottom: 6px;
-    color: var(--rc-status-danger-text, #b91c1c);
+    color: var(--rc-status-danger-text);
 
     .q-title {
       margin: 0;
@@ -425,25 +432,25 @@
 
     .q-badge {
       font-weight: var(--rc-font-weight-bold);
-      color: var(--rc-status-danger-text, #b91c1c);
+      color: var(--rc-status-danger-text);
     }
 
     .q-ok {
-      color: var(--rc-status-success-text, #15803d);
+      color: var(--rc-status-success-text);
       font-weight: var(--rc-font-weight-semibold);
     }
   }
 }
 
-:host-context([data-bs-theme='light']) {
+:host-context([data-bs-theme="light"]) {
   .quarantine-card {
     background-color: var(--rc-status-danger-bg);
-    border-color: #fecaca;
+    border-color: var(--rc-status-danger-border);
   }
 
   .step-json-box {
-    background-color: #f8fafc;
-    border-color: #e2e8f0;
+    background-color: var(--rc-surface-subtle);
+    border-color: var(--rc-border-subtle);
   }
 }
 

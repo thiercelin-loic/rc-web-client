@@ -1,4 +1,4 @@
-<div class="rc-workspace-grid rc-dataprep-grid">
+﻿<div class="rc-workspace-grid rc-dataprep-grid">
   <!-- Mobile Tab Bar -->
   <nav
     class="d-md-none border-bottom px-2 bg-body-tertiary"
@@ -92,94 +92,13 @@
     [class.d-none]="activeMobileTab() !== 'data'"
     [class.d-md-flex]="true"
   >
-    <!-- Standardized Workspace Action Toolbar -->
+    <!-- Standardized Workspace Action Toolbar (Single Line) -->
     <div
-      class="rc-page-header rc-workspace-header d-flex justify-content-end align-items-center"
+      class="rc-page-header rc-workspace-header rc-dataprep-header d-flex justify-content-end align-items-center"
+      role="toolbar"
+      aria-label="R-Query Action Toolbar"
     >
-      <div class="d-flex align-items-center gap-2">
-        <button
-          type="button"
-          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-          [class.active]="activeToolPanel() === 'incrementalRefresh'"
-          (click)="toggleToolPanel('incrementalRefresh')"
-          id="data-prep-range-params-btn"
-          title="Configure RangeStart and RangeEnd Incremental Refresh Parameters"
-          aria-label="Incremental Refresh Parameters"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
-            <line x1="16" y1="2" x2="16" y2="6"></line>
-            <line x1="8" y1="2" x2="8" y2="6"></line>
-            <line x1="3" y1="10" x2="21" y2="10"></line>
-          </svg>
-          <span>RangeStart / RangeEnd</span>
-        </button>
-
-        <button
-          type="button"
-          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-          (click)="onRunIncrementalRefresh()"
-          id="data-prep-refresh-btn"
-          title="Run incremental refresh across watermark partition"
-          aria-label="Run Incremental Refresh"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path
-              d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"
-            ></path>
-          </svg>
-          <span>Run Incremental Refresh</span>
-        </button>
-
-        <button
-          type="button"
-          class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
-          (click)="onApplyAndLoad()"
-          id="data-prep-apply-close-btn"
-          title="Commit pipeline transformations and load to semantic model"
-          aria-label="Close and Apply transformations"
-        >
-          <svg
-            width="13"
-            height="13"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <polyline points="20 6 9 17 4 12"></polyline>
-          </svg>
-          <span>Close &amp; Apply</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- Top R-Query Ribbon -->
-    <header class="rc-rquery-ribbon" aria-label="R-Query Transformation Ribbon">
-      <div class="ribbon-action-group">
+      <div class="rc-dataprep-toolbar-actions">
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
@@ -366,8 +285,88 @@
           </svg>
           <span>Table Shaping</span>
         </button>
+
+        <span class="rc-toolbar-divider" aria-hidden="true"></span>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          [class.active]="activeToolPanel() === 'incrementalRefresh'"
+          (click)="toggleToolPanel('incrementalRefresh')"
+          id="data-prep-range-params-btn"
+          title="Configure RangeStart and RangeEnd Incremental Refresh Parameters"
+          aria-label="Incremental Refresh Parameters"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span>RangeStart / RangeEnd</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
+          (click)="onRunIncrementalRefresh()"
+          id="data-prep-refresh-btn"
+          title="Run incremental refresh across watermark partition"
+          aria-label="Run Incremental Refresh"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <path
+              d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"
+            ></path>
+          </svg>
+          <span>Run Incremental Refresh</span>
+        </button>
+
+        <button
+          type="button"
+          class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
+          (click)="onApplyAndLoad()"
+          id="data-prep-apply-close-btn"
+          title="Commit pipeline transformations and load to semantic model"
+          aria-label="Close and Apply transformations"
+        >
+          <svg
+            width="13"
+            height="13"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            aria-hidden="true"
+          >
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Close &amp; Apply</span>
+        </button>
       </div>
-    </header>
+    </div>
 
     <!-- Interactive R-Query Ribbon Configuration Bar -->
     @if (activeToolPanel(); as panel) {
@@ -1147,7 +1146,7 @@
               <span>Previewing:</span>
               <strong class="ms-1">{{ src.name }}</strong>
               <span class="text-muted ms-2">
-                ({{ rows().length }} Rows &bull; Step
+                ({{ rows().length }} Rows, Step
                 {{ selectedStepIndex() + 1 }} of
                 {{ appliedSteps().length || 1 }})
               </span>
@@ -1244,8 +1243,8 @@
                           (click)="toggleColumnMenu(col.name, $event)"
                         >
                           <svg
-                            width="10"
-                            height="10"
+                            width="12"
+                            height="12"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -1295,7 +1294,7 @@
                             class="rc-dropdown-item d-flex align-items-center gap-2"
                             (click)="changeColumnType(col.name, 'Currency')"
                           >
-                            <span>Currency (€)</span>
+                            <span>Currency (â‚¬)</span>
                           </button>
                           <button
                             type="button"
@@ -1446,8 +1445,8 @@
                 No data records in preview buffer
               </p>
               <p class="text-muted mb-0">
-                Use the global Import menu in the top ribbon to load a CSV, TSV, XLSX,
-                Parquet, XML, or JSON file.
+                Use the global Import menu in the top ribbon to load a CSV, TSV,
+                XLSX, Parquet, XML, or JSON file.
               </p>
             </div>
           }
@@ -1597,8 +1596,8 @@
                             (click)="moveStep(idx, -1, $event)"
                           >
                             <svg
-                              width="10"
-                              height="10"
+                              width="12"
+                              height="12"
                               viewBox="0 0 24 24"
                               fill="none"
                               stroke="currentColor"
@@ -1617,8 +1616,8 @@
                           (click)="removeStep(idx, $event)"
                         >
                           <svg
-                            width="10"
-                            height="10"
+                            width="12"
+                            height="12"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -1867,5 +1866,4 @@
       </div>
     </aside>
   </div>
-
 </div>
