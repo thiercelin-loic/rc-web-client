@@ -5,21 +5,28 @@ import { StateManagerService } from './state-manager.service';
 import { unpackZipArchive } from './zip-archive';
 import { DataPrepEngineService } from './data-prep-engine.service';
 import {
-  AggregationFunction,
   BackendSourceFormat,
   DATA_CONNECTORS,
   DataPrepColumn,
   DataPrepStep,
   IngestionSource,
-  RQueryAggregateDefinition,
   SourceSnapshot,
   WorkbookSheet,
   formatFromFileName,
   isBinaryFormat,
   tableNameFromSource,
-  toBackendType,
   toBase64,
 } from '../features/data-prep/data-prep.model';
+import {
+  detectDelimitedSeparator,
+  extractSheetsFromDelimitedText,
+  extractSheetsFromJson,
+  extractSheetsFromXml,
+  extractTabularRecordsFromJson,
+  inferColumnTypeFromRows,
+  parseDelimitedGrid,
+  unpromotedSheetToJsonPayload,
+} from './ingestion-parsers';
 
 export interface PipelineSyncEvent {
   readonly sourceId: string;
@@ -55,6 +62,7 @@ export class IngestionWorkflowService {
   public readonly pendingRawBase64 = signal<string>('');
   public readonly navigatorSheets = signal<readonly WorkbookSheet[]>([]);
   public readonly selectedNavigatorSheetId = signal<string>('');
+  public readonly navigatorError = signal<string>('');
 
   public readonly selectedNavigatorSheet = computed(() => {
     const list = this.navigatorSheets();
@@ -135,8 +143,18 @@ export class IngestionWorkflowService {
     this.pendingRawText.set('');
     this.navigatorSheets.set(sheets);
     this.selectedNavigatorSheetId.set(sheets[0]?.id ?? '');
+    if (sheets.length === 0) {
+      const msg =
+        backendFormat === 'PARQUET' || backendFormat === 'AVRO'
+          ? `${backendFormat} binary preview requires backend ingestion support or JSON/CSV/XLSX export.`
+          : `Failed to extract readable sheets from "${name}": file may be corrupt or not a valid OpenXML .xlsx workbook.`;
+      this.navigatorError.set(msg);
+      this.state.announceError(msg);
+    } else {
+      this.navigatorError.set('');
+      this.state.announce(`Navigator: select sheet to preview from ${name}.`);
+    }
     this.isNavigatorModalOpen.set(true);
-    this.state.announce(`Navigator: select sheet to preview from ${name}.`);
   }
 
   public openNavigatorForText(
@@ -145,7 +163,7 @@ export class IngestionWorkflowService {
     backendFormat: BackendSourceFormat,
     text: string,
   ): void {
-    const sheets = this.extractSheetsFromText(name, text);
+    const { sheets, error } = this.extractSheetsWithStatus(name, text, backendFormat);
     this.pendingFileName.set(name);
     this.pendingFileFormat.set(format);
     this.pendingBackendFormat.set(backendFormat);
@@ -153,8 +171,14 @@ export class IngestionWorkflowService {
     this.pendingRawText.set(text);
     this.navigatorSheets.set(sheets);
     this.selectedNavigatorSheetId.set(sheets[0]?.id ?? '');
+    if (error) {
+      this.navigatorError.set(error);
+      this.state.announceError(error);
+    } else {
+      this.navigatorError.set('');
+      this.state.announce(`Navigator: select sheet to preview from ${name}.`);
+    }
     this.isNavigatorModalOpen.set(true);
-    this.state.announce(`Navigator: select sheet to preview from ${name}.`);
   }
 
   public cancelNavigator(): void {
@@ -162,6 +186,7 @@ export class IngestionWorkflowService {
     this.pendingFileName.set('');
     this.pendingRawText.set('');
     this.pendingRawBase64.set('');
+    this.navigatorError.set('');
     this.navigatorSheets.set([]);
   }
 
@@ -185,6 +210,8 @@ export class IngestionWorkflowService {
     const backendFormat = this.pendingBackendFormat();
     const rawText = this.pendingRawText();
     const rawBase64 = this.pendingRawBase64();
+    const normalizedRawText =
+      backendFormat === 'JSON' ? (unpromotedSheetToJsonPayload(sheet) ?? rawText) : rawText;
 
     const datasetId = `ds_${Date.now()}`;
     const newSource: IngestionSource = {
@@ -204,7 +231,7 @@ export class IngestionWorkflowService {
       [datasetId]: {
         columns: snapCols,
         rows: snapRows,
-        rawText,
+        rawText: normalizedRawText,
         rawBase64,
       },
     }));
@@ -261,7 +288,10 @@ export class IngestionWorkflowService {
 
     const evaluated = this.evaluateStepsLocally(snapCols, snapRows, initialSteps);
     if (mode === 'load' && evaluated.columns.length > 0) {
-      const tableName = tableNameFromSource(fileName);
+      const multiTable = this.navigatorSheets().length > 1 && !/^sheet\d*$/i.test(sheet.name);
+      const tableName = multiTable
+        ? `${tableNameFromSource(fileName)}_${tableNameFromSource(sheet.name)}`
+        : tableNameFromSource(fileName);
       this.state.addTable({
         id: `tbl_${datasetId}`,
         name: tableName,
@@ -315,43 +345,30 @@ export class IngestionWorkflowService {
     let parsedColumns: DataPrepColumn[] = [];
     let parsedRows: Record<string, unknown>[] = [];
     const backendFormat = formatFromFileName(name) ?? (format === 'REST' ? 'JSON' : format);
+    let snapshotRawText = content;
 
     if (format === 'REST' || name.toLowerCase().endsWith('.json')) {
-      try {
-        const json = JSON.parse(content);
-        if (Array.isArray(json) && json.length > 0) {
-          parsedRows = json;
-          const colKeys = Object.keys(json[0]);
-          parsedColumns = colKeys.map((key) => {
-            const sampleVal = json[0][key];
-            const type =
-              typeof sampleVal === 'number'
-                ? Number.isInteger(sampleVal)
-                  ? 'Int64'
-                  : 'Float64'
-                : typeof sampleVal === 'boolean'
-                  ? 'Boolean'
-                  : 'String';
-            return { name: key, type, icon: type };
-          });
-        }
-      } catch {
-        this.state.announceError('Failed to parse JSON file structure.');
+      const jsonResult = extractTabularRecordsFromJson(content);
+      if (jsonResult.error) {
+        this.state.announceError(jsonResult.error);
         return null;
       }
+      parsedColumns = jsonResult.columns;
+      parsedRows = jsonResult.rows;
+      if (parsedRows.length > 0) {
+        snapshotRawText = JSON.stringify(parsedRows);
+      }
     } else {
-      const lines = content.split(/\r?\n/).filter((l) => l.trim().length > 0);
-      if (lines.length > 0) {
-        const separator = lines[0].includes(';') ? ';' : lines[0].includes('\t') ? '\t' : ',';
-        const headers = lines[0]
-          .split(separator)
-          .map((h) => h.trim().replace(/^["']|["']$/g, ''));
-        const dataLines = lines.slice(1);
+      const separator = detectDelimitedSeparator(
+        content,
+        backendFormat === 'TSV' ? '\t' : undefined,
+      );
+      const grid = parseDelimitedGrid(content, separator);
+      if (grid.length > 0) {
+        const headers = grid[0];
+        const dataLines = grid.slice(1);
 
-        parsedRows = dataLines.map((line) => {
-          const parts = line
-            .split(separator)
-            .map((p) => p.trim().replace(/^["']|["']$/g, ''));
+        parsedRows = dataLines.map((parts) => {
           const record: Record<string, unknown> = {};
           headers.forEach((col, idx) => {
             const raw = parts[idx] ?? '';
@@ -369,22 +386,7 @@ export class IngestionWorkflowService {
         });
 
         parsedColumns = headers.map((col) => {
-          let type = 'String';
-          if (parsedRows.length > 0) {
-            const firstNonEmpty = parsedRows.find(
-              (r) => r[col] !== null && r[col] !== undefined,
-            );
-            if (firstNonEmpty) {
-              const val = firstNonEmpty[col];
-              if (typeof val === 'number') {
-                type = Number.isInteger(val) ? 'Int64' : 'Float64';
-              } else if (typeof val === 'boolean') {
-                type = 'Boolean';
-              } else if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}/.test(val)) {
-                type = 'Date';
-              }
-            }
-          }
+          const type = inferColumnTypeFromRows(parsedRows, col);
           return { name: col, type, icon: type };
         });
       }
@@ -417,7 +419,7 @@ export class IngestionWorkflowService {
       [datasetId]: {
         columns: parsedColumns,
         rows: parsedRows,
-        rawText: content,
+        rawText: snapshotRawText,
       },
     }));
     this.sources.update((srcs) => [...srcs, newSource]);
@@ -672,45 +674,21 @@ export class IngestionWorkflowService {
     return Math.max(0, idx - 1);
   }
 
-  private extractSheetsFromText(fileName: string, text: string): WorkbookSheet[] {
-    const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
-    if (lines.length === 0) {
-      return [{ id: 'sheet_1', name: 'Sheet1', kind: 'Sheet', columns: [], rows: [] }];
+  private extractSheetsWithStatus(
+    fileName: string,
+    text: string,
+    backendFormat?: BackendSourceFormat,
+  ): { sheets: WorkbookSheet[]; error?: string } {
+    if (backendFormat === 'JSON' || /\.json$/i.test(fileName)) {
+      return extractSheetsFromJson(fileName, text);
     }
-    const separator = lines[0].includes(';') ? ';' : lines[0].includes('\t') ? '\t' : ',';
-    const rawHeaders = lines[0].split(separator).map((h) => h.trim().replace(/^["']|["']$/g, ''));
-    const unpromotedCols: DataPrepColumn[] = rawHeaders.map((_, i) => ({
-      name: `Column${i + 1}`,
-      type: 'String',
-      icon: 'String',
-    }));
-
-    const unpromotedRows: Record<string, unknown>[] = [];
-    const headerRow: Record<string, unknown> = {};
-    rawHeaders.forEach((h, i) => {
-      headerRow[`Column${i + 1}`] = h;
-    });
-    unpromotedRows.push(headerRow);
-
-    lines.slice(1).forEach((line) => {
-      const parts = line.split(separator).map((p) => p.trim().replace(/^["']|["']$/g, ''));
-      const r: Record<string, unknown> = {};
-      rawHeaders.forEach((_, i) => {
-        r[`Column${i + 1}`] = parts[i] ?? null;
-      });
-      unpromotedRows.push(r);
-    });
-
-    const baseName = fileName.replace(/\.[^/.]+$/, '');
-    const isSpreadsheet = /\.xlsx?$/i.test(fileName);
-    return [
-      {
-        id: isSpreadsheet ? 'sheet_1' : 'table_1',
-        name: isSpreadsheet ? 'Sheet1' : baseName,
-        kind: isSpreadsheet ? 'Sheet' : 'Table',
-        columns: unpromotedCols,
-        rows: unpromotedRows,
-      },
-    ];
+    if (backendFormat === 'XML' || /\.xml$/i.test(fileName)) {
+      return extractSheetsFromXml(fileName, text);
+    }
+    return extractSheetsFromDelimitedText(
+      fileName,
+      text,
+      backendFormat === 'TSV' ? '\t' : undefined,
+    );
   }
 }
