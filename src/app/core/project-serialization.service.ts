@@ -195,8 +195,13 @@ export class ProjectSerializationService {
 
       this.state.setProjectState(descriptor, pages, visualsMap);
       return true;
-    } catch {
-      this.state.announceError(`Opening ${file.name}`);
+    } catch (err: unknown) {
+      this.state.announceError(
+        `Opening ${file.name}`,
+        err instanceof Error && err.message
+          ? `corrupt or invalid .rcp project archive (${err.message})`
+          : 'corrupt or invalid .rcp project archive',
+      );
       return false;
     }
   }
