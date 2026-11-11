@@ -96,15 +96,14 @@ describe('StateManagerService', () => {
     expect(service.statusIsError()).toBe(false);
 
     service.announce('Unable to save semantic model: permission denied.');
-    expect(service.statusMessage()).toBe(
-      'Unable to save semantic model failed. Please try again or contact support.'
-    );
+    expect(service.statusMessage()).toBe('Unable to save semantic model: permission denied.');
     expect(service.statusIsError()).toBe(true);
 
     service.announceError('Saving semantic model');
-    expect(service.statusMessage()).toBe(
-      'Saving semantic model failed. Please try again or contact support.'
-    );
+    expect(service.statusMessage()).toBe('Saving semantic model failed.');
+
+    service.announceError('Saving semantic model', new Error('disk quota exceeded'));
+    expect(service.statusMessage()).toBe('Saving semantic model failed: disk quota exceeded.');
 
     service.setLoading(true, 'Exporting 300 DPI PDF...');
     expect(service.statusMessage()).toBe('Exporting 300 DPI PDF...');

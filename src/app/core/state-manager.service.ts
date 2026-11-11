@@ -998,30 +998,38 @@ export class StateManagerService {
 
   public setStatus(
     message: string,
-    options?: { loading?: boolean; resetAfterMs?: number; safe?: boolean },
+    options?: {
+      loading?: boolean;
+      error?: boolean;
+      resetAfterMs?: number;
+      safe?: boolean;
+    },
   ): void {
     if (this.statusTimer) {
       clearTimeout(this.statusTimer);
       this.statusTimer = null;
     }
 
-    const normalized = message.toLowerCase();
+    const trimmed = message.trim();
+    const normalized = trimmed.toLowerCase();
     const isLoading =
       options?.loading ??
       (normalized.startsWith("loading") ||
         normalized.startsWith("exporting") ||
         normalized.includes("rendering"));
     const isError =
-      /(error|failed|failure|unable to|cannot|denied|invalid|rejected)/.test(
+      options?.error ??
+      /(error|failed|failure|unable to|cannot|denied|invalid|rejected|corrupt|unrecognized|malformed|blocked)/.test(
         normalized,
       );
-    const safeMessage =
-      isError && !options?.safe ? this.toSafeErrorMessage(message) : message;
+    const formattedMessage = isError
+      ? this.formatErrorMessage(trimmed)
+      : trimmed || "Ready";
 
     this.isLoading.set(isLoading);
     this.statusIsError.set(isError);
-    this.statusMessage.set(safeMessage);
-    this.liveAnnouncement.set(safeMessage);
+    this.statusMessage.set(formattedMessage);
+    this.liveAnnouncement.set(formattedMessage);
 
     const resetAfterMs = options?.resetAfterMs ?? 0;
     if (resetAfterMs > 0) {
@@ -1042,15 +1050,18 @@ export class StateManagerService {
 
     this.isLoading.set(loading);
     if (message) {
-      const normalized = message.toLowerCase();
+      const trimmed = message.trim();
+      const normalized = trimmed.toLowerCase();
       const isError =
-        /(error|failed|failure|unable to|cannot|denied|invalid|rejected)/.test(
+        /(error|failed|failure|unable to|cannot|denied|invalid|rejected|corrupt|unrecognized|malformed|blocked)/.test(
           normalized,
         );
-      const safeMessage = isError ? this.toSafeErrorMessage(message) : message;
+      const formattedMessage = isError
+        ? this.formatErrorMessage(trimmed)
+        : trimmed;
       this.statusIsError.set(isError);
-      this.statusMessage.set(safeMessage);
-      this.liveAnnouncement.set(safeMessage);
+      this.statusMessage.set(formattedMessage);
+      this.liveAnnouncement.set(formattedMessage);
     } else if (!loading) {
       this.statusMessage.set("Ready");
       this.statusIsError.set(false);
@@ -1081,18 +1092,44 @@ export class StateManagerService {
         : level === "success"
           ? `${method} request completed successfully (${status ?? "unknown status"}) in ${entry.durationMs} ms.`
           : `${method} request failed (${status ?? "network error"}) after ${entry.durationMs} ms.`;
-    this.setStatus(exchangeStatus, { safe: true });
+    this.setStatus(exchangeStatus, {
+      error: level === "error",
+      safe: true,
+    });
   }
 
   public announce(
     message: string,
-    options?: { loading?: boolean; resetAfterMs?: number; safe?: boolean },
+    options?: {
+      loading?: boolean;
+      error?: boolean;
+      resetAfterMs?: number;
+      safe?: boolean;
+    },
   ): void {
     this.setStatus(message, options);
   }
 
-  public announceError(action: string): void {
-    this.setStatus(`${action}: failed`);
+  public announceError(actionOrMessage: string, cause?: unknown): void {
+    const cleanAction = actionOrMessage.trim().replace(/[.!?]+$/, "");
+    const extractedReason = this.extractErrorReason(cause);
+
+    if (!extractedReason) {
+      const hasFailureVerb =
+        /\b(error|failed|failure|unable to|cannot|denied|invalid|rejected|corrupt|unrecognized|malformed|blocked|requires)\b/i.test(
+          cleanAction,
+        );
+      const finalMsg = hasFailureVerb
+        ? `${cleanAction}.`
+        : `${cleanAction} failed.`;
+      this.setStatus(finalMsg, { error: true });
+      return;
+    }
+
+    const cleanReason = extractedReason.trim().replace(/[.!?]+$/, "");
+    const hasFailureVerb = /\b(failed|failure|error)\b$/i.test(cleanAction);
+    const prefix = hasFailureVerb ? cleanAction : `${cleanAction} failed`;
+    this.setStatus(`${prefix}: ${cleanReason}.`, { error: true });
   }
 
   // ---------------------------------------------------------------------------
@@ -1333,15 +1370,48 @@ export class StateManagerService {
     }
   }
 
-  private toSafeErrorMessage(message: string): string {
-    const action = message
-      .split(":", 1)[0]
-      .trim()
-      .replace(/\s+/g, " ")
-      .replace(/[.!?]+$/, "");
-    const failureLabel = /\b(failed|failure|error)\b$/i.test(action)
-      ? action
-      : `${action} failed`;
-    return `${failureLabel || "The requested action failed"}. Please try again or contact support.`;
+  private formatErrorMessage(message: string): string {
+    const cleaned = message.replace(/\s+/g, " ").trim();
+    return cleaned || "Operation failed.";
+  }
+
+  private extractErrorReason(cause: unknown): string {
+    if (!cause) {
+      return "";
+    }
+    if (typeof cause === "string") {
+      return cause.trim();
+    }
+    if (typeof cause === "object") {
+      const record = cause as Record<string, unknown>;
+      const nestedError = record["error"];
+      if (typeof nestedError === "string" && nestedError.trim()) {
+        return nestedError.trim();
+      }
+      if (nestedError && typeof nestedError === "object") {
+        const nestedRec = nestedError as Record<string, unknown>;
+        const detail =
+          nestedRec["detail"] ?? nestedRec["message"] ?? nestedRec["error"];
+        if (typeof detail === "string" && detail.trim()) {
+          return detail.trim();
+        }
+      }
+      if (
+        typeof record["status"] === "number" &&
+        record["status"] > 0 &&
+        typeof record["statusText"] === "string"
+      ) {
+        const msg =
+          typeof record["message"] === "string" &&
+          !record["message"].startsWith("Http failure response")
+            ? `: ${record["message"]}`
+            : "";
+        return `HTTP ${record["status"]} ${record["statusText"]}${msg}`.trim();
+      }
+      if (typeof record["message"] === "string" && record["message"].trim()) {
+        return record["message"].trim();
+      }
+    }
+    return String(cause).trim();
   }
 }
