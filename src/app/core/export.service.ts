@@ -145,7 +145,10 @@ export class ExportService {
     if (activeVisuals.length === 0) {
       this.lastExportReceiptSignal.set(null);
       this.state.setLoading(false);
-      this.state.announceError(`Export of ${formatMeta.filename}`);
+      this.state.announceError(
+        `Export of ${formatMeta.filename}`,
+        `page "${this.state.activePage()}" has no visuals to export — add at least one visual on the canvas first`,
+      );
       return EMPTY;
     }
 
@@ -176,7 +179,10 @@ export class ExportService {
         if (error && error.status === 400) {
           this.lastExportReceiptSignal.set(null);
           this.state.setLoading(false);
-          this.state.announceError(`Export of ${formatMeta.filename}`);
+          this.state.announceError(
+            `Export of ${formatMeta.filename}`,
+            error,
+          );
           return throwError(() => error);
         }
 

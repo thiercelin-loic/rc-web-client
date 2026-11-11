@@ -46,7 +46,7 @@ describe('ExportService', () => {
       expect(state.statusIsError()).toBe(true);
       expect(state.isLoading()).toBe(false);
       expect(state.statusMessage()).toBe(
-        `Export of ${expectedFilenames[fmt]} failed. Please try again or contact support.`
+        `Export of ${expectedFilenames[fmt]} failed: page "Page 1" has no visuals to export — add at least one visual on the canvas first.`
       );
       expect(service.lastExportReceipt()).toBeNull();
     }
