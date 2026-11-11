@@ -1197,13 +1197,7 @@ interface NavModuleItem {
                   class="border-end p-2 d-flex flex-column"
                   style="width: 250px; background-color: var(--rc-surface-subtle)"
                 >
-                  <div
-                    class="p-2 border-bottom fw-bold text-uppercase text-secondary"
-                    style="font-size: 10px; letter-spacing: 0.05em"
-                  >
-                    Display Options
-                  </div>
-                  <div class="overflow-y-auto flex-grow-1 pt-2" role="tree" aria-label="Workbook Sheets">
+                  <div class="overflow-y-auto flex-grow-1" role="tree" aria-label="Workbook Sheets">
                     <div class="fw-semibold text-truncate px-2 py-1 text-secondary" style="font-size: 11px">
                       {{ ingestion.pendingFileName() }}
                     </div>

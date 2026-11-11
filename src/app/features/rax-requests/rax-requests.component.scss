@@ -3,27 +3,6 @@
 // Shared workspace grid, headers, tabs, and 320px Tools dock live in src/styles/_workspace.scss
 // ============================================================================
 
-.rc-query-tabs-bar {
-  background-color: var(--rc-surface-subtle);
-  border-bottom: 1px solid var(--rc-card-border);
-  min-height: 38px;
-}
-
-.tab-close-btn {
-  border-radius: var(--rc-radius-xs, 3px);
-  width: 18px;
-  height: 18px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  line-height: 1;
-
-  &:hover {
-    background-color: var(--rc-surface-hover);
-    color: var(--rc-text-primary) !important;
-  }
-}
-
 .rc-rax-workspace {
   background-color: var(--rc-canvas-bg);
   min-height: 0;

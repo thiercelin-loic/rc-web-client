@@ -60,7 +60,7 @@ export interface RaxSnippet {
 export interface RaxAutocompleteItem {
   readonly label: string;
   readonly insertText: string;
-  readonly kind: "Keyword" | "Function" | "Table" | "Measure";
+  readonly kind: "Keyword" | "Function" | "Table" | "Column" | "Measure";
 }
 
 export type RaxDockSection =
@@ -179,21 +179,11 @@ export class RaxRequestsComponent implements OnInit {
     }
   }
 
-  private tabSequence = 1;
-
-  public readonly tabs = signal<RaxQueryTab[]>([
-    {
-      id: "query-tab-1",
-      name: "Query 1.rax",
-      content: "EVALUATE\nINFO.VIEW.TABLES()",
-      isExecuting: false,
-      lastResult: null,
-      diagnostics: [],
-      statusText: "Ready",
-    },
-  ]);
-
-  public readonly activeTabId = signal<string>("query-tab-1");
+  public readonly queryContent = this.state.raxQueryContent;
+  public readonly isExecuting = signal<boolean>(false);
+  public readonly lastResult = this.state.raxLastResult;
+  public readonly diagnostics = signal<readonly RaxDiagnostic[]>([]);
+  public readonly statusText = signal<string>("Ready");
   public readonly bottomActiveTab = signal<"results" | "problems" | "plan">(
     "results",
   );
@@ -225,68 +215,97 @@ export class RaxRequestsComponent implements OnInit {
   public readonly schemaFunctionButtons: readonly string[] =
     INFO_SCHEMA_FUNCTIONS;
 
-  public readonly quickSnippets: readonly RaxSnippet[] = [
-    {
-      label: "List Model Tables (INFO.VIEW.TABLES)",
-      category: "Metadata (INFO)",
-      code: "EVALUATE\nINFO.VIEW.TABLES()",
-    },
-    {
-      label: "List Semantic Measures (INFO.VIEW.MEASURES)",
-      category: "Metadata (INFO)",
-      code: 'EVALUATE\nSELECTCOLUMNS(\n  INFO.VIEW.MEASURES(),\n  "Table", [Table],\n  "Name", [Name],\n  "Description", [Description],\n  "Dax", [Expression]\n)',
-    },
-    {
-      label: "Inspect Table Columns (INFO.VIEW.COLUMNS)",
-      category: "Metadata (INFO)",
-      code: "EVALUATE\nINFO.VIEW.COLUMNS()",
-    },
-    {
-      label: "Inspect DuckDB Partitions (INFO.PARTITIONS)",
-      category: "Metadata (INFO)",
-      code: 'EVALUATE\nSELECTCOLUMNS(\n  INFO.PARTITIONS(),\n  "Table", [Table],\n  "Partition", [PartitionName],\n  "Mode", [Mode],\n  "Engine", [Engine],\n  "Rows", [Rows],\n  "Refreshed", [RefreshedTime]\n)',
-    },
-    {
-      label: "Analyze Measure Dependencies (INFO.CALCDEPENDENCY)",
-      category: "Metadata (INFO)",
-      code: 'EVALUATE\nSELECTCOLUMNS(\n  FILTER(INFO.CALCDEPENDENCY(), [OBJECT_TYPE] = "MEASURE"),\n  "Table", [TABLE],\n  "Name", [OBJECT],\n  "Dax", [EXPRESSION],\n  "Referenced Table", [REFERENCED_TABLE],\n  "Referenced Object", [REFERENCED_OBJECT],\n  "Referenced Type", [REFERENCED_OBJECT_TYPE]\n)',
-    },
-    {
-      label: "Inspect Column Storage Size (INFO.STORAGETABLECOLUMNS)",
-      category: "Metadata (INFO)",
-      code: 'EVALUATE\nSELECTCOLUMNS(\n  INFO.STORAGETABLECOLUMNS(),\n  "Table", [DIMENSION_NAME],\n  "Column", [ATTRIBUTE_NAME],\n  "Size KB", [SizeKB]\n)\nORDER BY [Size KB] DESC',
-    },
-    {
-      label: "Build Unified Data Dictionary (UNION + INFO.VIEW)",
-      category: "Metadata (INFO)",
-      code: 'Data Dictionary =\nVAR _columns = SELECTCOLUMNS(FILTER(INFO.VIEW.COLUMNS(), NOT([IsHidden])), "Type", "Column", "Name", [Name], "Table", [Table], "Description", [Description], "Dax", [Expression])\nVAR _measures = SELECTCOLUMNS(FILTER(INFO.VIEW.MEASURES(), NOT([IsHidden])), "Type", "Measure", "Name", [Name], "Table", [Table], "Description", [Description], "Dax", [Expression])\nVAR _tables = SELECTCOLUMNS(FILTER(INFO.VIEW.TABLES(), NOT([IsHidden])), "Type", "Table", "Name", [Name], "Table", "n/a", "Description", [Description], "Dax", [Expression])\nRETURN\nUNION(_columns, _measures, _tables)',
-    },
-    {
-      label: "Summarize Metrics by Dimension (SUMMARIZECOLUMNS)",
-      category: "Evaluation",
-      code: 'EVALUATE\nSUMMARIZECOLUMNS(\n  \'dim_region\'[region_name],\n  "Gross Revenue", [Gross Revenue],\n  "Net Revenue", [Net Revenue]\n)\nORDER BY [Gross Revenue] DESC',
-    },
-    {
-      label: "Define & Evaluate Ad-Hoc KPI Measure",
-      category: "Evaluation",
-      code: "DEFINE\n  MEASURE 'fact_transactions'[Net Margin] = SUM('fact_transactions'[net_amount]) - SUM('fact_transactions'[cost_amount])\nEVALUATE\nROW(\"Net Margin\", [Net Margin])",
-    },
-    {
-      label: "Step-by-Step Variable Evaluation (VAR / RETURN)",
-      category: "Evaluation",
-      code: "EVALUATE\nVAR BaseTotal = SUM('fact_transactions'[gross_amount])\nVAR DiscountTotal = SUM('fact_transactions'[discount_amount])\nVAR NetResult = BaseTotal - DiscountTotal\nRETURN\nROW(\"Base Total\", BaseTotal, \"Net Result\", NetResult)",
-    },
-    {
-      label: "TMDL Measure Definition & Description Script",
-      category: "TMDL",
-      code: "createOrReplace\n  table 'fact_transactions'\n    /// Gross transaction amount aggregated across active records\n    measure 'Gross Revenue' = CALCULATE(SUM('fact_transactions'[gross_amount]))\n      formatString: \"#,0.00\"",
-    },
-  ];
+  public get quickSnippets(): readonly RaxSnippet[] {
+    const tables = this.availableTables();
+    const primaryTable =
+      tables.find((t) => t.role === "FACT") ?? tables[0];
+    const tName = primaryTable?.name ?? "fact_transactions";
+    const numCols =
+      primaryTable?.columns.filter((c) =>
+        /INT|DOUBLE|DECIMAL|FLOAT|NUMBER|NUMERIC/i.test(c.dataType),
+      ) ?? [];
+    const textCols =
+      primaryTable?.columns.filter((c) =>
+        /CHAR|TEXT|STRING/i.test(c.dataType),
+      ) ?? [];
+    const numCol1 = numCols[0]?.name ?? primaryTable?.columns[0]?.name ?? "gross_amount";
+    const numCol2 = numCols[1]?.name ?? numCol1;
+    const dimTable =
+      tables.find((t) => t.role === "DIMENSION") ?? primaryTable;
+    const dimTableName = dimTable?.name ?? "dim_region";
+    const dimColName =
+      textCols[0]?.name ??
+      dimTable?.columns[0]?.name ??
+      "region_name";
 
-  public readonly activeTab = computed<RaxQueryTab>(() => {
-    const list = this.tabs();
-    return list.find((tab) => tab.id === this.activeTabId()) ?? list[0];
-  });
+    return [
+      {
+        label: "List Model Tables (INFO.VIEW.TABLES)",
+        category: "Metadata (INFO)",
+        code: "EVALUATE\nINFO.VIEW.TABLES()",
+      },
+      {
+        label: "List Semantic Measures (INFO.VIEW.MEASURES)",
+        category: "Metadata (INFO)",
+        code: 'EVALUATE\nSELECTCOLUMNS(\n  INFO.VIEW.MEASURES(),\n  "Table", [Table],\n  "Name", [Name],\n  "Description", [Description],\n  "Dax", [Expression]\n)',
+      },
+      {
+        label: "Inspect Table Columns (INFO.VIEW.COLUMNS)",
+        category: "Metadata (INFO)",
+        code: "EVALUATE\nINFO.VIEW.COLUMNS()",
+      },
+      {
+        label: "Inspect DuckDB Partitions (INFO.PARTITIONS)",
+        category: "Metadata (INFO)",
+        code: 'EVALUATE\nSELECTCOLUMNS(\n  INFO.PARTITIONS(),\n  "Table", [Table],\n  "Partition", [PartitionName],\n  "Mode", [Mode],\n  "Engine", [Engine],\n  "Rows", [Rows],\n  "Refreshed", [RefreshedTime]\n)',
+      },
+      {
+        label: "Analyze Measure Dependencies (INFO.CALCDEPENDENCY)",
+        category: "Metadata (INFO)",
+        code: 'EVALUATE\nSELECTCOLUMNS(\n  FILTER(INFO.CALCDEPENDENCY(), [OBJECT_TYPE] = "MEASURE"),\n  "Table", [TABLE],\n  "Name", [OBJECT],\n  "Dax", [EXPRESSION],\n  "Referenced Table", [REFERENCED_TABLE],\n  "Referenced Object", [REFERENCED_OBJECT],\n  "Referenced Type", [REFERENCED_OBJECT_TYPE]\n)',
+      },
+      {
+        label: "Inspect Column Storage Size (INFO.STORAGETABLECOLUMNS)",
+        category: "Metadata (INFO)",
+        code: 'EVALUATE\nSELECTCOLUMNS(\n  INFO.STORAGETABLECOLUMNS(),\n  "Table", [DIMENSION_NAME],\n  "Column", [ATTRIBUTE_NAME],\n  "Size KB", [SizeKB]\n)\nORDER BY [Size KB] DESC',
+      },
+      {
+        label: "Build Unified Data Dictionary (UNION + INFO.VIEW)",
+        category: "Metadata (INFO)",
+        code: 'Data Dictionary =\nVAR _columns = SELECTCOLUMNS(FILTER(INFO.VIEW.COLUMNS(), NOT([IsHidden])), "Type", "Column", "Name", [Name], "Table", [Table], "Description", [Description], "Dax", [Expression])\nVAR _measures = SELECTCOLUMNS(FILTER(INFO.VIEW.MEASURES(), NOT([IsHidden])), "Type", "Measure", "Name", [Name], "Table", [Table], "Description", [Description], "Dax", [Expression])\nVAR _tables = SELECTCOLUMNS(FILTER(INFO.VIEW.TABLES(), NOT([IsHidden])), "Type", "Table", "Name", [Name], "Table", "n/a", "Description", [Description], "Dax", [Expression])\nRETURN\nUNION(_columns, _measures, _tables)',
+      },
+      {
+        label: "Summarize Metrics by Dimension (SUMMARIZECOLUMNS)",
+        category: "Evaluation",
+        code: `EVALUATE\nSUMMARIZECOLUMNS(\n  '${dimTableName}'[${dimColName}],\n  "Total ${numCol1}", SUM('${tName}'[${numCol1}]),\n  "Record Count", COUNTROWS('${tName}')\n)\nORDER BY [Total ${numCol1}] DESC`,
+      },
+      {
+        label: "Define & Evaluate Ad-Hoc KPI Measure",
+        category: "Evaluation",
+        code: `DEFINE\n  MEASURE '${tName}'[Net KPI] = SUM('${tName}'[${numCol1}]) - SUM('${tName}'[${numCol2}])\nEVALUATE\nROW("Net KPI", [Net KPI])`,
+      },
+      {
+        label: "Step-by-Step Variable Evaluation (VAR / RETURN)",
+        category: "Evaluation",
+        code: `EVALUATE\nVAR BaseTotal = SUM('${tName}'[${numCol1}])\nVAR RowTotal = COUNTROWS('${tName}')\nVAR AvgPerRow = DIVIDE(BaseTotal, RowTotal, 0)\nRETURN\nROW("Base Total", BaseTotal, "Row Count", RowTotal, "Average", AvgPerRow)`,
+      },
+      {
+        label: "TMDL Measure Definition & Description Script",
+        category: "TMDL",
+        code: `createOrReplace\n  table '${tName}'\n    /// Aggregated total across active records\n    measure 'Total ${numCol1}' = CALCULATE(SUM('${tName}'[${numCol1}]))\n      formatString: "#,0.00"`,
+      },
+    ];
+  }
+
+  public readonly activeTab = computed<RaxQueryTab>(() => ({
+    id: "query-editor",
+    name: "Query.rax",
+    content: this.queryContent(),
+    isExecuting: this.isExecuting(),
+    lastResult: this.lastResult(),
+    diagnostics: this.diagnostics(),
+    statusText: this.statusText(),
+  }));
 
   public readonly hasModelDefinableContent = computed<boolean>(() => {
     const content = this.activeTab().content.trim().toUpperCase();
@@ -375,10 +394,19 @@ export class RaxRequestsComponent implements OnInit {
       }
     }
     for (const table of this.availableTables()) {
+      const needsQuotes = /[^a-zA-Z0-9_]/.test(table.name);
+      const ref = needsQuotes ? `'${table.name}'` : table.name;
       if (table.name.toUpperCase().includes(token)) {
-        const needsQuotes = /[^a-zA-Z0-9_]/.test(table.name);
-        const ref = needsQuotes ? `'${table.name}'` : table.name;
         items.push({ label: table.name, insertText: ref, kind: "Table" });
+      }
+      for (const col of table.columns) {
+        const colRef = `${ref}[${col.name}]`;
+        if (
+          col.name.toUpperCase().includes(token) ||
+          colRef.toUpperCase().includes(token)
+        ) {
+          items.push({ label: colRef, insertText: colRef, kind: "Column" });
+        }
       }
     }
     for (const measure of this.availableMeasures()) {
@@ -474,46 +502,6 @@ export class RaxRequestsComponent implements OnInit {
     }
     this.insertTextAtCursor(item.insertText);
     this.autocompleteOpen.set(false);
-  }
-
-  public selectTab(tabId: string): void {
-    this.activeTabId.set(tabId);
-  }
-
-  public addNewTab(): void {
-    this.tabSequence += 1;
-    const newId = `query-tab-${this.tabSequence}`;
-    const newTab: RaxQueryTab = {
-      id: newId,
-      name: `Query ${this.tabSequence}.rax`,
-      content: "EVALUATE\nINFO.VIEW.TABLES()",
-      isExecuting: false,
-      lastResult: null,
-      diagnostics: [],
-      statusText: "Ready",
-    };
-    this.tabs.update((current) => [...current, newTab]);
-    this.activeTabId.set(newId);
-    this.state.announce(`Opened query tab ${newTab.name}`);
-  }
-
-  public closeTab(tabId: string, event?: Event): void {
-    event?.stopPropagation();
-    const currentTabs = this.tabs();
-    if (currentTabs.length <= 1) {
-      return;
-    }
-    const closingIndex = currentTabs.findIndex((tab) => tab.id === tabId);
-    if (closingIndex === -1) {
-      return;
-    }
-    const remaining = currentTabs.filter((tab) => tab.id !== tabId);
-    this.tabs.set(remaining);
-
-    if (this.activeTabId() === tabId) {
-      const nextTab = remaining[Math.max(0, closingIndex - 1)] ?? remaining[0];
-      this.activeTabId.set(nextTab.id);
-    }
   }
 
   public updateActiveContent(content: string): void {
@@ -1001,8 +989,7 @@ export class RaxRequestsComponent implements OnInit {
       return;
     }
 
-    const targetTabId = tab.id;
-    this.patchTabById(targetTabId, {
+    this.patchActiveTab({
       diagnostics,
       isExecuting: true,
       statusText: "Executing RAX query...",
@@ -1012,7 +999,7 @@ export class RaxRequestsComponent implements OnInit {
       .executeMeasureQuery("rax-studio-query", tab.content, "rax-studio")
       .subscribe((result) => {
         const summary = `Completed in ${result.executionTimeMs} ms (${result.rows.length} row(s), ${result.routedEngine})`;
-        this.patchTabById(targetTabId, {
+        this.patchActiveTab({
           isExecuting: false,
           lastResult: result,
           statusText: summary,
@@ -1278,14 +1265,14 @@ export class RaxRequestsComponent implements OnInit {
       };
     }
 
-    // 10. Local evaluation of DEFINE MEASURE / SUMMARIZECOLUMNS / ROW when in-memory table rows exist
+    // 10. Local evaluation of DEFINE MEASURE / VAR / ROW / SUMMARIZECOLUMNS / FILTER / TOPN / scalar formulas
     if (upper.includes("DEFINE") && /\bMEASURE\b/i.test(normalized)) {
       this.extractAndSaveMeasuresFromScript(normalized);
     }
 
-    const localDataResult = this.tryEvaluateAgainstLoadedRows(normalized);
-    if (localDataResult) {
-      return localDataResult;
+    const studioEvalResult = this.raxQueryService.evaluateStudioQuery(normalized);
+    if (studioEvalResult) {
+      return studioEvalResult;
     }
 
     return null;
@@ -1560,48 +1547,35 @@ export class RaxRequestsComponent implements OnInit {
   /**
    * Evaluates SUMMARIZECOLUMNS against loaded table rows in StateManagerService when present.
    */
-  private tryEvaluateAgainstLoadedRows(query: string): RaxQueryResult | null {
-    const sumColsMatch = query.match(
-      /SUMMARIZECOLUMNS\s*\(\s*(?:'([^']+)'|([A-Za-z0-9_]+))\[([^\]]+)\]\s*,\s*"([^"]+)"\s*,\s*(.+)\)/is,
-    );
-    if (!sumColsMatch) {
-      return null;
-    }
-    const groupTable = (sumColsMatch[1] ?? sumColsMatch[2]).trim();
-    const groupCol = sumColsMatch[3].trim();
-    const metricAlias = sumColsMatch[4].trim();
-    const tableRows = this.state.getTableRows(groupTable);
-    if (!tableRows || tableRows.length === 0) {
-      return null;
-    }
-
-    const groups = new Map<string, number>();
-    for (const row of tableRows) {
-      const keyVal = String(row[groupCol] ?? "Unspecified");
-      groups.set(keyVal, (groups.get(keyVal) ?? 0) + 1);
-    }
-
-    const rows = Array.from(groups.entries()).map(([k, count]) => ({
-      [groupCol]: k,
-      [metricAlias]: count,
-    }));
-
-    return {
-      cacheKey: `local-summarize-${groupTable}-${groupCol}`,
-      cacheHit: false,
-      routedEngine: "DUCKDB",
-      executionTimeMs: 3,
-      executedSql: `SELECT ${groupCol}, COUNT(*) AS "${metricAlias}" FROM ${groupTable} GROUP BY ${groupCol};`,
-      rows,
-    };
-  }
-
   private analyzeSyntax(query: string): RaxDiagnostic[] {
     const diagnostics: RaxDiagnostic[] = [];
     const trimmed = query.trim();
 
     if (!trimmed) {
       return diagnostics;
+    }
+
+    if (/^(?:EVALUATE|DEFINE)\s*$/i.test(trimmed)) {
+      diagnostics.push({
+        severity: "error",
+        line: 1,
+        startColumn: 1,
+        errorCode: "ERR_RAX_INCOMPLETE_QUERY",
+        message: `'${trimmed.toUpperCase()}' requires a table or scalar RAX expression.`,
+      });
+    }
+
+    const emptyArgFnMatch = trimmed.match(
+      /\b(SUM|AVERAGE|AVG|MIN|MAX|COUNT|DISTINCTCOUNT|SUMX|AVERAGEX|DIVIDE|CALCULATE|FILTER|ROW|SUMMARIZECOLUMNS|TOPN|SELECTCOLUMNS|ADDCOLUMNS)\s*\(\s*\)/i,
+    );
+    if (emptyArgFnMatch) {
+      diagnostics.push({
+        severity: "error",
+        line: 1,
+        startColumn: 1,
+        errorCode: "ERR_RAX_MISSING_ARGUMENTS",
+        message: `Function '${emptyArgFnMatch[1].toUpperCase()}()' requires at least one argument.`,
+      });
     }
 
     const stack: Array<{ char: string; line: number; col: number }> = [];
@@ -1690,12 +1664,20 @@ export class RaxRequestsComponent implements OnInit {
   }
 
   private patchActiveTab(patch: Partial<RaxQueryTab>): void {
-    this.patchTabById(this.activeTab().id, patch);
-  }
-
-  private patchTabById(tabId: string, patch: Partial<RaxQueryTab>): void {
-    this.tabs.update((list) =>
-      list.map((tab) => (tab.id === tabId ? { ...tab, ...patch } : tab)),
-    );
+    if (patch.content !== undefined) {
+      this.queryContent.set(patch.content);
+    }
+    if (patch.isExecuting !== undefined) {
+      this.isExecuting.set(patch.isExecuting);
+    }
+    if (patch.lastResult !== undefined) {
+      this.lastResult.set(patch.lastResult);
+    }
+    if (patch.diagnostics !== undefined) {
+      this.diagnostics.set(patch.diagnostics);
+    }
+    if (patch.statusText !== undefined) {
+      this.statusText.set(patch.statusText);
+    }
   }
 }

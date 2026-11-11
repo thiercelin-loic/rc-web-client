@@ -25,7 +25,7 @@ describe("RaxRequestsComponent", () => {
     fixture.detectChanges();
 
     expect(fixture.componentInstance).toBeDefined();
-    expect(fixture.componentInstance.tabs().length).toBeGreaterThanOrEqual(1);
+    expect(fixture.componentInstance.queryContent()).toContain("INFO.VIEW.TABLES()");
   });
 
   it("renders workspace action toolbar with query execution controls", async () => {
@@ -63,20 +63,18 @@ describe("RaxRequestsComponent", () => {
     expect(comp.isSectionExpanded("Measures")).toBe(true);
   });
 
-  it("adds and closes script tabs correctly", async () => {
+  it("manages single editor content and status directly", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
     const comp = fixture.componentInstance;
-    const initialCount = comp.tabs().length;
+    comp.updateActiveContent("EVALUATE 1 + 1");
+    expect(comp.queryContent()).toBe("EVALUATE 1 + 1");
 
-    comp.addNewTab();
-    expect(comp.tabs().length).toBe(initialCount + 1);
-
-    const createdId = comp.activeTabId();
-    comp.closeTab(createdId);
-    expect(comp.tabs().length).toBe(initialCount);
+    comp.clearEditor();
+    expect(comp.queryContent()).toBe("");
+    expect(comp.diagnostics().length).toBe(0);
   });
 
   it("executes INFO.VIEW.TABLES metadata query with Description and IsHidden columns", async () => {
@@ -235,5 +233,88 @@ describe("RaxRequestsComponent", () => {
 
     comp.bottomActiveTab.set("plan");
     expect(comp.bottomActiveTab()).toBe("plan");
+  });
+
+  it("persists editor formula and results across component navigation", async () => {
+    const fixture1 = TestBed.createComponent(RaxRequestsComponent);
+    await fixture1.whenStable();
+    const comp1 = fixture1.componentInstance;
+
+    comp1.updateActiveContent("EVALUATE ROW(\"Check\", 40 + 2)");
+    comp1.runQuery();
+    fixture1.destroy();
+
+    const fixture2 = TestBed.createComponent(RaxRequestsComponent);
+    await fixture2.whenStable();
+    const comp2 = fixture2.componentInstance;
+
+    expect(comp2.queryContent()).toBe("EVALUATE ROW(\"Check\", 40 + 2)");
+    expect(comp2.lastResult()?.rows).toEqual([{ Check: 42 }]);
+  });
+
+  it("evaluates real RAX formulas (SUM, SUMX, DIVIDE, CALCULATE, VAR/RETURN, SUMMARIZECOLUMNS) against loaded table rows", async () => {
+    const fixture = TestBed.createComponent(RaxRequestsComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp["state"].addTable({
+      id: "user-tbl-sales",
+      name: "Orders",
+      role: "FACT",
+      columns: [
+        { name: "Region", dataType: "VARCHAR", keyType: "None" },
+        { name: "Quantity", dataType: "INT", keyType: "None" },
+        { name: "Price", dataType: "DOUBLE", keyType: "None" },
+      ],
+      rowCount: 3,
+    });
+    comp["state"].setTableRows("Orders", [
+      { Region: "EMEA", Quantity: 2, Price: 50 },
+      { Region: "EMEA", Quantity: 3, Price: 100 },
+      { Region: "AMER", Quantity: 5, Price: 20 },
+    ]);
+
+    // 1. DEFINE MEASURE + SUMX with context transition + DIVIDE + ROW
+    comp.updateActiveContent(
+      [
+        "DEFINE",
+        "  MEASURE 'Orders'[Total Qty] = SUM('Orders'[Quantity])",
+        "  MEASURE 'Orders'[Revenue] = SUMX('Orders', [Total Qty] * 'Orders'[Price])",
+        "  MEASURE 'Orders'[EMEA Revenue] = CALCULATE([Revenue], 'Orders'[Region] = \"EMEA\")",
+        "EVALUATE",
+        "VAR AvgUnitRev = DIVIDE([Revenue], [Total Qty], 0)",
+        "RETURN",
+        "ROW(\"Qty\", [Total Qty], \"Revenue\", [Revenue], \"EMEA Revenue\", [EMEA Revenue], \"Avg Unit\", AvgUnitRev)",
+      ].join("\n"),
+    );
+    comp.runQuery();
+
+    const rowRes = comp.activeTab().lastResult?.rows?.[0];
+    expect(rowRes).toEqual({
+      Qty: 10,
+      Revenue: 500,
+      "EMEA Revenue": 400,
+      "Avg Unit": 50,
+    });
+
+    // 2. SUMMARIZECOLUMNS with ORDER BY DESC
+    comp.updateActiveContent(
+      [
+        "EVALUATE",
+        "SUMMARIZECOLUMNS(",
+        "  'Orders'[Region],",
+        "  \"Region Revenue\", [Revenue],",
+        "  \"Region Qty\", [Total Qty]",
+        ")",
+        "ORDER BY [Region Revenue] DESC",
+      ].join("\n"),
+    );
+    comp.runQuery();
+
+    expect(comp.activeTab().lastResult?.rows).toEqual([
+      { Region: "EMEA", "Region Revenue": 400, "Region Qty": 5 },
+      { Region: "AMER", "Region Revenue": 100, "Region Qty": 5 },
+    ]);
   });
 });

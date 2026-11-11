@@ -114,16 +114,6 @@ export interface RaxStudioQueryResult {
   readonly rows: Array<Record<string, any>>;
 }
 
-export interface RaxStudioQueryTab {
-  readonly id: string;
-  readonly name: string;
-  readonly content: string;
-  readonly isExecuting: boolean;
-  readonly lastResult: RaxStudioQueryResult | null;
-  readonly diagnostics: readonly RaxStudioDiagnostic[];
-  readonly statusText: string;
-}
-
 const EMPTY_MEASURE: RaxMeasureDescriptor = {
   id: "",
   label: "No measure selected",
@@ -271,20 +261,11 @@ export class StateManagerService {
     return this.sharedTablesSignal();
   }
 
-  // RAX Studio Query Tabs state (persisted across workspace route navigation)
-  public readonly raxQueryTabs = signal<RaxStudioQueryTab[]>([
-    {
-      id: "query-tab-1",
-      name: "Query 1.rax",
-      content: "EVALUATE\nINFO.VIEW.TABLES()",
-      isExecuting: false,
-      lastResult: null,
-      diagnostics: [],
-      statusText: "Ready",
-    },
-  ]);
-  public readonly activeRaxQueryTabId = signal<string>("query-tab-1");
-  public raxTabSequence = 1;
+  // Single RAX Studio Query Editor state (persisted across workspace route navigation)
+  public readonly raxQueryContent = signal<string>(
+    "EVALUATE\nINFO.VIEW.TABLES()",
+  );
+  public readonly raxLastResult = signal<RaxStudioQueryResult | null>(null);
 
   // Shared table rows store (tableName -> rows array) populated by user ingestion / imports
   private readonly sharedTableRowsSignal = signal<Record<string, readonly Record<string, unknown>[]>>(
