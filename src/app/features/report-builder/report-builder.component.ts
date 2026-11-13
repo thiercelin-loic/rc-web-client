@@ -1,6 +1,7 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   HostListener,
   OnInit,
   computed,
@@ -29,7 +30,7 @@ import {
   FilterValue,
   StateManagerService,
 } from "../../core/state-manager.service";
-import { ExportService } from "../../core/export.service";
+import { ExportService } from "../../core/export/export.service";
 import { SemanticModelService } from "../../core/semantic-model.service";
 import {
   RaxQueryService,
@@ -140,7 +141,11 @@ export interface ColorPalettePreset {
 }
 
 export const COLOR_PALETTE_PRESETS: readonly ColorPalettePreset[] = [
-  { id: "neutral", label: "Neutral Contrast (White / Black)", color: "#000000" },
+  {
+    id: "neutral",
+    label: "Neutral Contrast (White / Black)",
+    color: "#000000",
+  },
   { id: "amber", label: "Amber (#FF981A)", color: "#FF981A" },
   { id: "charcoal", label: "Charcoal (#333333)", color: "#333333" },
   { id: "blue", label: "Cobalt Blue (#2563EB)", color: "#2563EB" },
@@ -406,6 +411,18 @@ export class ReportBuilderComponent implements OnInit {
   public readonly legendPosition = signal<LegendPosition>("top");
 
   constructor() {
+    const unbind = this.exportService.bindCharts((visual) => {
+      const full = this.state
+        .activePageVisuals()
+        .find((item) => item.id === visual.id);
+      if (!full || !this.hasVisualChartData(full)) {
+        return null;
+      }
+      const chart = this.getVisualChartData(full);
+      return { labels: chart.labels, datasets: chart.datasets };
+    });
+    inject(DestroyRef).onDestroy(unbind);
+
     effect(() => {
       const dimensions = this.activeCanvasDimensions();
       const preset = this.selectedCanvasPreset();
@@ -831,9 +848,11 @@ export class ReportBuilderComponent implements OnInit {
     if (existing.includes(trimmed)) {
       return;
     }
-    const isSingleFieldArchetype = ["Gauge", "Slicer", "RAX MeasureCard"].includes(
-      this.selectedArchetype(),
-    );
+    const isSingleFieldArchetype = [
+      "Gauge",
+      "Slicer",
+      "RAX MeasureCard",
+    ].includes(this.selectedArchetype());
     this.commitWells({
       ...current,
       [slotId]: isSingleFieldArchetype ? [trimmed] : [...existing, trimmed],
@@ -900,15 +919,18 @@ export class ReportBuilderComponent implements OnInit {
     const preferredRole = isMetric ? "measure" : "dimension";
     const matchingSlot =
       slots.find((s) => s.role === preferredRole) ?? slots[0];
-    const slotId = matchingSlot ? matchingSlot.id : isMetric ? "values" : "category";
+    const slotId = matchingSlot
+      ? matchingSlot.id
+      : isMetric
+        ? "values"
+        : "category";
     this.assignFieldToSlot(slotId, fullFieldName);
   }
 
   public assignMeasureToVisual(measureId: string): void {
     this.state.selectMeasure(measureId);
     const slots = this.activeArchetypeSlots();
-    const measureSlot =
-      slots.find((s) => s.role === "measure") ?? slots[0];
+    const measureSlot = slots.find((s) => s.role === "measure") ?? slots[0];
     if (measureSlot) {
       this.assignFieldToSlot(measureSlot.id, measureId);
     }
@@ -1041,7 +1063,9 @@ export class ReportBuilderComponent implements OnInit {
     return {};
   }
 
-  private resolveMeasureField(fieldRef: string | undefined): ResolvedMeasureField {
+  private resolveMeasureField(
+    fieldRef: string | undefined,
+  ): ResolvedMeasureField {
     if (!fieldRef) {
       const activeMeasure = this.state.activeMeasure();
       if (activeMeasure.id && activeMeasure.formula) {
@@ -1289,8 +1313,7 @@ export class ReportBuilderComponent implements OnInit {
     }
     const units = rows.reduce((sum, r) => sum + r.units, 0);
     const revenue = rows.reduce((sum, r) => sum + r.revenue, 0);
-    const margin =
-      rows.reduce((sum, r) => sum + r.margin, 0) / rows.length;
+    const margin = rows.reduce((sum, r) => sum + r.margin, 0) / rows.length;
     return { units, revenue, margin };
   }
 
@@ -1351,9 +1374,7 @@ export class ReportBuilderComponent implements OnInit {
     const isNeutral = this.selectedPalette() === "neutral";
 
     const slots = this.resolveWellsForVisual(visual);
-    const valueField =
-      slots["values"]?.[0] ??
-      slots["measure"]?.[0];
+    const valueField = slots["values"]?.[0] ?? slots["measure"]?.[0];
     const resolvedMeasure = this.resolveMeasureField(valueField);
     const dimField =
       slots["category"]?.[0] ??
@@ -1382,19 +1403,16 @@ export class ReportBuilderComponent implements OnInit {
         data.push(Number.isNaN(rawVal) ? 0 : rawVal);
       }
     } else if (visual.metricValue && visual.metricValue !== "-") {
-      const parsedMetric = Number(
-        visual.metricValue.replace(/[^0-9.-]+/g, ""),
-      );
+      const parsedMetric = Number(visual.metricValue.replace(/[^0-9.-]+/g, ""));
       labels = [visual.metricLabel || visual.title];
       data = [Number.isNaN(parsedMetric) ? 0 : parsedMetric];
     }
 
-    const datasetLabel =
-      valueField
-        ? resolvedMeasure.label
-        : visual.metricLabel && visual.metricLabel !== "No data connected"
-          ? visual.metricLabel
-          : visual.title;
+    const datasetLabel = valueField
+      ? resolvedMeasure.label
+      : visual.metricLabel && visual.metricLabel !== "No data connected"
+        ? visual.metricLabel
+        : visual.title;
 
     if (archetype === "Line") {
       return {
@@ -1469,7 +1487,10 @@ export class ReportBuilderComponent implements OnInit {
         chartType: "doughnut",
         labels:
           data.length > 0
-            ? [`Current (${currentVal.toLocaleString("en-US")})`, `Target Remaining (${remaining.toLocaleString("en-US")})`]
+            ? [
+                `Current (${currentVal.toLocaleString("en-US")})`,
+                `Target Remaining (${remaining.toLocaleString("en-US")})`,
+              ]
             : [],
         datasets: [
           {

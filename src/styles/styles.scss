@@ -1207,34 +1207,59 @@ optgroup {
   }
 
   .rc-print-visuals {
-    display: flex !important;
-    flex-wrap: wrap !important;
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 0.75rem !important;
     position: static !important;
     width: 100% !important;
     margin: 0 !important;
-    --bs-gutter-x: 0.75rem !important;
-    --bs-gutter-y: 0.75rem !important;
+    --bs-gutter-x: 0 !important;
+    --bs-gutter-y: 0 !important;
   }
 
   .rc-print-visuals > * {
     break-inside: avoid !important;
     page-break-inside: avoid !important;
-  }
-
-  .rc-print-visuals > [class*="col-xl-6"] {
-    flex: 0 0 50% !important;
-    max-width: 50% !important;
-    box-sizing: border-box !important;
-  }
-
-  .rc-print-visuals > .col-12 {
-    flex: 0 0 100% !important;
+    width: auto !important;
     max-width: 100% !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    flex: none !important;
     box-sizing: border-box !important;
+    transform: none !important;
+  }
+
+  .rc-print-visuals > .col-12:not([class*="col-xl-6"]) {
+    grid-column: 1 / -1 !important;
+  }
+
+  .rc-print-visuals rc-chart-canvas,
+  .rc-print-visuals .rc-chart-canvas-container {
+    display: block !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    overflow: hidden !important;
+  }
+
+  .rc-print-visuals .rc-chart-canvas-container canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .rc-print-visuals .rc-visual-selected .rc-visual-card,
+  .rc-print-visuals .rc-visual-card:hover,
+  .rc-visual-selected .rc-visual-card {
+    border: 1px solid #d9dee2 !important;
+    border-color: #d9dee2 !important;
+    box-shadow: none !important;
+    outline: none !important;
   }
 
   .rc-print-visuals .rc-card {
-    border: 1px solid var(--rc-card-border) !important;
+    border: 1px solid #d9dee2 !important;
+    border-color: #d9dee2 !important;
     box-shadow: none !important;
     break-inside: avoid !important;
     page-break-inside: avoid !important;
