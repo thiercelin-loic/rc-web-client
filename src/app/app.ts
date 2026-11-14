@@ -25,7 +25,7 @@ import { ExportFormatType } from "./core/export/export.interface";
 import { ExportService } from "./core/export/export.service";
 import { AuthService } from "./core/auth.service";
 import { ProjectSerializationService } from "./core/project-serialization.service";
-import { IngestionWorkflowService } from "./core/ingestion-workflow.service";
+import { IngestionService } from "./core/ingestion/ingestion.service";
 
 interface NavModuleItem {
   readonly route: string;
@@ -588,14 +588,14 @@ interface FullscreenElement extends HTMLElement {
                 type="file"
                 accept=".csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro"
                 class="d-none"
-                (change)="ingestion.handleFileSelection($event)"
+                (change)="ingestion.selectFile($event)"
                 aria-label="Upload dataset file"
               />
               <button
                 type="button"
                 id="ribbon-import-btn"
                 class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-                (click)="ingestion.toggleImportMenu()"
+                (click)="ingestion.toggleMenu()"
                 [attr.aria-expanded]="ingestion.importMenuOpen()"
                 aria-haspopup="true"
                 title="Import file formats (.xlsx, .csv, .json, .xml, .parquet)"
@@ -651,7 +651,7 @@ interface FullscreenElement extends HTMLElement {
                         class="dropdown-item py-1 d-flex align-items-center gap-2"
                         role="menuitem"
                         (click)="
-                          ingestion.triggerFileConnector(
+                          ingestion.triggerConnector(
                             connector.id,
                             globalSourceFileInput
                           )
@@ -1529,7 +1529,7 @@ interface FullscreenElement extends HTMLElement {
                     type="button"
                     class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
                     [disabled]="!ingestion.selectedNavigatorSheet()"
-                    (click)="ingestion.confirmNavigatorAndLoad('transform')"
+                    (click)="ingestion.confirmNavigator('transform')"
                     id="navigator-transform-btn"
                   >
                     <span>Transform Data</span>
@@ -1538,7 +1538,7 @@ interface FullscreenElement extends HTMLElement {
                     type="button"
                     class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
                     [disabled]="!ingestion.selectedNavigatorSheet()"
-                    (click)="ingestion.confirmNavigatorAndLoad('load')"
+                    (click)="ingestion.confirmNavigator('load')"
                     id="navigator-load-btn"
                   >
                     <span>Load</span>
@@ -1667,7 +1667,7 @@ export class AppComponent {
   public readonly state = inject(StateManagerService);
   public readonly authService = inject(AuthService);
   public readonly projectService = inject(ProjectSerializationService);
-  public readonly ingestion = inject(IngestionWorkflowService);
+  public readonly ingestion = inject(IngestionService);
   public readonly userMenuOpen = signal<boolean>(false);
   public readonly projectMenuOpen = signal<boolean>(false);
   public readonly editingProject = signal<boolean>(false);
@@ -1976,7 +1976,7 @@ export class AppComponent {
       this.exportMenuOpen.set(false);
     }
     if (this.ingestion.importMenuOpen()) {
-      this.ingestion.closeImportMenu();
+      this.ingestion.closeMenu();
     }
     if (this.ingestion.isNavigatorModalOpen()) {
       this.ingestion.cancelNavigator();
@@ -2008,7 +2008,7 @@ export class AppComponent {
       this.ingestion.importMenuOpen() &&
       !target.closest("#import-dropdown-container")
     ) {
-      this.ingestion.closeImportMenu();
+      this.ingestion.closeMenu();
     }
   }
 }

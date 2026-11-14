@@ -21,3 +21,8 @@ export const DATE_TYPE = 'Date';
 export const COMMA_SEP = ',';
 export const SEMICOLON_SEP = ';';
 export const TAB_SEP = '\t';
+
+export const DEFAULT_EXTENSIONS = '.csv,.tsv,.json,.txt,.xml,.xlsx,.parquet,.avro';
+export const OPENXML_RELS_NS =
+  'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+export const MULTI_SHEET_PATTERN = /^sheet\d*$/i;

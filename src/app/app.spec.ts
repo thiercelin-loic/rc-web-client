@@ -255,7 +255,7 @@ describe('AppComponent', () => {
     expect(app.ingestion.importMenuOpen()).toBe(false);
 
     // Trigger Navigator and Load directly into StateManagerService
-    app.ingestion.openNavigatorForText(
+    app.ingestion.openText(
       'sales_global.csv',
       'CSV',
       'CSV',
@@ -265,7 +265,7 @@ describe('AppComponent', () => {
     expect(app.ingestion.isNavigatorModalOpen()).toBe(true);
     expect(fixture.nativeElement.querySelector('#navigator-modal-title')).toBeTruthy();
 
-    app.ingestion.confirmNavigatorAndLoad('load');
+    app.ingestion.confirmNavigator('load');
     fixture.detectChanges();
     expect(app.ingestion.isNavigatorModalOpen()).toBe(false);
     expect(app.state.sharedTables.some((t) => t.name === 'sales_global')).toBe(true);
@@ -283,7 +283,7 @@ describe('AppComponent', () => {
       buts: i,
     }));
 
-    app.ingestion.openNavigatorForText(
+    app.ingestion.openText(
       'Performances_Ligue1_10_Saisons.json',
       'REST',
       'JSON',
@@ -294,7 +294,7 @@ describe('AppComponent', () => {
     const bodyRows = fixture.nativeElement.querySelectorAll('.rc-preview-table tbody tr');
     expect(bodyRows.length).toBe(100);
 
-    app.ingestion.confirmNavigatorAndLoad('load');
+    app.ingestion.confirmNavigator('load');
     fixture.detectChanges();
     expect(app.state.getTableRows('Performances_Ligue1_10_Saisons').length).toBe(125);
   });

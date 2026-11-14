@@ -10,7 +10,7 @@ import {
   INITIAL_PREP_STEPS,
 } from './data-prep.component';
 import { StateManagerService } from '../../core/state-manager.service';
-import { packZipArchive } from '../../core/zip-archive';
+import { packZip } from '../../core/zip-archive';
 
 describe('DataPrepComponent', () => {
   beforeEach(() => {
@@ -254,7 +254,7 @@ describe('DataPrepComponent', () => {
     const component = fixture.componentInstance;
     expect(component.ingestion.importMenuOpen()).toBe(false);
 
-    component.ingestion.toggleImportMenu();
+    component.ingestion.toggleMenu();
     expect(component.ingestion.importMenuOpen()).toBe(true);
 
     expect(component.ingestion.fileConnectors.every((c) => c.category === 'file')).toBe(true);
@@ -266,7 +266,7 @@ describe('DataPrepComponent', () => {
       'parquet',
     ]);
 
-    component.ingestion.triggerFileConnector('json');
+    component.ingestion.triggerConnector('json');
     expect(component.ingestion.selectedConnectorId()).toBe('json');
     expect(component.ingestion.importMenuOpen()).toBe(false);
   });
@@ -280,7 +280,7 @@ describe('DataPrepComponent', () => {
     expect(component.ingestion.isNavigatorModalOpen()).toBe(false);
 
     // Open Navigator for workbook/CSV
-    component.ingestion.openNavigatorForText(
+    component.ingestion.openText(
       'Financial Sample.xlsx',
       'XLSX',
       'XLSX',
@@ -297,7 +297,7 @@ describe('DataPrepComponent', () => {
     expect(sheet?.rows[0]['Column1']).toBe('Segment');
 
     // Confirm Navigator import and run reactive sync
-    component.ingestion.confirmNavigatorAndLoad();
+    component.ingestion.confirmNavigator();
     fixture.detectChanges();
     expect(component.ingestion.isNavigatorModalOpen()).toBe(false);
 
@@ -376,14 +376,14 @@ describe('DataPrepComponent', () => {
         </sheetData>
       </worksheet>`;
 
-    const xlsxBytes = packZipArchive([
+    const xlsxBytes = packZip([
       { name: 'xl/workbook.xml', data: encoder.encode(workbookXml) },
       { name: 'xl/_rels/workbook.xml.rels', data: encoder.encode(relsXml) },
       { name: 'xl/sharedStrings.xml', data: encoder.encode(sharedStringsXml) },
       { name: 'xl/worksheets/sheet1.xml', data: encoder.encode(sheet1Xml) },
     ]);
 
-    component.ingestion.openNavigatorForBinary(
+    component.ingestion.openBinary(
       'Performances_NBA_10_Saisons.xlsx',
       'XLSX',
       'XLSX',
@@ -406,7 +406,7 @@ describe('DataPrepComponent', () => {
       Column4: 18.6,
     });
 
-    component.ingestion.confirmNavigatorAndLoad('transform');
+    component.ingestion.confirmNavigator('transform');
     fixture.detectChanges();
 
     expect(component.columns().map((c) => c.name)).toEqual([
@@ -455,7 +455,7 @@ describe('DataPrepComponent', () => {
       2,
     );
 
-    component.ingestion.openNavigatorForText(
+    component.ingestion.openText(
       'Performances_Ligue1_10_Saisons.json',
       'REST',
       'JSON',
@@ -481,7 +481,7 @@ describe('DataPrepComponent', () => {
       Column6: 'buts_encaisses',
     });
 
-    component.ingestion.confirmNavigatorAndLoad('transform');
+    component.ingestion.confirmNavigator('transform');
     fixture.detectChanges();
 
     expect(component.columns().map((c) => `${c.name}:${c.type}`)).toEqual([

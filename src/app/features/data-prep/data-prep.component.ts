@@ -15,7 +15,7 @@ import {
   DataPrepQuarantineRow,
 } from '../../services/api.service';
 import { StateManagerService } from '../../core/state-manager.service';
-import { IngestionWorkflowService } from '../../core/ingestion-workflow.service';
+import { IngestionService } from '../../core/ingestion/ingestion.service';
 import {
   AggregationFunction,
   DATA_CONNECTORS,
@@ -66,7 +66,7 @@ export const INITIAL_PREP_STEPS: readonly DataPrepStep[] = [];
 export class DataPrepComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly state = inject(StateManagerService);
-  public readonly ingestion = inject(IngestionWorkflowService);
+  public readonly ingestion = inject(IngestionService);
 
   public readonly filterOperators = FILTER_OPERATORS;
   public readonly activeMobileTab = signal<'data' | 'tools'>('data');
@@ -426,7 +426,7 @@ export class DataPrepComponent implements OnInit {
     if (!snapshot) return;
 
     const activeSlice = targetIdx >= 0 ? steps.slice(0, targetIdx + 1) : [];
-    const { columns, rows, quarantined } = this.ingestion.evaluateStepsLocally(
+    const { columns, rows, quarantined } = this.ingestion.evaluateSteps(
       snapshot.columns,
       snapshot.rows,
       activeSlice,
@@ -455,7 +455,7 @@ export class DataPrepComponent implements OnInit {
           const otherSnap = this.rawSnapshotsBySource()[other.id];
           if (otherSnap) {
             const otherSteps = this.stepsBySource()[other.id] ?? [];
-            const evaluatedOther = this.ingestion.evaluateStepsLocally(
+            const evaluatedOther = this.ingestion.evaluateSteps(
               otherSnap.columns,
               otherSnap.rows,
               otherSteps,
@@ -958,7 +958,7 @@ export class DataPrepComponent implements OnInit {
     format: 'CSV' | 'PARQUET' | 'XLSX' | 'REST',
     content: string,
   ): void {
-    const res = this.ingestion.loadDirectDataset(name, format, content);
+    const res = this.ingestion.loadDirect(name, format, content);
     if (!res) return;
     this.columns.set(res.columns);
     this.rows.set(res.rows);
