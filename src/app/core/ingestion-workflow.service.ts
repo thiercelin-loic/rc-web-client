@@ -18,15 +18,13 @@ import {
   toBase64,
 } from '../features/data-prep/data-prep.model';
 import {
-  detectDelimitedSeparator,
-  extractSheetsFromDelimitedText,
-  extractSheetsFromJson,
-  extractSheetsFromXml,
-  extractTabularRecordsFromJson,
-  inferColumnTypeFromRows,
-  parseDelimitedGrid,
-  unpromotedSheetToJsonPayload,
-} from './ingestion-parsers';
+  detectSeparator,
+  extractDelimited,
+  parseGrid,
+} from './ingestion/delimited.parser';
+import { extractJson, extractRecords } from './ingestion/json.parser';
+import { inferType, toPayload } from './ingestion/sheet.builder';
+import { extractXml } from './ingestion/xml.parser';
 
 export interface PipelineSyncEvent {
   readonly sourceId: string;
@@ -211,7 +209,7 @@ export class IngestionWorkflowService {
     const rawText = this.pendingRawText();
     const rawBase64 = this.pendingRawBase64();
     const normalizedRawText =
-      backendFormat === 'JSON' ? (unpromotedSheetToJsonPayload(sheet) ?? rawText) : rawText;
+      backendFormat === 'JSON' ? (toPayload(sheet) ?? rawText) : rawText;
 
     const datasetId = `ds_${Date.now()}`;
     const newSource: IngestionSource = {
@@ -348,7 +346,7 @@ export class IngestionWorkflowService {
     let snapshotRawText = content;
 
     if (format === 'REST' || name.toLowerCase().endsWith('.json')) {
-      const jsonResult = extractTabularRecordsFromJson(content);
+      const jsonResult = extractRecords(content);
       if (jsonResult.error) {
         this.state.announceError(jsonResult.error);
         return null;
@@ -359,11 +357,11 @@ export class IngestionWorkflowService {
         snapshotRawText = JSON.stringify(parsedRows);
       }
     } else {
-      const separator = detectDelimitedSeparator(
+      const separator = detectSeparator(
         content,
         backendFormat === 'TSV' ? '\t' : undefined,
       );
-      const grid = parseDelimitedGrid(content, separator);
+      const grid = parseGrid(content, separator);
       if (grid.length > 0) {
         const headers = grid[0];
         const dataLines = grid.slice(1);
@@ -386,7 +384,7 @@ export class IngestionWorkflowService {
         });
 
         parsedColumns = headers.map((col) => {
-          const type = inferColumnTypeFromRows(parsedRows, col);
+          const type = inferType(parsedRows, col);
           return { name: col, type, icon: type };
         });
       }
@@ -680,12 +678,12 @@ export class IngestionWorkflowService {
     backendFormat?: BackendSourceFormat,
   ): { sheets: WorkbookSheet[]; error?: string } {
     if (backendFormat === 'JSON' || /\.json$/i.test(fileName)) {
-      return extractSheetsFromJson(fileName, text);
+      return extractJson(fileName, text);
     }
     if (backendFormat === 'XML' || /\.xml$/i.test(fileName)) {
-      return extractSheetsFromXml(fileName, text);
+      return extractXml(fileName, text);
     }
-    return extractSheetsFromDelimitedText(
+    return extractDelimited(
       fileName,
       text,
       backendFormat === 'TSV' ? '\t' : undefined,
