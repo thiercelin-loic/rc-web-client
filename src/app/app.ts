@@ -21,7 +21,6 @@ import {
   ExchangeLogEntry,
   StateManagerService,
 } from "./core/state-manager.service";
-import { HelpCenterService } from "./core/help-center.service";
 import { ExportFormatType } from "./core/export/export.interface";
 import { ExportService } from "./core/export/export.service";
 import { AuthService } from "./core/auth.service";
@@ -1684,7 +1683,6 @@ export class AppComponent {
     }
     return `${exchange.method} request completed (${exchange.status ?? "unknown status"}) in ${exchange.durationMs} ms`;
   }
-  public readonly helpCenter = inject(HelpCenterService);
   private readonly exportService = inject(ExportService);
   private readonly router = inject(Router);
 
