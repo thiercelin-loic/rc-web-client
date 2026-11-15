@@ -9,7 +9,8 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
-import { AuthResponse, AuthService, SignupData } from "../../core/auth.service";
+import { AuthResponse, SignupData } from "../../core/auth.interface";
+import { AuthService } from "../../core/auth.service";
 import { StateManagerService } from "../../core/state-manager.service";
 
 export interface PasswordStrength {

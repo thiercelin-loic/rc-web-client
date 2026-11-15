@@ -21,10 +21,6 @@ export interface StepEvaluationResult {
   readonly quarantined: DataPrepQuarantineRow[];
 }
 
-/**
- * Pure R-Query step execution engine for tabular data preparation.
- * Evaluates transformation chains locally without UI or server dependencies.
- */
 @Injectable({ providedIn: "root" })
 export class DataPrepEngineService {
   public evaluateStepsLocally(

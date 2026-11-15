@@ -1,53 +1,15 @@
 import { Injectable, computed, inject, signal } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Router } from "@angular/router";
-import { Observable, catchError, of, tap, throwError } from "rxjs";
+import { Observable, tap } from "rxjs";
+import {
+  SignupData,
+  AuthResponse,
+  UserProfile,
+  LoginCredentials,
+  JwtClaims,
+} from "./auth.interface";
 
-export interface UserProfile {
-  id: string;
-  username: string;
-  email: string;
-  fullName: string;
-  role: string;
-  tenantId?: string;
-}
-
-export interface AuthResponse {
-  token: string;
-  tokenType: string;
-  user: UserProfile;
-  message?: string;
-}
-
-export interface LoginCredentials {
-  username: string;
-  password: string;
-}
-
-export interface SignupData {
-  username: string;
-  email: string;
-  password: string;
-  fullName: string;
-  role?: string;
-}
-
-export interface JwtClaims {
-  sub?: string;
-  userId?: string;
-  fullName?: string;
-  exp?: number;
-  iat?: number;
-  role?: string;
-  email?: string;
-  tenantId?: string;
-}
-
-/**
- * Authentication & Authorization Service.
- * Follows modern Angular practices (Matheus Luna, 2024).
- * Manages reactive signals, token lifecycle, role checking and route guards.
- */
 @Injectable({
   providedIn: "root",
 })

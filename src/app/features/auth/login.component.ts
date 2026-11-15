@@ -9,11 +9,8 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import {
-  AuthResponse,
-  AuthService,
-  LoginCredentials,
-} from "../../core/auth.service";
+import { AuthService } from "../../core/auth.service";
+import { AuthResponse, LoginCredentials } from "../../core/auth.interface";
 import { StateManagerService } from "../../core/state-manager.service";
 
 @Component({

@@ -17,6 +17,7 @@ export const THEME_STORAGE_KEY = "rc_theme_preference";
 const MEASURES_STORAGE_KEY = "rc_measures_state";
 const TABLES_STORAGE_KEY = "rc_tables_state";
 const TABLE_ROWS_STORAGE_KEY = "rc_table_rows_state";
+const WORKSPACE_STORAGE_KEY = "rc_workspace_state";
 const ANONYMOUS_STORAGE_SCOPE = "anonymous";
 
 export interface FilterClause {
@@ -189,6 +190,13 @@ export interface CanvasVisualItem {
   fieldWells?: Record<string, string[]>;
 }
 
+interface StoredWorkspaceState {
+  readonly project: ProjectDescriptor;
+  readonly pages: string[];
+  readonly activePage: string;
+  readonly visuals: Record<string, CanvasVisualItem[]>;
+}
+
 interface LegacyMediaQueryList {
   addListener?: (
     listener: (event: MediaQueryListEvent | MediaQueryList) => void,
@@ -222,17 +230,20 @@ export class StateManagerService {
       watermark: "00:00",
     },
   ];
-  public readonly activeProject = signal<ProjectDescriptor>(this.projects[0]);
-  public readonly watermarkTimestamp = signal<string>("00:00");
+  private readonly initialWorkspace = this.getStoredWorkspace();
+  public readonly activeProject = signal<ProjectDescriptor>(
+    this.initialWorkspace.project,
+  );
+  public readonly watermarkTimestamp = signal<string>(
+    this.initialWorkspace.project.watermark,
+  );
 
   // Report pages and canvas visuals state
-  public readonly reportPages = signal<string[]>(["Page 1"]);
-  public readonly activePage = signal<string>("Page 1");
+  public readonly reportPages = signal<string[]>(this.initialWorkspace.pages);
+  public readonly activePage = signal<string>(this.initialWorkspace.activePage);
   private readonly pageVisualsSignal = signal<
     Record<string, CanvasVisualItem[]>
-  >({
-    "Page 1": [],
-  });
+  >(this.initialWorkspace.visuals);
   public readonly activePageVisuals = computed<CanvasVisualItem[]>(() => {
     const pageName = this.activePage();
     return this.pageVisualsSignal()[pageName] ?? [];
@@ -366,6 +377,15 @@ export class StateManagerService {
     });
 
     effect(() => {
+      this.persistWorkspace({
+        project: this.activeProject(),
+        pages: this.reportPages(),
+        activePage: this.activePage(),
+        visuals: this.pageVisualsSignal(),
+      });
+    });
+
+    effect(() => {
       const activeTheme = this.theme();
       if (typeof document !== "undefined") {
         document.documentElement.setAttribute("data-bs-theme", activeTheme);
@@ -393,6 +413,14 @@ export class StateManagerService {
     this.measuresSignal.set(this.getStoredMeasures());
     this.activeMeasureId.set("");
     this.customFormulaText.set("");
+
+    const workspace = this.getStoredWorkspace();
+    this.activeProject.set(workspace.project);
+    this.watermarkTimestamp.set(workspace.project.watermark);
+    this.reportPages.set(workspace.pages);
+    this.activePage.set(workspace.activePage);
+    this.pageVisualsSignal.set(workspace.visuals);
+    this.filterState.set(new CompositeFilterContext());
   }
 
   // ---------------------------------------------------------------------------
@@ -1252,6 +1280,59 @@ export class StateManagerService {
         window.localStorage.setItem(
           this.getScopedStorageKey(TABLES_STORAGE_KEY),
           JSON.stringify(tableList),
+        );
+      } catch {
+        // Safe fallback in storage restricted environments
+      }
+    }
+  }
+
+  private getStoredWorkspace(): StoredWorkspaceState {
+    const fallback: StoredWorkspaceState = {
+      project: this.projects[0],
+      pages: ["Page 1"],
+      activePage: "Page 1",
+      visuals: { "Page 1": [] },
+    };
+    if (typeof window === "undefined" || !window.localStorage) {
+      return fallback;
+    }
+    try {
+      const raw = window.localStorage.getItem(
+        this.getScopedStorageKey(WORKSPACE_STORAGE_KEY),
+      );
+      if (!raw) {
+        return fallback;
+      }
+      const parsed = JSON.parse(raw) as Partial<StoredWorkspaceState>;
+      const pages =
+        Array.isArray(parsed.pages) && parsed.pages.length > 0
+          ? parsed.pages
+          : fallback.pages;
+      const activePage =
+        typeof parsed.activePage === "string" && pages.includes(parsed.activePage)
+          ? parsed.activePage
+          : pages[0];
+      return {
+        project: parsed.project?.filename ? parsed.project : fallback.project,
+        pages,
+        activePage,
+        visuals:
+          parsed.visuals && typeof parsed.visuals === "object"
+            ? parsed.visuals
+            : fallback.visuals,
+      };
+    } catch {
+      return fallback;
+    }
+  }
+
+  private persistWorkspace(workspace: StoredWorkspaceState): void {
+    if (typeof window !== "undefined" && window.localStorage) {
+      try {
+        window.localStorage.setItem(
+          this.getScopedStorageKey(WORKSPACE_STORAGE_KEY),
+          JSON.stringify(workspace),
         );
       } catch {
         // Safe fallback in storage restricted environments
