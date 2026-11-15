@@ -24,7 +24,7 @@ import {
 import { ExportFormatType } from "./core/export/export.interface";
 import { ExportService } from "./core/export/export.service";
 import { AuthService } from "./core/auth.service";
-import { ProjectSerializationService } from "./core/project-serialization.service";
+import { ProjectService } from "./core/project/project.service";
 import { IngestionService } from "./core/ingestion/ingestion.service";
 
 interface NavModuleItem {
@@ -1666,7 +1666,7 @@ interface FullscreenElement extends HTMLElement {
 export class AppComponent {
   public readonly state = inject(StateManagerService);
   public readonly authService = inject(AuthService);
-  public readonly projectService = inject(ProjectSerializationService);
+  public readonly projectService = inject(ProjectService);
   public readonly ingestion = inject(IngestionService);
   public readonly userMenuOpen = signal<boolean>(false);
   public readonly projectMenuOpen = signal<boolean>(false);
@@ -1840,14 +1840,14 @@ export class AppComponent {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) {
-      void this.projectService.openProjectFile(file);
+      void this.projectService.openFile(file);
     }
     input.value = "";
   }
 
   public onCreateNewProject(): void {
     this.projectMenuOpen.set(false);
-    this.projectService.createNewProject();
+    this.projectService.createProject();
   }
 
   public startRenameProject(event?: Event): void {

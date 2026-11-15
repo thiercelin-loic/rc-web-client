@@ -7,6 +7,7 @@
 export interface ZipEntrySpec {
   readonly name: string;
   readonly data: Uint8Array;
+  readonly compressed?: boolean;
 }
 
 const CRC32_TABLE = new Uint32Array(256);
@@ -26,7 +27,30 @@ export function computeCrc32(data: Uint8Array): number {
   return (crc ^ 0xffffffff) >>> 0;
 }
 
-export function packZipArchive(entries: readonly ZipEntrySpec[]): Uint8Array {
+/**
+ * Compress a Uint8Array using DEFLATE.
+ * In a Node environment we use the built‑in `zlib` library (raw deflate).
+ * If `zlib` is unavailable (e.g., browser), the data is returned unchanged.
+ */
+function deflateData(data: Uint8Array): Uint8Array {
+  try {
+    const nodeRequire = (
+      globalThis as unknown as {
+        require?: (id: string) => { deflateRawSync: (d: Uint8Array) => Uint8Array };
+      }
+    ).require;
+    if (nodeRequire) {
+      const zlib = nodeRequire('zlib');
+      return new Uint8Array(zlib.deflateRawSync(data));
+    }
+    return data;
+  } catch {
+    return data;
+  }
+}
+
+
+export function packZip(entries: readonly ZipEntrySpec[]): Uint8Array {
   const encoder = new TextEncoder();
   const localParts: Uint8Array[] = [];
   const centralParts: Uint8Array[] = [];
@@ -34,20 +58,23 @@ export function packZipArchive(entries: readonly ZipEntrySpec[]): Uint8Array {
 
   for (const entry of entries) {
     const nameBytes = encoder.encode(entry.name);
-    const dataBytes = entry.data;
-    const crc = computeCrc32(dataBytes);
+    const rawData = entry.data;
+    const useCompression = entry.compressed !== false; // default true
+    const dataBytes = useCompression ? deflateData(rawData) : rawData;
+    const crc = computeCrc32(rawData);
+    const compressionMethod = dataBytes !== rawData ? 8 : 0; // 8 = DEFLATE, 0 = STORE
 
     const localHeader = new Uint8Array(30 + nameBytes.length);
     const lv = new DataView(localHeader.buffer);
     lv.setUint32(0, 0x04034b50, true); // PK\x03\x04
     lv.setUint16(4, 20, true); // Version needed (2.0)
     lv.setUint16(6, 0, true); // Flags
-    lv.setUint16(8, 0, true); // Compression (0 = STORE)
+    lv.setUint16(8, compressionMethod, true); // Compression
     lv.setUint16(10, 0, true); // Mod time
     lv.setUint16(12, 0, true); // Mod date
     lv.setUint32(14, crc, true); // CRC-32
     lv.setUint32(18, dataBytes.length, true); // Compressed size
-    lv.setUint32(22, dataBytes.length, true); // Uncompressed size
+    lv.setUint32(22, rawData.length, true); // Uncompressed size
     lv.setUint16(26, nameBytes.length, true); // Filename length
     lv.setUint16(28, 0, true); // Extra field length
     localHeader.set(nameBytes, 30);
@@ -60,7 +87,7 @@ export function packZipArchive(entries: readonly ZipEntrySpec[]): Uint8Array {
     cv.setUint16(4, 20, true); // Version made by
     cv.setUint16(6, 20, true); // Version needed
     cv.setUint16(8, 0, true); // Flags
-    cv.setUint16(10, 0, true); // Compression (0 = STORE)
+    cv.setUint16(10, compressionMethod, true); // Compression
     cv.setUint16(12, 0, true); // Mod time
     cv.setUint16(14, 0, true); // Mod date
     cv.setUint32(16, crc, true); // CRC-32

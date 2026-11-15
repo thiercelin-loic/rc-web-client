@@ -120,7 +120,7 @@ describe('AppComponent', () => {
     app.toggleProjectMenu();
     expect(app.projectMenuOpen()).toBe(true);
 
-    const createSpy = vi.spyOn(app.projectService, 'createNewProject').mockImplementation(() => {});
+    const createSpy = vi.spyOn(app.projectService, 'createProject').mockImplementation(() => {});
     app.onCreateNewProject();
     expect(createSpy).toHaveBeenCalledTimes(1);
     expect(app.projectMenuOpen()).toBe(false);
