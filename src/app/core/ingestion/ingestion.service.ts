@@ -1,5 +1,8 @@
-import { Injectable, computed, inject, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { HttpClient } from "@angular/common/http";
+import { Injectable, computed, inject, signal } from "@angular/core";
+import { Router } from "@angular/router";
+import { Observable, catchError, map, of, switchMap } from "rxjs";
+import { SemanticModelService } from "../model/model.service";
 import {
   BackendSourceFormat,
   DATA_CONNECTORS,
@@ -12,57 +15,55 @@ import {
   isBinaryFormat,
   tableNameFromSource,
   toBase64,
-} from '../../features/data-prep/data-prep.model';
-import { DataPrepEngineService } from '../data-prep-engine.service';
-import { StateManagerService } from '../state-manager.service';
-import {
-  detectSeparator,
-  extractDelimited,
-  parseGrid,
-} from './delimited.parser';
+  toDisplayType,
+} from "../../features/data-prep/data-prep.model";
+import { BackendRecordBatch } from "../prep/prep.interface";
+import { DataPrepEngineService } from "../prep/prep.service";
+import { StateManagerService } from "../state/state.service";
 import {
   DEFAULT_EXTENSIONS,
+  INGESTION_PREVIEW_ENDPOINT,
+  INGESTION_SHEETS_ENDPOINT,
   MULTI_SHEET_PATTERN,
-} from './ingestion.constants';
+} from "./ingestion.constants";
 import {
   DirectDataset,
   EvalResult,
   NavigatorMode,
-  ParsedTextResult,
   PipelineSyncEvent,
+  SheetExtractionRequest,
+  SheetExtractionResponse,
   SourceFormat,
-} from './ingestion.interface';
-import { extractJson, extractRecords } from './json.parser';
-import { inferType, toPayload } from './sheet.builder';
-import { extractXlsx } from './xlsx.parser';
-import { extractXml } from './xml.parser';
+} from "./ingestion.interface";
 
 @Injectable({
-  providedIn: 'root',
+  providedIn: "root",
 })
 export class IngestionService {
+  private readonly http = inject(HttpClient);
   private readonly state = inject(StateManagerService);
   private readonly router = inject(Router, { optional: true });
   private readonly engine = inject(DataPrepEngineService);
+  private readonly model = inject(SemanticModelService);
 
   public readonly sources = signal<readonly IngestionSource[]>([]);
-  public readonly selectedSourceId = signal<string>('');
+  public readonly selectedSourceId = signal<string>("");
   public readonly stepsBySource = signal<Record<string, readonly DataPrepStep[]>>({});
   public readonly rawSnapshotsBySource = signal<Record<string, SourceSnapshot>>({});
   public readonly pipelineSync = signal<PipelineSyncEvent | null>(null);
 
   public readonly importMenuOpen = signal<boolean>(false);
-  public readonly selectedConnectorId = signal<string>('excel');
+  public readonly selectedConnectorId = signal<string>("excel");
 
   public readonly isNavigatorModalOpen = signal<boolean>(false);
-  public readonly pendingFileName = signal<string>('');
-  public readonly pendingFileFormat = signal<SourceFormat>('XLSX');
-  public readonly pendingBackendFormat = signal<BackendSourceFormat>('XLSX');
-  public readonly pendingRawText = signal<string>('');
-  public readonly pendingRawBase64 = signal<string>('');
+  public readonly pendingFileName = signal<string>("");
+  public readonly pendingFileFormat = signal<SourceFormat>("XLSX");
+  public readonly pendingBackendFormat = signal<BackendSourceFormat>("XLSX");
+  public readonly pendingRawText = signal<string>("");
+  public readonly pendingRawBase64 = signal<string>("");
   public readonly navigatorSheets = signal<readonly WorkbookSheet[]>([]);
-  public readonly selectedNavigatorSheetId = signal<string>('');
-  public readonly navigatorError = signal<string>('');
+  public readonly selectedNavigatorSheetId = signal<string>("");
+  public readonly navigatorError = signal<string>("");
 
   public readonly selectedNavigatorSheet = computed(() => {
     const list = this.navigatorSheets();
@@ -72,23 +73,22 @@ export class IngestionService {
 
   public readonly fileConnectors = DATA_CONNECTORS;
 
-  /** Toggles the global import connector dropdown. */
   public toggleMenu(): void {
     this.importMenuOpen.update((open) => !open);
   }
 
-  /** Closes the global import connector dropdown. */
   public closeMenu(): void {
     this.importMenuOpen.set(false);
   }
 
-  /** Selects a connector and opens the native file picker when an input is provided. */
   public triggerConnector(
     connectorId: string,
     fileInput?: HTMLInputElement,
   ): void {
     const connector = DATA_CONNECTORS.find((c) => c.id === connectorId);
-    if (!connector) return;
+    if (!connector) {
+      return;
+    }
 
     this.selectedConnectorId.set(connectorId);
     this.importMenuOpen.set(false);
@@ -98,110 +98,75 @@ export class IngestionService {
     }
   }
 
-  /** Reads the selected file from an `<input type="file">` change event. */
   public selectFile(event: Event): void {
     const input = event.target as HTMLInputElement;
-    if (!input.files || input.files.length === 0) return;
+    if (!input.files || input.files.length === 0) {
+      return;
+    }
     const file = input.files[0];
     const fileName = file.name;
-    const backendFmt = formatFromFileName(fileName) ?? 'CSV';
+    const backendFmt = formatFromFileName(fileName) ?? "CSV";
     const format: SourceFormat =
-      backendFmt === 'JSON' || backendFmt === 'XML'
-        ? 'REST'
-        : backendFmt === 'XLSX'
-          ? 'XLSX'
-          : backendFmt === 'PARQUET' || backendFmt === 'AVRO'
-            ? 'PARQUET'
-            : 'CSV';
+      backendFmt === "JSON" || backendFmt === "XML"
+        ? "REST"
+        : backendFmt === "XLSX"
+          ? "XLSX"
+          : backendFmt === "PARQUET" || backendFmt === "AVRO"
+            ? "PARQUET"
+            : "CSV";
 
     const reader = new FileReader();
     if (isBinaryFormat(backendFmt)) {
       reader.onload = (e) => {
         const buffer = e.target?.result as ArrayBuffer;
-        if (!buffer) return;
+        if (!buffer) {
+          return;
+        }
         this.openBinary(fileName, format, backendFmt, buffer, toBase64(buffer));
       };
       reader.readAsArrayBuffer(file);
     } else {
       reader.onload = (e) => {
         const text = e.target?.result as string;
-        if (!text) return;
+        if (!text) {
+          return;
+        }
         this.openText(fileName, format, backendFmt, text);
       };
       reader.readAsText(file);
     }
-    input.value = '';
+    input.value = "";
   }
 
-  /** Opens the Navigator modal for a binary file (XLSX, Parquet, Avro). */
   public openBinary(
     name: string,
     format: SourceFormat,
     backendFormat: BackendSourceFormat,
-    buffer: ArrayBuffer,
+    _buffer: ArrayBuffer,
     base64: string,
   ): void {
-    const sheets = extractXlsx(buffer);
-    this.pendingFileName.set(name);
-    this.pendingFileFormat.set(format);
-    this.pendingBackendFormat.set(backendFormat);
-    this.pendingRawBase64.set(base64);
-    this.pendingRawText.set('');
-    this.navigatorSheets.set(sheets);
-    this.selectedNavigatorSheetId.set(sheets[0]?.id ?? '');
-
-    if (sheets.length === 0) {
-      const msg =
-        backendFormat === 'PARQUET' || backendFormat === 'AVRO'
-          ? `${backendFormat} binary preview requires backend ingestion support or JSON/CSV/XLSX export.`
-          : `Failed to extract readable sheets from "${name}": file may be corrupt or not a valid OpenXML .xlsx workbook.`;
-      this.navigatorError.set(msg);
-      this.state.announceError(msg);
-    } else {
-      this.navigatorError.set('');
-      this.state.announce(`Navigator: select sheet to preview from ${name}.`);
-    }
-    this.isNavigatorModalOpen.set(true);
+    this.extractSheets(name, format, backendFormat, "", base64);
   }
 
-  /** Opens the Navigator modal for a text file (CSV, TSV, JSON, XML). */
   public openText(
     name: string,
     format: SourceFormat,
     backendFormat: BackendSourceFormat,
     text: string,
   ): void {
-    const { sheets, error } = this.extractText(name, text, backendFormat);
-    this.pendingFileName.set(name);
-    this.pendingFileFormat.set(format);
-    this.pendingBackendFormat.set(backendFormat);
-    this.pendingRawBase64.set('');
-    this.pendingRawText.set(text);
-    this.navigatorSheets.set(sheets);
-    this.selectedNavigatorSheetId.set(sheets[0]?.id ?? '');
-
-    if (error) {
-      this.navigatorError.set(error);
-      this.state.announceError(error);
-    } else {
-      this.navigatorError.set('');
-      this.state.announce(`Navigator: select sheet to preview from ${name}.`);
-    }
-    this.isNavigatorModalOpen.set(true);
+    this.extractSheets(name, format, backendFormat, text, "");
   }
 
-  /** Closes the Navigator modal and clears pending file buffers. */
   public cancelNavigator(): void {
     this.isNavigatorModalOpen.set(false);
-    this.pendingFileName.set('');
-    this.pendingRawText.set('');
-    this.pendingRawBase64.set('');
-    this.navigatorError.set('');
+    this.pendingFileName.set("");
+    this.pendingRawText.set("");
+    this.pendingRawBase64.set("");
+    this.navigatorError.set("");
     this.navigatorSheets.set([]);
   }
 
-  /** Commits the selected Navigator item with the 4-step ingestion pipeline. */
-  public confirmNavigator(mode: NavigatorMode = 'transform'): void {
+  public confirmNavigator(mode: NavigatorMode = "transform"): void {
     const sheet = this.selectedNavigatorSheet();
     if (!sheet) {
       this.isNavigatorModalOpen.set(false);
@@ -213,8 +178,6 @@ export class IngestionService {
     const backendFormat = this.pendingBackendFormat();
     const rawText = this.pendingRawText();
     const rawBase64 = this.pendingRawBase64();
-    const normalizedRawText =
-      backendFormat === 'JSON' ? (toPayload(sheet) ?? rawText) : rawText;
 
     const datasetId = `ds_${Date.now()}`;
     const newSource: IngestionSource = {
@@ -228,12 +191,12 @@ export class IngestionService {
 
     const snapCols = [...sheet.columns];
     const snapRows = [...sheet.rows];
-    this.rawSnapshotsBySource.update((map) => ({
-      ...map,
+    this.rawSnapshotsBySource.update((current) => ({
+      ...current,
       [datasetId]: {
         columns: snapCols,
         rows: snapRows,
-        rawText: normalizedRawText,
+        rawText,
         rawBase64,
       },
     }));
@@ -241,154 +204,229 @@ export class IngestionService {
     const initialSteps = this.buildPipeline(fileName, backendFormat, sheet);
     this.sources.update((srcs) => [...srcs, newSource]);
     this.selectedSourceId.set(datasetId);
-    this.stepsBySource.update((map) => ({ ...map, [datasetId]: initialSteps }));
+    this.stepsBySource.update((current) => ({
+      ...current,
+      [datasetId]: initialSteps,
+    }));
     this.isNavigatorModalOpen.set(false);
 
-    const evaluated = this.evaluateSteps(snapCols, snapRows, initialSteps);
-    if (mode === 'load' && evaluated.columns.length > 0) {
-      const multiTable =
-        this.navigatorSheets().length > 1 &&
-        !MULTI_SHEET_PATTERN.test(sheet.name);
-      const tableName = multiTable
-        ? `${tableNameFromSource(fileName)}_${tableNameFromSource(sheet.name)}`
-        : tableNameFromSource(fileName);
-      this.publishTable(`tbl_${datasetId}`, tableName, evaluated.columns, evaluated.rows);
-    }
+    this.evaluateSteps(snapCols, snapRows, initialSteps).subscribe(
+      (evaluated) => {
+        if (mode === "load" && evaluated.columns.length > 0) {
+          const multiTable =
+            this.navigatorSheets().length > 1 &&
+            !MULTI_SHEET_PATTERN.test(sheet.name);
+          const tableName = multiTable
+            ? `${tableNameFromSource(fileName)}_${tableNameFromSource(sheet.name)}`
+            : tableNameFromSource(fileName);
+          this.publishTable(
+            `tbl_${datasetId}`,
+            tableName,
+            evaluated.columns,
+            evaluated.rows,
+          );
+        }
 
-    this.pipelineSync.update((prev) => ({
-      sourceId: datasetId,
-      stepIndex: initialSteps.length - 1,
-      seq: (prev?.seq ?? 0) + 1,
-    }));
+        this.pipelineSync.update((prev) => ({
+          sourceId: datasetId,
+          stepIndex: initialSteps.length - 1,
+          seq: (prev?.seq ?? 0) + 1,
+        }));
 
-    this.state.announce(
-      mode === 'load'
-        ? `Loaded sheet "${sheet.name}" from "${fileName}" (${evaluated.rows.length} rows) into semantic model.`
-        : `Loaded sheet "${sheet.name}" from "${fileName}" with standard 4-step ingestion pipeline.`,
+        this.state.announce(
+          mode === "load"
+            ? `Loaded sheet "${sheet.name}" from "${fileName}" (${evaluated.rows.length} rows) into semantic model.`
+            : `Loaded sheet "${sheet.name}" from "${fileName}" with standard 4-step ingestion pipeline.`,
+        );
+      },
     );
 
     if (
-      mode === 'transform' &&
+      mode === "transform" &&
       this.router &&
-      this.router.url !== '/data-prep' &&
-      this.router.config.some((route) => route.path === 'data-prep')
+      this.router.url !== "/data-prep" &&
+      this.router.config.some((route) => route.path === "data-prep")
     ) {
-      void this.router.navigate(['/data-prep']).catch(() => false);
+      void this.router.navigate(["/data-prep"]).catch(() => false);
     }
   }
 
-  /** Direct single-step ingestion helper used by REST streams and tests. */
   public loadDirect(
     name: string,
     format: SourceFormat,
     content: string,
-  ): DirectDataset | null {
+  ): Observable<DirectDataset | null> {
     const datasetId = `ds_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
     const backendFormat =
-      formatFromFileName(name) ?? (format === 'REST' ? 'JSON' : format);
-    let parsedColumns: DataPrepColumn[] = [];
-    let parsedRows: Record<string, unknown>[] = [];
-    let snapshotRawText = content;
+      formatFromFileName(name) ?? (format === "REST" ? "JSON" : format);
 
-    if (format === 'REST' || name.toLowerCase().endsWith('.json')) {
-      const jsonResult = extractRecords(content);
-      if (jsonResult.error) {
-        this.state.announceError(jsonResult.error);
-        return null;
-      }
-      parsedColumns = jsonResult.columns;
-      parsedRows = jsonResult.rows;
-      if (parsedRows.length > 0) {
-        snapshotRawText = JSON.stringify(parsedRows);
-      }
-    } else {
-      const delimited = this.parseDelimited(content, backendFormat);
-      parsedColumns = delimited.columns;
-      parsedRows = delimited.rows;
-    }
-
-    const newSource: IngestionSource = {
-      id: datasetId,
-      name,
-      format,
-      path: name,
-      enableLoad: true,
-      backendFormat,
+    const payload = {
+      tenantId: "default-tenant",
+      datasetId,
+      format: backendFormat,
+      rawPayload: content,
+      steps: [],
     };
 
-    const initialStep: DataPrepStep = {
-      id: `step_${Date.now()}`,
-      name: 'Source Ingestion',
-      type: 'FileSource',
-      detail: `${format.toLowerCase()}("${name}")`,
-      definition: {
-        step: 'FileSource',
-        source: name,
-        format,
-        rowCount: parsedRows.length,
-      },
-    };
+    return this.http
+      .post<readonly BackendRecordBatch[]>(INGESTION_PREVIEW_ENDPOINT, payload)
+      .pipe(
+        map((batches) => {
+          const schema = batches[0]?.schema ?? {};
+          const parsedColumns: DataPrepColumn[] = Object.entries(schema).map(
+            ([colName, rawType]) => {
+              const displayType = toDisplayType(rawType);
+              return { name: colName, type: displayType, icon: displayType };
+            },
+          );
+          const parsedRows: Record<string, unknown>[] = batches.flatMap(
+            (b) => b.rows ?? [],
+          );
 
-    this.rawSnapshotsBySource.update((map) => ({
-      ...map,
-      [datasetId]: {
-        columns: parsedColumns,
-        rows: parsedRows,
-        rawText: snapshotRawText,
-      },
-    }));
-    this.sources.update((srcs) => [...srcs, newSource]);
-    this.selectedSourceId.set(datasetId);
-    this.stepsBySource.update((map) => ({
-      ...map,
-      [datasetId]: [initialStep],
-    }));
+          const newSource: IngestionSource = {
+            id: datasetId,
+            name,
+            format,
+            path: name,
+            enableLoad: true,
+            backendFormat,
+          };
 
-    if (parsedColumns.length > 0) {
-      const tableName = tableNameFromSource(name) || 'user_dataset';
-      this.publishTable(
-        `user_tbl_${tableName}`,
-        tableName,
-        parsedColumns,
-        parsedRows,
+          const initialStep: DataPrepStep = {
+            id: `step_${Date.now()}`,
+            name: "Source Ingestion",
+            type: "FileSource",
+            detail: `${format.toLowerCase()}("${name}")`,
+            definition: {
+              step: "FileSource",
+              source: name,
+              format,
+              rowCount: parsedRows.length,
+            },
+          };
+
+          this.rawSnapshotsBySource.update((current) => ({
+            ...current,
+            [datasetId]: {
+              columns: parsedColumns,
+              rows: parsedRows,
+              rawText: content,
+            },
+          }));
+          this.sources.update((srcs) => [...srcs, newSource]);
+          this.selectedSourceId.set(datasetId);
+          this.stepsBySource.update((current) => ({
+            ...current,
+            [datasetId]: [initialStep],
+          }));
+
+          if (parsedColumns.length > 0) {
+            const tableName = tableNameFromSource(name) || "user_dataset";
+            this.publishTable(
+              `user_tbl_${tableName}`,
+              tableName,
+              parsedColumns,
+              parsedRows,
+            );
+          }
+
+          this.pipelineSync.update((prev) => ({
+            sourceId: datasetId,
+            stepIndex: 0,
+            seq: (prev?.seq ?? 0) + 1,
+          }));
+
+          this.state.announce(
+            `Successfully loaded user dataset "${name}" (${parsedRows.length} rows, ${parsedColumns.length} columns).`,
+          );
+
+          return {
+            source: newSource,
+            columns: parsedColumns,
+            rows: parsedRows,
+            initialStep,
+          };
+        }),
+        catchError((error) => {
+          this.state.announceError(`Loading ${name}`, error);
+          return of(null);
+        }),
       );
-    }
-
-    this.pipelineSync.update((prev) => ({
-      sourceId: datasetId,
-      stepIndex: 0,
-      seq: (prev?.seq ?? 0) + 1,
-    }));
-
-    this.state.announce(
-      `Successfully loaded user dataset "${name}" (${parsedRows.length} rows, ${parsedColumns.length} columns).`,
-    );
-
-    return { source: newSource, columns: parsedColumns, rows: parsedRows, initialStep };
   }
 
-  /** Evaluates Data Prep transformation steps locally against the snapshot cache. */
   public evaluateSteps(
     initialCols: readonly DataPrepColumn[],
     initialRows: readonly Record<string, unknown>[],
     steps: readonly DataPrepStep[],
-  ): EvalResult {
-    return this.engine.evaluateStepsLocally(
+  ): Observable<EvalResult> {
+    const lookupTables: Record<string, readonly Record<string, unknown>[]> = {};
+    const snapshots = this.rawSnapshotsBySource();
+    for (const src of this.sources()) {
+      const snap = snapshots[src.id];
+      if (snap) {
+        lookupTables[src.id] = snap.rows;
+        lookupTables[tableNameFromSource(src.name)] = snap.rows;
+      }
+    }
+    return this.engine.evaluateSteps(
       initialCols,
       initialRows,
       steps,
-      (targetIdOrName) => {
-        const targetSrc =
-          this.sources().find((s) => s.id === targetIdOrName) ??
-          this.sources().find((s) => tableNameFromSource(s.name) === targetIdOrName);
-        const targetSnap = targetSrc
-          ? this.rawSnapshotsBySource()[targetSrc.id]
-          : undefined;
-        return targetSnap
-          ? { columns: targetSnap.columns, rows: targetSnap.rows }
-          : undefined;
-      },
+      lookupTables,
     );
+  }
+
+  private extractSheets(
+    name: string,
+    format: SourceFormat,
+    backendFormat: BackendSourceFormat,
+    rawPayload: string,
+    rawPayloadBase64: string,
+  ): void {
+    this.pendingFileName.set(name);
+    this.pendingFileFormat.set(format);
+    this.pendingBackendFormat.set(backendFormat);
+    this.pendingRawText.set(rawPayload);
+    this.pendingRawBase64.set(rawPayloadBase64);
+
+    const request: SheetExtractionRequest = {
+      fileName: name,
+      format: backendFormat,
+      rawPayload,
+      rawPayloadBase64,
+    };
+
+    this.http
+      .post<SheetExtractionResponse>(INGESTION_SHEETS_ENDPOINT, request)
+      .subscribe({
+        next: (response) => {
+          const sheets = [...(response.sheets ?? [])];
+          this.navigatorSheets.set(sheets);
+          this.selectedNavigatorSheetId.set(sheets[0]?.id ?? "");
+
+          if (response.error) {
+            this.navigatorError.set(response.error);
+            this.state.announceError(response.error);
+          } else if (sheets.length === 0) {
+            const msg = `Failed to extract readable sheets from "${name}".`;
+            this.navigatorError.set(msg);
+            this.state.announceError(msg);
+          } else {
+            this.navigatorError.set("");
+            this.state.announce(
+              `Navigator: select sheet to preview from ${name}.`,
+            );
+          }
+          this.isNavigatorModalOpen.set(true);
+        },
+        error: (err) => {
+          const msg = `Failed to extract sheets from "${name}".`;
+          this.navigatorSheets.set([]);
+          this.navigatorError.set(msg);
+          this.state.announceError(msg, err);
+          this.isNavigatorModalOpen.set(true);
+        },
+      });
   }
 
   private buildPipeline(
@@ -400,22 +438,22 @@ export class IngestionService {
     return [
       {
         id: `step_${now}_source`,
-        name: 'Source Ingestion',
-        type: 'FileSource',
+        name: "Source Ingestion",
+        type: "FileSource",
         detail: `${backendFormat.toLowerCase()}("${fileName}")`,
         definition: {
-          step: 'FileSource',
+          step: "FileSource",
           source: fileName,
           format: backendFormat,
         },
       },
       {
         id: `step_${now}_nav`,
-        name: 'Navigation',
-        type: 'Navigation',
+        name: "Navigation",
+        type: "Navigation",
         detail: `Item="${sheet.name}", Kind="${sheet.kind}"`,
         definition: {
-          step: 'Navigation',
+          step: "Navigation",
           item: sheet.name,
           kind: sheet.kind,
           sheetName: sheet.sheetName ?? sheet.name,
@@ -423,17 +461,17 @@ export class IngestionService {
       },
       {
         id: `step_${now}_headers`,
-        name: 'Promoted Headers',
-        type: 'PromoteHeaders',
-        detail: 'PromoteAllScalars=true',
-        definition: { step: 'PromoteHeaders' },
+        name: "Promoted Headers",
+        type: "PromoteHeaders",
+        detail: "PromoteAllScalars=true",
+        definition: { step: "PromoteHeaders" },
       },
       {
         id: `step_${now}_types`,
-        name: 'Changed Type',
-        type: 'DetectDataType',
-        detail: 'Auto-detected schema across all columns',
-        definition: { step: 'DetectDataType' },
+        name: "Changed Type",
+        type: "DetectDataType",
+        detail: "Auto-detected schema across all columns",
+        definition: { step: "DetectDataType" },
       },
     ];
   }
@@ -447,71 +485,25 @@ export class IngestionService {
     this.state.addTable({
       id: tableId,
       name: tableName,
-      role: 'FACT',
+      role: "FACT",
       columns: columns.map((col) => ({
         name: col.name,
-        dataType: (col.type || 'VARCHAR').toUpperCase(),
-        keyType: 'None' as const,
+        dataType: (col.type || "VARCHAR").toUpperCase(),
+        keyType: "None" as const,
       })),
       rowCount: rows.length,
     });
-    this.state.setTableRows(tableName, [...rows]);
+    this.state.setRows(tableName, [...rows]);
+    this.syncTable(tableName, rows);
   }
 
-  private parseDelimited(
-    content: string,
-    backendFormat: BackendSourceFormat,
-  ): { columns: DataPrepColumn[]; rows: Record<string, unknown>[] } {
-    const separator = detectSeparator(
-      content,
-      backendFormat === 'TSV' ? '\t' : undefined,
-    );
-    const grid = parseGrid(content, separator);
-    if (grid.length === 0) {
-      return { columns: [], rows: [] };
-    }
-
-    const headers = grid[0];
-    const rows = grid.slice(1).map((parts) => {
-      const record: Record<string, unknown> = {};
-      headers.forEach((col, idx) => {
-        const raw = parts[idx] ?? '';
-        if (raw === '') {
-          record[col] = null;
-        } else if (!Number.isNaN(Number(raw))) {
-          record[col] = Number(raw);
-        } else if (raw.toLowerCase() === 'true' || raw.toLowerCase() === 'false') {
-          record[col] = raw.toLowerCase() === 'true';
-        } else {
-          record[col] = raw;
-        }
-      });
-      return record;
-    });
-
-    const columns: DataPrepColumn[] = headers.map((col) => {
-      const type = inferType(rows, col);
-      return { name: col, type, icon: type };
-    });
-
-    return { columns, rows };
-  }
-
-  private extractText(
-    fileName: string,
-    text: string,
-    backendFormat?: BackendSourceFormat,
-  ): ParsedTextResult {
-    if (backendFormat === 'JSON' || /\.json$/i.test(fileName)) {
-      return extractJson(fileName, text);
-    }
-    if (backendFormat === 'XML' || /\.xml$/i.test(fileName)) {
-      return extractXml(fileName, text);
-    }
-    return extractDelimited(
-      fileName,
-      text,
-      backendFormat === 'TSV' ? '\t' : undefined,
-    );
+  private syncTable(
+    tableName: string,
+    rows: readonly Record<string, unknown>[],
+  ): void {
+    this.model
+      .pushState(this.state)
+      .pipe(switchMap(() => this.model.ingestRows(tableName, rows)))
+      .subscribe();
   }
 }
