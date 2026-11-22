@@ -1,47 +1,106 @@
-import * as GEO from './geo.constants';
-import { ProjectedPoint, ProjectedTerritory } from './geo.interface';
+import { HttpClient } from "@angular/common/http";
+import { Injectable, inject } from "@angular/core";
+import { Observable } from "rxjs";
+import {
+  DEFAULT_HEIGHT,
+  DEFAULT_WIDTH,
+  GEO_HIT_TEST_ENDPOINT,
+  GEO_PROJECT_BATCH_ENDPOINT,
+  GEO_PROJECT_POINT_ENDPOINT,
+} from "./geo.constants";
+import {
+  HitTestPayload,
+  ProjectBatchPayload,
+  ProjectPointPayload,
+  ProjectedPoint,
+  ProjectedTerritory,
+  TerritoryInput,
+} from "./geo.interface";
 
-export function projectEurope(
-  lon: number,
-  lat: number,
-  width = GEO.DEFAULT_WIDTH,
-  height = GEO.DEFAULT_HEIGHT
-): ProjectedPoint {
-  const lon0 = GEO.LON0_DEG * GEO.DEG_TO_RAD;
-  const lat0 = GEO.LAT0_DEG * GEO.DEG_TO_RAD;
-  const phi1 = GEO.PHI1_DEG * GEO.DEG_TO_RAD;
-  const phi2 = GEO.PHI2_DEG * GEO.DEG_TO_RAD;
+@Injectable({ providedIn: "root" })
+export class GeoService {
+  private readonly http = inject(HttpClient);
 
-  const n = 0.5 * (Math.sin(phi1) + Math.sin(phi2));
-  const c = Math.cos(phi1) * Math.cos(phi1) + 2 * n * Math.sin(phi1);
-  const rho0 = Math.sqrt(c - 2 * n * Math.sin(lat0)) / n;
+  public projectEurope(
+    lon: number,
+    lat: number,
+    width = DEFAULT_WIDTH,
+    height = DEFAULT_HEIGHT,
+  ): Observable<ProjectedPoint> {
+    const payload: ProjectPointPayload = { lon, lat, width, height };
+    return this.http.post<ProjectedPoint>(GEO_PROJECT_POINT_ENDPOINT, payload);
+  }
 
-  const lam = lon * GEO.DEG_TO_RAD;
-  const phi = lat * GEO.DEG_TO_RAD;
-  const theta = n * (lam - lon0);
-  const rho = Math.sqrt(Math.max(0.01, c - 2 * n * Math.sin(phi))) / n;
+  public projectBatch(
+    territories: readonly TerritoryInput[],
+    width = DEFAULT_WIDTH,
+    height = DEFAULT_HEIGHT,
+  ): Observable<ProjectedTerritory[]> {
+    const payload: ProjectBatchPayload = { territories, width, height };
+    return this.http.post<ProjectedTerritory[]>(
+      GEO_PROJECT_BATCH_ENDPOINT,
+      payload,
+    );
+  }
 
-  const rawX = rho * Math.sin(theta);
-  const rawY = rho0 - rho * Math.cos(theta);
-
-  const scale = Math.min(width, height) * GEO.SCALE_FACTOR;
-  return {
-    x: Number((width * GEO.OFFSET_X + rawX * scale).toFixed(1)),
-    y: Number((height * GEO.OFFSET_Y - rawY * scale).toFixed(1)),
-  };
+  public hitTerritory(
+    projected: readonly ProjectedTerritory[],
+    cursorX: number,
+    cursorY: number,
+  ): Observable<ProjectedTerritory | null> {
+    const payload: HitTestPayload = {
+      territories: projected,
+      cursorX,
+      cursorY,
+    };
+    return this.http.post<ProjectedTerritory | null>(
+      GEO_HIT_TEST_ENDPOINT,
+      payload,
+    );
+  }
 }
 
-export function hitTerritory(
-  territories: readonly ProjectedTerritory[],
+export async function projectEurope(
+  lon: number,
+  lat: number,
+  width = DEFAULT_WIDTH,
+  height = DEFAULT_HEIGHT,
+): Promise<ProjectedPoint> {
+  const response = await fetch(GEO_PROJECT_POINT_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ lon, lat, width, height }),
+  });
+  return (await response.json()) as ProjectedPoint;
+}
+
+export async function projectBatch(
+  territories: readonly TerritoryInput[],
+  width = DEFAULT_WIDTH,
+  height = DEFAULT_HEIGHT,
+): Promise<ProjectedTerritory[]> {
+  const response = await fetch(GEO_PROJECT_BATCH_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ territories, width, height }),
+  });
+  return (await response.json()) as ProjectedTerritory[];
+}
+
+export async function hitTerritory(
+  projected: readonly ProjectedTerritory[],
   cursorX: number,
-  cursorY: number
-): ProjectedTerritory | null {
-  for (const t of territories) {
-    const dx = cursorX - t.screenX;
-    const dy = cursorY - t.screenY;
-    if (Math.sqrt(dx * dx + dy * dy) <= t.radius + GEO.HIT_PADDING) {
-      return t;
-    }
-  }
-  return null;
+  cursorY: number,
+): Promise<ProjectedTerritory | null> {
+  const payload: HitTestPayload = {
+    territories: projected,
+    cursorX,
+    cursorY,
+  };
+  const response = await fetch(GEO_HIT_TEST_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  return (await response.json()) as ProjectedTerritory | null;
 }
