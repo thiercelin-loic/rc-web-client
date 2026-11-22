@@ -5,7 +5,7 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { provideRouter, Router } from '@angular/router';
 import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import { SignupComponent } from './signup.component';
-import { StateManagerService } from '../../core/state-manager.service';
+import { StateManagerService } from '../../core/state/state.service';
 
 describe('SignupComponent', () => {
   let fixture: ComponentFixture<SignupComponent>;
@@ -52,7 +52,6 @@ describe('SignupComponent', () => {
       const emailInput = compiled.querySelector('#signup-email-input') as HTMLInputElement;
       const passwordInput = compiled.querySelector('#signup-password-input') as HTMLInputElement;
       const confirmPasswordInput = compiled.querySelector('#signup-confirm-password-input') as HTMLInputElement;
-      const roleSelect = compiled.querySelector('#signup-role-select') as HTMLSelectElement;
       const consentCheckbox = compiled.querySelector('#signup-gdpr-consent') as HTMLInputElement;
       const submitBtn = compiled.querySelector('#signup-submit-btn') as HTMLButtonElement;
       const signinLink = compiled.querySelector('#signup-to-login-link') as HTMLAnchorElement;
@@ -62,7 +61,6 @@ describe('SignupComponent', () => {
       expect(emailInput).not.toBeNull();
       expect(passwordInput).not.toBeNull();
       expect(confirmPasswordInput).not.toBeNull();
-      expect(roleSelect).not.toBeNull();
       expect(consentCheckbox).not.toBeNull();
       expect(submitBtn).not.toBeNull();
       expect(signinLink).not.toBeNull();
@@ -198,7 +196,6 @@ describe('SignupComponent', () => {
       component.email.set('mcurie@enterprise.eu');
       component.password.set('Radium1898!');
       component.confirmPassword.set('Radium1898!');
-      component.role.set('ROLE_OPERATOR');
       component.consentGiven.set(true);
 
       component.onSubmit();
@@ -210,8 +207,7 @@ describe('SignupComponent', () => {
         fullName: 'Marie Curie',
         username: 'mcurie',
         email: 'mcurie@enterprise.eu',
-        password: 'Radium1898!',
-        role: 'ROLE_OPERATOR'
+        password: 'Radium1898!'
       });
 
       req.flush({
@@ -221,9 +217,7 @@ describe('SignupComponent', () => {
           id: 'usr-new',
           username: 'mcurie',
           email: 'mcurie@enterprise.eu',
-          fullName: 'Marie Curie',
-          role: 'ROLE_OPERATOR',
-          tenantId: 'ws-enterprise'
+          fullName: 'Marie Curie'
         }
       });
 

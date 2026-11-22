@@ -5,7 +5,7 @@ import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { describe, expect, it, beforeEach, vi } from "vitest";
 import { TableViewComponent } from "./table-view.component";
-import { StateManagerService } from "../../core/state-manager.service";
+import { StateManagerService } from "../../core/state/state.service";
 
 describe("TableViewComponent", () => {
   beforeEach(() => {
@@ -194,7 +194,7 @@ describe("TableViewComponent", () => {
       true,
     );
     expect(component.displayedRows()[0]["Margin"]).toBe(200);
-    expect(state.getTableRows("fact_transactions")[0]["Margin"]).toBe(200);
+    expect(state.tableRows("fact_transactions")[0]["Margin"]).toBe(200);
   });
 
   it("creates a full 365-day calculated calendar table with Offset columns, SUMMARIZECOLUMNS, and INFO.VIEW Data Dictionary", async () => {

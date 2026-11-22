@@ -390,51 +390,6 @@
           </div>
         }
 
-        <div class="mb-3">
-          <label for="signup-role-select" class="form-label fw-bold mb-1">
-            Requested Platform Role
-          </label>
-          <div class="input-group">
-            <span
-              class="input-group-text"
-              style="
-                background: var(--rc-surface-subtle);
-                color: var(--rc-text-secondary);
-                border-color: var(--rc-border-strong);
-              "
-            >
-              <svg
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                aria-hidden="true"
-              >
-                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
-                <circle cx="9" cy="7" r="4"></circle>
-                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-              </svg>
-            </span>
-            <select
-              id="signup-role-select"
-              name="role"
-              class="form-select form-select-sm"
-              [ngModel]="role()"
-              (ngModelChange)="role.set($event)"
-              [disabled]="isSubmitting()"
-            >
-              <option value="ROLE_OPERATOR">Operator (Report Creator)</option>
-              <option value="ROLE_USER">Analyst (Data Explorer)</option>
-              <option value="ROLE_ADMIN">Administrator (Tenant Admin)</option>
-            </select>
-          </div>
-        </div>
-
         <div class="form-check mb-3">
           <input
             id="signup-gdpr-consent"

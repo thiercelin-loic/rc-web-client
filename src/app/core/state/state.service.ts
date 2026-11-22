@@ -6,25 +6,59 @@ import {
   inject,
   signal,
 } from "@angular/core";
-import { AuthService } from "./auth.service";
+import { AuthService } from "../auth/auth.service";
+import {
+  ANONYMOUS_STORAGE_SCOPE,
+  DEFAULT_PROJECT_DESCRIPTOR,
+  EMPTY_MEASURE,
+  MEASURES_STORAGE_KEY,
+  TABLES_STORAGE_KEY,
+  TABLE_ROWS_STORAGE_KEY,
+  THEME_STORAGE_KEY,
+  WORKSPACE_STORAGE_KEY,
+} from "./state.constants";
+import type {
+  CanvasVisualItem,
+  ColumnDisplayFormat,
+  ColumnSummarization,
+  ExchangeLogEntry,
+  ExchangeLogLevel,
+  FilterClause,
+  FilterOp,
+  FilterValue,
+  LegacyMediaQueryList,
+  ProjectDescriptor,
+  RaxMeasureDescriptor,
+  RaxStudioDiagnostic,
+  RaxStudioQueryResult,
+  SharedColumn,
+  SharedTable,
+  StoredWorkspaceState,
+  ThemeMode,
+  ThemePreference,
+} from "./state.interface";
 
-export type FilterOp = "EQ" | "IN" | "NEQ" | "BETWEEN";
-export type FilterValue = string | number | boolean;
-
-export type ThemeMode = "light" | "dark";
-export type ThemePreference = "system" | "light" | "dark";
-export const THEME_STORAGE_KEY = "rc_theme_preference";
-const MEASURES_STORAGE_KEY = "rc_measures_state";
-const TABLES_STORAGE_KEY = "rc_tables_state";
-const TABLE_ROWS_STORAGE_KEY = "rc_table_rows_state";
-const WORKSPACE_STORAGE_KEY = "rc_workspace_state";
-const ANONYMOUS_STORAGE_SCOPE = "anonymous";
-
-export interface FilterClause {
-  readonly dimension: string;
-  readonly operator: FilterOp;
-  readonly values: readonly FilterValue[];
-}
+export { THEME_STORAGE_KEY } from "./state.constants";
+export type {
+  CanvasVisualItem,
+  ColumnDisplayFormat,
+  ColumnSummarization,
+  ExchangeLogEntry,
+  ExchangeLogLevel,
+  FilterClause,
+  FilterOp,
+  FilterValue,
+  LegacyMediaQueryList,
+  ProjectDescriptor,
+  RaxMeasureDescriptor,
+  RaxStudioDiagnostic,
+  RaxStudioQueryResult,
+  SharedColumn,
+  SharedTable,
+  StoredWorkspaceState,
+  ThemeMode,
+  ThemePreference,
+} from "./state.interface";
 
 /**
  * Immutable composite filter context evaluated by the RAX ContextEvaluator.
@@ -54,7 +88,7 @@ export class CompositeFilterContext {
     return new CompositeFilterContext(nextClauses);
   }
 
-  public getSelectedValue(dimension: string, fallback = "All"): string {
+  public selectedValue(dimension: string, fallback = "All"): string {
     const clause = this.clauses.get(dimension);
     if (!clause || clause.values.length === 0) {
       return fallback;
@@ -62,7 +96,7 @@ export class CompositeFilterContext {
     return String(clause.values[0]);
   }
 
-  public toContextHash(): string {
+  public contextHash(): string {
     const entries = Array.from(this.clauses.entries())
       .map(
         ([dimension, clause]) =>
@@ -80,137 +114,11 @@ export class CompositeFilterContext {
   }
 }
 
-export interface ProjectDescriptor {
-  readonly filename: string;
-  readonly statusPill: string;
-  readonly branch: string;
-  readonly watermark: string;
-}
-
-export interface RaxMeasureDescriptor {
-  readonly id: string;
-  readonly label: string;
-  readonly formula: string;
-  readonly table: string;
-  readonly description?: string;
-  readonly formatString?: string;
-  readonly isHidden?: boolean;
-}
-
-export interface RaxStudioDiagnostic {
-  readonly severity: "error" | "warning" | "info";
-  readonly line: number;
-  readonly startColumn: number;
-  readonly errorCode: string;
-  readonly message: string;
-}
-
-export interface RaxStudioQueryResult {
-  readonly cacheKey: string;
-  readonly cacheHit: boolean;
-  readonly routedEngine: "DUCKDB" | "MYSQL";
-  readonly executionTimeMs: number;
-  readonly executedSql: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly rows: Array<Record<string, any>>;
-}
-
-const EMPTY_MEASURE: RaxMeasureDescriptor = {
-  id: "",
-  label: "No measure selected",
-  formula: "",
-  table: "",
-};
-
-export type ExchangeLogLevel = "request" | "success" | "error";
-
-export interface ExchangeLogEntry {
-  readonly id: number;
-  readonly level: ExchangeLogLevel;
-  readonly method: string;
-  readonly url: string;
-  readonly status: number | null;
-  readonly durationMs: number;
-  readonly timestamp: string;
-}
-
-export type ColumnSummarization =
-  | "None"
-  | "Sum"
-  | "Average"
-  | "Min"
-  | "Max"
-  | "Count"
-  | "DistinctCount";
-
-export type ColumnDisplayFormat =
-  | "General"
-  | "Currency"
-  | "Percentage"
-  | "Date"
-  | "WholeNumber"
-  | "Decimal";
-
-export interface SharedColumn {
-  readonly name: string;
-  readonly dataType: string;
-  readonly keyType?: "PK" | "FK" | "None";
-  readonly description?: string;
-  readonly isHidden?: boolean;
-  readonly displayFolder?: string;
-  readonly expression?: string;
-  readonly summarizeBy?: ColumnSummarization;
-  readonly sortByColumn?: string;
-  readonly format?: ColumnDisplayFormat;
-}
-
-export interface SharedTable {
-  readonly id: string;
-  readonly name: string;
-  readonly role: "FACT" | "DIMENSION";
-  readonly columns: readonly SharedColumn[];
-  readonly rowCount?: number;
-  readonly description?: string;
-  readonly isHidden?: boolean;
-  readonly expression?: string;
-  readonly isDateTable?: boolean;
-  readonly dateColumn?: string;
-}
-
-export interface CanvasVisualItem {
-  readonly id: string;
-  title: string;
-  archetype: string;
-  width: "half" | "full";
-  metricLabel: string;
-  metricValue: string;
-  metricSubtext: string;
-  sortBy?: "value" | "axis";
-  sortOrder?: "asc" | "desc";
-  fieldWells?: Record<string, string[]>;
-}
-
-interface StoredWorkspaceState {
-  readonly project: ProjectDescriptor;
-  readonly pages: string[];
-  readonly activePage: string;
-  readonly visuals: Record<string, CanvasVisualItem[]>;
-}
-
-interface LegacyMediaQueryList {
-  addListener?: (
-    listener: (event: MediaQueryListEvent | MediaQueryList) => void,
-  ) => void;
-  removeListener?: (
-    listener: (event: MediaQueryListEvent | MediaQueryList) => void,
-  ) => void;
-}
-
 @Injectable({ providedIn: "root" })
 export class StateManagerService {
   private readonly destroyRef = inject(DestroyRef, { optional: true });
   private readonly authService = inject(AuthService, { optional: true });
-  private storageScope = this.getStorageScope();
+  private storageScope = this.readScope();
 
   // Filter context state
   private readonly filterState = signal<CompositeFilterContext>(
@@ -218,19 +126,14 @@ export class StateManagerService {
   );
   public readonly activeFilters = this.filterState.asReadonly();
   public readonly selectedRegion = computed(() =>
-    this.filterState().getSelectedValue("Region", "All"),
+    this.filterState().selectedValue("Region", "All"),
   );
 
   // Project state
   public readonly projects: readonly ProjectDescriptor[] = [
-    {
-      filename: "Untitled Project.rcp",
-      statusPill: "draft [unsaved]",
-      branch: "workspace/main",
-      watermark: "00:00",
-    },
+    DEFAULT_PROJECT_DESCRIPTOR,
   ];
-  private readonly initialWorkspace = this.getStoredWorkspace();
+  private readonly initialWorkspace = this.storedWorkspace();
   public readonly activeProject = signal<ProjectDescriptor>(
     this.initialWorkspace.project,
   );
@@ -251,7 +154,7 @@ export class StateManagerService {
 
   // RAX Measures state
   private readonly measuresSignal = signal<RaxMeasureDescriptor[]>(
-    this.getStoredMeasures(),
+    this.storedMeasures(),
   );
   public get measures(): readonly RaxMeasureDescriptor[] {
     return this.measuresSignal();
@@ -266,7 +169,7 @@ export class StateManagerService {
 
   // Semantic Tables state
   private readonly sharedTablesSignal = signal<SharedTable[]>(
-    this.getStoredTables(),
+    this.storedTables(),
   );
   public get sharedTables(): readonly SharedTable[] {
     return this.sharedTablesSignal();
@@ -280,10 +183,10 @@ export class StateManagerService {
 
   // Shared table rows store (tableName -> rows array) populated by user ingestion / imports
   private readonly sharedTableRowsSignal = signal<Record<string, readonly Record<string, unknown>[]>>(
-    this.getStoredTableRows(),
+    this.storedRows(),
   );
   public readonly tableRowsMap = this.sharedTableRowsSignal.asReadonly();
-  public getTableRows(tableName: string): readonly Record<string, unknown>[] {
+  public tableRows(tableName: string): readonly Record<string, unknown>[] {
     if (!tableName) {
       return [];
     }
@@ -299,13 +202,13 @@ export class StateManagerService {
     }
     return [];
   }
-  public setTableRows(tableName: string, rows: readonly Record<string, unknown>[]): void {
+  public setRows(tableName: string, rows: readonly Record<string, unknown>[]): void {
     this.sharedTableRowsSignal.update((current) => {
       const updated = {
         ...current,
         [tableName]: rows,
       };
-      this.persistTableRows(updated);
+      this.persistRows(updated);
       return updated;
     });
   }
@@ -320,7 +223,7 @@ export class StateManagerService {
     height: 720,
     preset: "16:9",
   });
-  public setCanvasDimensions(
+  public setCanvas(
     width: number,
     height: number,
     preset = "Custom",
@@ -330,9 +233,9 @@ export class StateManagerService {
 
   // Theme Management state
   public readonly themePreference = signal<ThemePreference>(
-    this.getStoredThemePreference(),
+    this.storedTheme(),
   );
-  public readonly systemTheme = signal<ThemeMode>(this.detectSystemTheme());
+  public readonly systemTheme = signal<ThemeMode>(this.systemMode());
   public readonly isSystemTheme = computed<boolean>(
     () => this.themePreference() === "system",
   );
@@ -369,11 +272,11 @@ export class StateManagerService {
   private exchangeSequence = 0;
 
   constructor() {
-    this.initializeSystemThemeListener();
+    this.initTheme();
 
     effect(() => {
       const userId = this.authService?.currentUser()?.id ?? null;
-      this.switchStorageScope(userId);
+      this.switchScope(userId);
     });
 
     effect(() => {
@@ -397,24 +300,24 @@ export class StateManagerService {
     }
 
     this.destroyRef?.onDestroy(() => {
-      this.cleanupSystemThemeListener();
+      this.cleanupTheme();
     });
   }
 
-  private switchStorageScope(userId: string | null): void {
+  private switchScope(userId: string | null): void {
     const nextScope = userId || ANONYMOUS_STORAGE_SCOPE;
     if (nextScope === this.storageScope) {
       return;
     }
 
     this.storageScope = nextScope;
-    this.sharedTablesSignal.set(this.getStoredTables());
-    this.sharedTableRowsSignal.set(this.getStoredTableRows());
-    this.measuresSignal.set(this.getStoredMeasures());
+    this.sharedTablesSignal.set(this.storedTables());
+    this.sharedTableRowsSignal.set(this.storedRows());
+    this.measuresSignal.set(this.storedMeasures());
     this.activeMeasureId.set("");
     this.customFormulaText.set("");
 
-    const workspace = this.getStoredWorkspace();
+    const workspace = this.storedWorkspace();
     this.activeProject.set(workspace.project);
     this.watermarkTimestamp.set(workspace.project.watermark);
     this.reportPages.set(workspace.pages);
@@ -466,7 +369,7 @@ export class StateManagerService {
     }
   }
 
-  public createNewProject(customName?: string): void {
+  public createProject(customName?: string): void {
     const filename = customName
       ? customName.endsWith(".rcp")
         ? customName
@@ -506,7 +409,7 @@ export class StateManagerService {
     return true;
   }
 
-  public setProjectState(
+  public setProject(
     descriptor: ProjectDescriptor,
     pages: string[],
     visuals: Record<string, CanvasVisualItem[]>,
@@ -528,7 +431,7 @@ export class StateManagerService {
     this.announce(`Loaded workspace project ${descriptor.filename}`);
   }
 
-  public updateProjectStatus(statusPill: string, watermark?: string): void {
+  public updateStatus(statusPill: string, watermark?: string): void {
     const current = this.activeProject();
     this.activeProject.set({
       ...current,
@@ -549,11 +452,11 @@ export class StateManagerService {
     this.announce(`Navigated to report page: ${pageName}`);
   }
 
-  public getVisualsForPage(pageName: string): CanvasVisualItem[] {
+  public pageVisuals(pageName: string): CanvasVisualItem[] {
     return this.pageVisualsSignal()[pageName] ?? [];
   }
 
-  public addReportPage(): void {
+  public addPage(): void {
     const currentPages = this.reportPages();
     let pageCounter = currentPages.length + 1;
     let nextName = `Page ${pageCounter}`;
@@ -570,7 +473,7 @@ export class StateManagerService {
     this.announce(`Created and activated report page ${nextName}`);
   }
 
-  public renameReportPage(oldName: string, newName: string): boolean {
+  public renamePage(oldName: string, newName: string): boolean {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === oldName) {
       return false;
@@ -608,7 +511,7 @@ export class StateManagerService {
     return true;
   }
 
-  public removeReportPage(pageName: string): boolean {
+  public removePage(pageName: string): boolean {
     const currentPages = this.reportPages();
     if (currentPages.length <= 1) {
       this.announce("Cannot remove the only report page in the report.");
@@ -636,7 +539,7 @@ export class StateManagerService {
     return true;
   }
 
-  public reorderReportPages(fromIndex: number, toIndex: number): void {
+  public reorderPages(fromIndex: number, toIndex: number): void {
     const currentPages = this.reportPages();
     if (
       fromIndex < 0 ||
@@ -656,21 +559,21 @@ export class StateManagerService {
     );
   }
 
-  public moveReportPage(pageName: string, direction: "left" | "right"): void {
+  public movePage(pageName: string, direction: "left" | "right"): void {
     const currentPages = this.reportPages();
     const pageIndex = currentPages.indexOf(pageName);
     if (pageIndex === -1) {
       return;
     }
     const targetIndex = direction === "left" ? pageIndex - 1 : pageIndex + 1;
-    this.reorderReportPages(pageIndex, targetIndex);
+    this.reorderPages(pageIndex, targetIndex);
   }
 
   // ---------------------------------------------------------------------------
   // Canvas Visual Operations
   // ---------------------------------------------------------------------------
 
-  public addVisualToActivePage(archetype = "Bar"): CanvasVisualItem {
+  public addVisual(archetype = "Bar"): CanvasVisualItem {
     const activePageName = this.activePage();
     const currentVisuals = this.pageVisualsSignal()[activePageName] ?? [];
     const visualCount = currentVisuals.length + 1;
@@ -692,7 +595,7 @@ export class StateManagerService {
     return newVisual;
   }
 
-  public toggleVisualWidthOnActivePage(visualId: string): void {
+  public toggleWidth(visualId: string): void {
     const activePageName = this.activePage();
     this.pageVisualsSignal.update((pages) => {
       const visualList = pages[activePageName] ?? [];
@@ -707,7 +610,7 @@ export class StateManagerService {
     });
   }
 
-  public removeVisualFromActivePage(visualId: string): void {
+  public removeVisual(visualId: string): void {
     const activePageName = this.activePage();
     this.pageVisualsSignal.update((pages) => {
       const visualList = pages[activePageName] ?? [];
@@ -719,7 +622,7 @@ export class StateManagerService {
     this.announce("Visual removed from canvas.");
   }
 
-  public updateVisualTitleOnActivePage(
+  public renameVisual(
     visualId: string,
     newTitle: string,
   ): void {
@@ -735,7 +638,7 @@ export class StateManagerService {
     });
   }
 
-  public updateVisualMetric(
+  public updateMetric(
     visualId: string,
     metricValue: string,
     metricLabel?: string,
@@ -760,7 +663,7 @@ export class StateManagerService {
     });
   }
 
-  public updateVisualSort(
+  public updateSort(
     visualId: string,
     sortBy?: "value" | "axis",
     sortOrder?: "asc" | "desc",
@@ -783,7 +686,7 @@ export class StateManagerService {
     });
   }
 
-  public updateVisualFieldWells(
+  public updateWells(
     visualId: string,
     fieldWells: Record<string, string[]>,
   ): void {
@@ -804,7 +707,7 @@ export class StateManagerService {
     });
   }
 
-  public updateFirstVisualMetric(
+  public firstMetric(
     metricValue: string,
     metricLabel?: string,
     metricSubtext?: string,
@@ -812,7 +715,7 @@ export class StateManagerService {
     const activePageName = this.activePage();
     const visualList = this.pageVisualsSignal()[activePageName] ?? [];
     if (visualList.length > 0) {
-      this.updateVisualMetric(
+      this.updateMetric(
         visualList[0].id,
         metricValue,
         metricLabel,
@@ -821,7 +724,7 @@ export class StateManagerService {
     }
   }
 
-  public clearActivePageVisuals(): void {
+  public clearVisuals(): void {
     const activePageName = this.activePage();
     this.pageVisualsSignal.update((pages) => ({
       ...pages,
@@ -830,7 +733,7 @@ export class StateManagerService {
     this.announce(`Cleared canvas for ${activePageName}.`);
   }
 
-  public reorderVisualsOnActivePage(
+  public reorderVisuals(
     previousIndex: number,
     currentIndex: number,
   ): void {
@@ -856,7 +759,7 @@ export class StateManagerService {
     this.announce(`Reordered visuals on ${activePageName}.`);
   }
 
-  public moveVisualOnActivePage(
+  public moveVisual(
     visualId: string,
     direction: "earlier" | "later",
   ): void {
@@ -868,7 +771,7 @@ export class StateManagerService {
     }
     const targetIndex = direction === "earlier" ? index - 1 : index + 1;
     if (targetIndex >= 0 && targetIndex < visualList.length) {
-      this.reorderVisualsOnActivePage(index, targetIndex);
+      this.reorderVisuals(index, targetIndex);
     }
   }
 
@@ -972,9 +875,9 @@ export class StateManagerService {
   // Theme Management
   // ---------------------------------------------------------------------------
 
-  public setThemePreference(preference: ThemePreference): void {
+  public setTheme(preference: ThemePreference): void {
     this.themePreference.set(preference);
-    this.persistThemePreference(preference);
+    this.persistTheme(preference);
 
     const resolvedTheme = this.theme();
     if (typeof document !== "undefined") {
@@ -989,14 +892,14 @@ export class StateManagerService {
 
   public toggleTheme(): void {
     const nextMode: ThemeMode = this.theme() === "light" ? "dark" : "light";
-    this.setThemePreference(nextMode);
+    this.setTheme(nextMode);
   }
 
-  public resetThemeToSystem(): void {
-    this.setThemePreference("system");
+  public resetTheme(): void {
+    this.setTheme("system");
   }
 
-  public setPrintingLightMode(isPrinting: boolean): void {
+  public setPrinting(isPrinting: boolean): void {
     this.isPrintingLightMode.set(isPrinting);
   }
 
@@ -1004,7 +907,7 @@ export class StateManagerService {
   // UI Windows and Drawers
   // ---------------------------------------------------------------------------
 
-  public toggleMobileDrawer(force?: boolean): void {
+  public toggleDrawer(force?: boolean): void {
     this.mobileDrawerOpen.update((open) =>
       force !== undefined ? force : !open,
     );
@@ -1051,7 +954,7 @@ export class StateManagerService {
         normalized,
       );
     const formattedMessage = isError
-      ? this.formatErrorMessage(trimmed)
+      ? this.formatError(trimmed)
       : trimmed || "Ready";
 
     this.isLoading.set(isLoading);
@@ -1085,7 +988,7 @@ export class StateManagerService {
           normalized,
         );
       const formattedMessage = isError
-        ? this.formatErrorMessage(trimmed)
+        ? this.formatError(trimmed)
         : trimmed;
       this.statusIsError.set(isError);
       this.statusMessage.set(formattedMessage);
@@ -1140,7 +1043,7 @@ export class StateManagerService {
 
   public announceError(actionOrMessage: string, cause?: unknown): void {
     const cleanAction = actionOrMessage.trim().replace(/[.!?]+$/, "");
-    const extractedReason = this.extractErrorReason(cause);
+    const extractedReason = this.errorReason(cause);
 
     if (!extractedReason) {
       const hasFailureVerb =
@@ -1164,7 +1067,7 @@ export class StateManagerService {
   // Private Helper Methods
   // ---------------------------------------------------------------------------
 
-  private getStoredMeasures(): RaxMeasureDescriptor[] {
+  private storedMeasures(): RaxMeasureDescriptor[] {
     const legacyMeasureIds = new Set([
       "m-net-sales",
       "m-net-sales-yoy",
@@ -1176,7 +1079,7 @@ export class StateManagerService {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         const stored = window.localStorage.getItem(
-          this.getScopedStorageKey(MEASURES_STORAGE_KEY),
+          this.scopedKey(MEASURES_STORAGE_KEY),
         );
         if (stored) {
           const parsed: RaxMeasureDescriptor[] = JSON.parse(stored);
@@ -1193,7 +1096,7 @@ export class StateManagerService {
     return [];
   }
 
-  private getStoredTables(): SharedTable[] {
+  private storedTables(): SharedTable[] {
     const legacyTableNames = new Set([
       "fact_store_sales",
       "fact_transactions",
@@ -1206,7 +1109,7 @@ export class StateManagerService {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         const stored = window.localStorage.getItem(
-          this.getScopedStorageKey(TABLES_STORAGE_KEY),
+          this.scopedKey(TABLES_STORAGE_KEY),
         );
         if (stored) {
           const parsed: SharedTable[] = JSON.parse(stored);
@@ -1230,11 +1133,11 @@ export class StateManagerService {
     return [];
   }
 
-  private getStoredTableRows(): Record<string, readonly Record<string, unknown>[]> {
+  private storedRows(): Record<string, readonly Record<string, unknown>[]> {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         const stored = window.localStorage.getItem(
-          this.getScopedStorageKey(TABLE_ROWS_STORAGE_KEY),
+          this.scopedKey(TABLE_ROWS_STORAGE_KEY),
         );
         if (stored) {
           return JSON.parse(stored);
@@ -1246,13 +1149,13 @@ export class StateManagerService {
     return {};
   }
 
-  private persistTableRows(
+  private persistRows(
     rowsByTable: Record<string, readonly Record<string, unknown>[]>,
   ): void {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         window.localStorage.setItem(
-          this.getScopedStorageKey(TABLE_ROWS_STORAGE_KEY),
+          this.scopedKey(TABLE_ROWS_STORAGE_KEY),
           JSON.stringify(rowsByTable),
         );
       } catch {
@@ -1265,7 +1168,7 @@ export class StateManagerService {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         window.localStorage.setItem(
-          this.getScopedStorageKey(MEASURES_STORAGE_KEY),
+          this.scopedKey(MEASURES_STORAGE_KEY),
           JSON.stringify(measureList),
         );
       } catch {
@@ -1278,7 +1181,7 @@ export class StateManagerService {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         window.localStorage.setItem(
-          this.getScopedStorageKey(TABLES_STORAGE_KEY),
+          this.scopedKey(TABLES_STORAGE_KEY),
           JSON.stringify(tableList),
         );
       } catch {
@@ -1287,7 +1190,7 @@ export class StateManagerService {
     }
   }
 
-  private getStoredWorkspace(): StoredWorkspaceState {
+  private storedWorkspace(): StoredWorkspaceState {
     const fallback: StoredWorkspaceState = {
       project: this.projects[0],
       pages: ["Page 1"],
@@ -1299,7 +1202,7 @@ export class StateManagerService {
     }
     try {
       const raw = window.localStorage.getItem(
-        this.getScopedStorageKey(WORKSPACE_STORAGE_KEY),
+        this.scopedKey(WORKSPACE_STORAGE_KEY),
       );
       if (!raw) {
         return fallback;
@@ -1331,7 +1234,7 @@ export class StateManagerService {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         window.localStorage.setItem(
-          this.getScopedStorageKey(WORKSPACE_STORAGE_KEY),
+          this.scopedKey(WORKSPACE_STORAGE_KEY),
           JSON.stringify(workspace),
         );
       } catch {
@@ -1340,7 +1243,7 @@ export class StateManagerService {
     }
   }
 
-  private getStorageScope(): string {
+  private readScope(): string {
     if (typeof window === "undefined" || !window.localStorage) {
       return ANONYMOUS_STORAGE_SCOPE;
     }
@@ -1360,11 +1263,11 @@ export class StateManagerService {
     }
   }
 
-  private getScopedStorageKey(baseKey: string): string {
+  private scopedKey(baseKey: string): string {
     return `${baseKey}:${encodeURIComponent(this.storageScope)}`;
   }
 
-  private getStoredThemePreference(): ThemePreference {
+  private storedTheme(): ThemePreference {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         const stored = window.localStorage.getItem(THEME_STORAGE_KEY);
@@ -1378,7 +1281,7 @@ export class StateManagerService {
     return "system";
   }
 
-  private persistThemePreference(preference: ThemePreference): void {
+  private persistTheme(preference: ThemePreference): void {
     if (typeof window !== "undefined" && window.localStorage) {
       try {
         window.localStorage.setItem(THEME_STORAGE_KEY, preference);
@@ -1388,7 +1291,7 @@ export class StateManagerService {
     }
   }
 
-  private detectSystemTheme(): ThemeMode {
+  private systemMode(): ThemeMode {
     if (
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function"
@@ -1404,7 +1307,7 @@ export class StateManagerService {
     return "light";
   }
 
-  private initializeSystemThemeListener(): void {
+  private initTheme(): void {
     if (
       typeof window !== "undefined" &&
       typeof window.matchMedia === "function"
@@ -1434,7 +1337,7 @@ export class StateManagerService {
     }
   }
 
-  private cleanupSystemThemeListener(): void {
+  private cleanupTheme(): void {
     if (this.mediaQueryList && this.mediaQueryListener) {
       if (this.mediaQueryList.removeEventListener) {
         this.mediaQueryList.removeEventListener(
@@ -1451,12 +1354,12 @@ export class StateManagerService {
     }
   }
 
-  private formatErrorMessage(message: string): string {
+  private formatError(message: string): string {
     const cleaned = message.replace(/\s+/g, " ").trim();
     return cleaned || "Operation failed.";
   }
 
-  private extractErrorReason(cause: unknown): string {
+  private errorReason(cause: unknown): string {
     if (!cause) {
       return "";
     }

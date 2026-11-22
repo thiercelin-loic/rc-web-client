@@ -1,17 +1,17 @@
 import { TestBed } from '@angular/core/testing';
 import { describe, expect, it, beforeEach } from 'vitest';
-import { CompositeFilterContext, StateManagerService, THEME_STORAGE_KEY } from './state-manager.service';
+import { CompositeFilterContext, StateManagerService, THEME_STORAGE_KEY } from './state.service';
 
 describe('CompositeFilterContext', () => {
   it('creates immutable filter contexts and stable hashes', () => {
     const initial = new CompositeFilterContext();
     const next = initial.withFilter('Region', 'EQ', ['DACH']);
 
-    expect(initial.getSelectedValue('Region')).toBe('All');
-    expect(next.getSelectedValue('Region')).toBe('DACH');
-    expect(next.toContextHash()).toMatch(/^[0-9a-f]{8}$/);
-    expect(next.toContextHash()).toBe(
-      new CompositeFilterContext().withFilter('Region', 'EQ', ['DACH']).toContextHash()
+    expect(initial.selectedValue('Region')).toBe('All');
+    expect(next.selectedValue('Region')).toBe('DACH');
+    expect(next.contextHash()).toMatch(/^[0-9a-f]{8}$/);
+    expect(next.contextHash()).toBe(
+      new CompositeFilterContext().withFilter('Region', 'EQ', ['DACH']).contextHash()
     );
   });
 });
@@ -133,15 +133,15 @@ describe('StateManagerService', () => {
 
   describe('Report page visual isolation', () => {
     it('keeps visuals scoped to the page they were added on', () => {
-      service.addVisualToActivePage('Line');
+      service.addVisual('Line');
       expect(service.activePageVisuals()).toHaveLength(1);
 
-      service.addReportPage();
+      service.addPage();
       expect(service.activePage()).toBe('Page 2');
       expect(service.activePageVisuals()).toHaveLength(0);
 
-      service.addVisualToActivePage('Bar');
-      service.addVisualToActivePage('Donut');
+      service.addVisual('Bar');
+      service.addVisual('Donut');
       expect(service.activePageVisuals()).toHaveLength(2);
 
       service.selectPage('Page 1');
@@ -150,30 +150,30 @@ describe('StateManagerService', () => {
     });
 
     it('clears only the active page canvas', () => {
-      service.addVisualToActivePage('Line');
-      service.addReportPage();
-      service.addVisualToActivePage('Bar');
+      service.addVisual('Line');
+      service.addPage();
+      service.addVisual('Bar');
 
-      service.clearActivePageVisuals();
-      expect(service.getVisualsForPage('Page 2')).toHaveLength(0);
-      expect(service.getVisualsForPage('Page 1')).toHaveLength(1);
+      service.clearVisuals();
+      expect(service.pageVisuals('Page 2')).toHaveLength(0);
+      expect(service.pageVisuals('Page 1')).toHaveLength(1);
     });
 
     it('carries visuals across rename and drops them on removal', () => {
-      service.addVisualToActivePage('Gauge');
-      service.renameReportPage('Page 1', 'Overview');
-      expect(service.getVisualsForPage('Overview')).toHaveLength(1);
-      expect(service.getVisualsForPage('Page 1')).toHaveLength(0);
+      service.addVisual('Gauge');
+      service.renamePage('Page 1', 'Overview');
+      expect(service.pageVisuals('Overview')).toHaveLength(1);
+      expect(service.pageVisuals('Page 1')).toHaveLength(0);
 
-      service.addReportPage();
-      service.removeReportPage('Overview');
-      expect(service.getVisualsForPage('Overview')).toHaveLength(0);
+      service.addPage();
+      service.removePage('Overview');
+      expect(service.pageVisuals('Overview')).toHaveLength(0);
     });
 
     it('reorders and moves visuals on the active page', () => {
-      const vis1 = service.addVisualToActivePage('Bar');
-      const vis2 = service.addVisualToActivePage('Line');
-      const vis3 = service.addVisualToActivePage('Donut');
+      const vis1 = service.addVisual('Bar');
+      const vis2 = service.addVisual('Line');
+      const vis3 = service.addVisual('Donut');
 
       expect(service.activePageVisuals().map((v) => v.id)).toEqual([
         vis1.id,
@@ -182,7 +182,7 @@ describe('StateManagerService', () => {
       ]);
 
       // Move last visual to first
-      service.reorderVisualsOnActivePage(2, 0);
+      service.reorderVisuals(2, 0);
       expect(service.activePageVisuals().map((v) => v.id)).toEqual([
         vis3.id,
         vis1.id,
@@ -190,14 +190,14 @@ describe('StateManagerService', () => {
       ]);
 
       // Move directional earlier / later
-      service.moveVisualOnActivePage(vis2.id, 'earlier');
+      service.moveVisual(vis2.id, 'earlier');
       expect(service.activePageVisuals().map((v) => v.id)).toEqual([
         vis3.id,
         vis2.id,
         vis1.id,
       ]);
 
-      service.moveVisualOnActivePage(vis3.id, 'later');
+      service.moveVisual(vis3.id, 'later');
       expect(service.activePageVisuals().map((v) => v.id)).toEqual([
         vis2.id,
         vis3.id,
@@ -233,11 +233,11 @@ describe('StateManagerService', () => {
     });
 
     it('allows resetting manual theme override back to follow system preference', () => {
-      service.setThemePreference('dark');
+      service.setTheme('dark');
       expect(service.themePreference()).toBe('dark');
       expect(service.isSystemTheme()).toBe(false);
 
-      service.resetThemeToSystem();
+      service.resetTheme();
       expect(service.themePreference()).toBe('system');
       expect(service.isSystemTheme()).toBe(true);
       expect(service.theme()).toBe(service.systemTheme());
@@ -246,7 +246,7 @@ describe('StateManagerService', () => {
     });
 
     it('dynamically adapts resolved theme when system mode changes while in system preference', () => {
-      service.resetThemeToSystem();
+      service.resetTheme();
       expect(service.isSystemTheme()).toBe(true);
 
       // Simulate system theme changing to dark
@@ -258,7 +258,7 @@ describe('StateManagerService', () => {
       expect(service.theme()).toBe('light');
 
       // If manual override is active, system changes do not override user choice
-      service.setThemePreference('dark');
+      service.setTheme('dark');
       service.systemTheme.set('light');
       expect(service.theme()).toBe('dark');
     });

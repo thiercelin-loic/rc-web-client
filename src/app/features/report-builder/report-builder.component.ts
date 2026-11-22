@@ -10,7 +10,6 @@ import {
   signal,
   untracked,
 } from "@angular/core";
-import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { CommonModule, DecimalPipe, NgTemplateOutlet } from "@angular/common";
 import { RouterLink } from "@angular/router";
 import { FormsModule } from "@angular/forms";
@@ -29,13 +28,13 @@ import {
   FilterOp,
   FilterValue,
   StateManagerService,
-} from "../../core/state-manager.service";
+} from "../../core/state/state.service";
 import { ExportService } from "../../core/export/export.service";
-import { SemanticModelService } from "../../core/semantic-model.service";
+import { SemanticModelService } from "../../core/model/model.service";
 import {
-  RaxQueryService,
+  QueryService,
   VisualQueryRequestOptions,
-} from "../../core/rax-query.service";
+} from "../../core/rax/query.service";
 import {
   ChartCanvasComponent,
   ChartCanvasPayload,
@@ -395,7 +394,7 @@ export class ReportBuilderComponent implements OnInit {
   public readonly state = inject(StateManagerService);
   public readonly exportService = inject(ExportService);
   private readonly semanticModelService = inject(SemanticModelService);
-  private readonly raxQuery = inject(RaxQueryService);
+  private readonly raxQuery = inject(QueryService);
 
   public readonly expandedTables = signal<Record<string, boolean>>({});
 
@@ -427,11 +426,7 @@ export class ReportBuilderComponent implements OnInit {
       const dimensions = this.activeCanvasDimensions();
       const preset = this.selectedCanvasPreset();
       untracked(() =>
-        this.state.setCanvasDimensions(
-          dimensions.width,
-          dimensions.height,
-          preset,
-        ),
+        this.state.setCanvas(dimensions.width, dimensions.height, preset),
       );
     });
 
@@ -475,7 +470,7 @@ export class ReportBuilderComponent implements OnInit {
     if (this.state.sharedTables.length === 0) {
       this.semanticModelService.loadDefault().subscribe({
         next: (payload) => {
-          this.semanticModelService.syncToStateManager(payload, this.state);
+          this.semanticModelService.pullState(payload, this.state);
         },
         error: () => {},
       });
@@ -733,7 +728,7 @@ export class ReportBuilderComponent implements OnInit {
     this.assignedSlotFields.set(next);
     const visualId = this.selectedVisualId();
     if (visualId) {
-      this.state.updateVisualFieldWells(visualId, next);
+      this.state.updateWells(visualId, next);
     }
   }
 
@@ -760,20 +755,17 @@ export class ReportBuilderComponent implements OnInit {
 
   public onDropVisual(event: CdkDragDrop<CanvasVisualItem[]>): void {
     if (event.previousIndex !== event.currentIndex) {
-      this.state.reorderVisualsOnActivePage(
-        event.previousIndex,
-        event.currentIndex,
-      );
+      this.state.reorderVisuals(event.previousIndex, event.currentIndex);
     }
   }
 
   public moveVisualEarlier(visualId: string): void {
-    this.state.moveVisualOnActivePage(visualId, "earlier");
+    this.state.moveVisual(visualId, "earlier");
     this.closeVisualMenu();
   }
 
   public moveVisualLater(visualId: string): void {
-    this.state.moveVisualOnActivePage(visualId, "later");
+    this.state.moveVisual(visualId, "later");
     this.closeVisualMenu();
   }
 
@@ -782,7 +774,7 @@ export class ReportBuilderComponent implements OnInit {
     const pendingWells = hadSelection
       ? {}
       : this.cloneWells(this.assignedSlotFields());
-    const newVisual = this.state.addVisualToActivePage(archetype);
+    const newVisual = this.state.addVisual(archetype);
     if (newVisual) {
       this.selectedVisualId.set(newVisual.id);
       if (this.isValidArchetype(newVisual.archetype)) {
@@ -800,7 +792,7 @@ export class ReportBuilderComponent implements OnInit {
   }
 
   public toggleVisualWidth(id: string): void {
-    this.state.toggleVisualWidthOnActivePage(id);
+    this.state.toggleWidth(id);
   }
 
   public removeVisual(id: string): void {
@@ -808,13 +800,13 @@ export class ReportBuilderComponent implements OnInit {
       this.selectedVisualId.set(null);
       this.assignedSlotFields.set({});
     }
-    this.state.removeVisualFromActivePage(id);
+    this.state.removeVisual(id);
     this.dispatchedQuerySignatures.delete(id);
     this.closeVisualMenu();
   }
 
   public updateVisualTitle(id: string, newTitle: string): void {
-    this.state.updateVisualTitleOnActivePage(id, newTitle);
+    this.state.renameVisual(id, newTitle);
   }
 
   public switchToolsTab(tab: ToolsTab): void {
@@ -1089,10 +1081,12 @@ export class ReportBuilderComponent implements OnInit {
     }
     const dotIdx = fieldRef.indexOf(".");
     if (dotIdx > 0) {
+      const table = fieldRef.slice(0, dotIdx);
+      const col = fieldRef.slice(dotIdx + 1);
       return {
-        expression: fieldRef,
-        table: fieldRef.slice(0, dotIdx),
-        label: fieldRef.slice(dotIdx + 1),
+        expression: this.wrapColumn(table, col),
+        table,
+        label: col,
       };
     }
     return {
@@ -1100,6 +1094,15 @@ export class ReportBuilderComponent implements OnInit {
       table: undefined,
       label: fieldRef,
     };
+  }
+
+  private wrapColumn(table: string, col: string): string {
+    const tableMeta = this.state.sharedTables.find((t) => t.name === table);
+    const colMeta = tableMeta?.columns.find((c) => c.name === col);
+    const agg =
+      colMeta && !NUMERIC_TYPE_PATTERN.test(colMeta.dataType) ? "COUNT" : "SUM";
+    const safeTable = table.replace(/'/g, "''");
+    return `${agg}('${safeTable}'[${col}])`;
   }
 
   private buildVisualQueryOptions(
@@ -1215,7 +1218,7 @@ export class ReportBuilderComponent implements OnInit {
   private dispatchBackendQueries(
     requests: readonly VisualQueryRequestOptions[],
   ): void {
-    const filterHash = this.state.activeFilters().toContextHash();
+    const filterHash = this.state.activeFilters().contextHash();
     for (const req of requests) {
       const signature = JSON.stringify({
         req,
@@ -1225,7 +1228,7 @@ export class ReportBuilderComponent implements OnInit {
         continue;
       }
       this.dispatchedQuerySignatures.set(req.visualId, signature);
-      this.raxQuery.executeVisualQuery(req).subscribe({
+      this.raxQuery.executeVisual(req).subscribe({
         next: (result) => {
           if (result && Array.isArray(result.rows) && result.rows.length > 0) {
             this.visualQueryResults.update((current) => ({
@@ -1245,10 +1248,6 @@ export class ReportBuilderComponent implements OnInit {
     const opts = this.buildVisualQueryOptions(visual);
     if (!opts) {
       return [];
-    }
-    const localRows = this.raxQuery.evaluateDatasetRowsLocally(opts);
-    if (localRows.length > 0) {
-      return localRows;
     }
     const cachedBackendRows = this.visualQueryResults()[visual.id];
     if (cachedBackendRows && cachedBackendRows.length > 0) {
@@ -1465,22 +1464,7 @@ export class ReportBuilderComponent implements OnInit {
 
     if (archetype === "Gauge") {
       const currentVal = data[0] ?? 0;
-      const targetField = slots["target"]?.[0];
-      let targetVal = currentVal > 0 ? currentVal * 1.25 : 100;
-      if (targetField) {
-        const targetMeasure = this.resolveMeasureField(targetField);
-        const targetRows = this.raxQuery.evaluateDatasetRowsLocally({
-          visualId: `${visual.id}-target`,
-          raxExpression: targetMeasure.expression,
-          factTableName: targetMeasure.table,
-        });
-        if (
-          targetRows.length > 0 &&
-          typeof targetRows[0]["measure_value"] === "number"
-        ) {
-          targetVal = targetRows[0]["measure_value"] as number;
-        }
-      }
+      const targetVal = currentVal > 0 ? currentVal * 1.25 : 100;
       const remaining = Math.max(0, targetVal - currentVal);
       return {
         title: visual.title,
@@ -1586,7 +1570,7 @@ export class ReportBuilderComponent implements OnInit {
     sortBy: "value" | "axis",
     sortOrder: "asc" | "desc",
   ): void {
-    this.state.updateVisualSort(visualId, sortBy, sortOrder);
+    this.state.updateSort(visualId, sortBy, sortOrder);
     const orderLabel = sortOrder === "desc" ? "Descending" : "Ascending";
     const targetLabel = sortBy === "value" ? "value" : "category axis";
     this.state.announce(`Visual sorted by ${targetLabel} (${orderLabel}).`);
@@ -1594,7 +1578,7 @@ export class ReportBuilderComponent implements OnInit {
   }
 
   public clearVisualSort(visualId: string): void {
-    this.state.updateVisualSort(visualId, undefined, undefined);
+    this.state.updateSort(visualId, undefined, undefined);
     this.state.announce("Visual axis sorting reset to default.");
     this.closeVisualMenu();
   }
@@ -1763,7 +1747,7 @@ export class ReportBuilderComponent implements OnInit {
     const newName = this.editingPageValue().trim();
     this.editingPageIndex.set(null);
     if (newName && newName !== oldName) {
-      this.state.renameReportPage(oldName, newName);
+      this.state.renamePage(oldName, newName);
     }
   }
 
@@ -1774,7 +1758,7 @@ export class ReportBuilderComponent implements OnInit {
   public onRemoveReportPage(event: Event, page: string): void {
     event.stopPropagation();
     this.pageMenuIndex.set(null);
-    this.state.removeReportPage(page);
+    this.state.removePage(page);
   }
 
   public togglePageMenu(event: Event, index: number): void {
@@ -1790,7 +1774,7 @@ export class ReportBuilderComponent implements OnInit {
 
   public moveTab(page: string, direction: "left" | "right"): void {
     this.pageMenuIndex.set(null);
-    this.state.moveReportPage(page, direction);
+    this.state.movePage(page, direction);
   }
 
   public onPageDragStart(event: DragEvent, index: number): void {
@@ -1856,7 +1840,7 @@ export class ReportBuilderComponent implements OnInit {
         targetIndex < total &&
         targetIndex !== fromIndex
       ) {
-        this.state.reorderReportPages(fromIndex, targetIndex);
+        this.state.reorderPages(fromIndex, targetIndex);
       }
     }
     this.onPageDragEnd();
@@ -1875,14 +1859,14 @@ export class ReportBuilderComponent implements OnInit {
     } else if (event.key === "Delete") {
       if (this.state.reportPages().length > 1) {
         event.preventDefault();
-        this.state.removeReportPage(page);
+        this.state.removePage(page);
       }
     } else if (event.altKey && event.key === "ArrowLeft") {
       event.preventDefault();
-      this.state.moveReportPage(page, "left");
+      this.state.movePage(page, "left");
     } else if (event.altKey && event.key === "ArrowRight") {
       event.preventDefault();
-      this.state.moveReportPage(page, "right");
+      this.state.movePage(page, "right");
     }
   }
 

@@ -14,11 +14,11 @@ import {
   SharedColumn,
   SharedTable,
   StateManagerService,
-} from "../../core/state-manager.service";
+} from "../../core/state/state.service";
 import {
   DEFAULT_SEMANTIC_MODEL,
   SemanticModelService,
-} from "../../core/semantic-model.service";
+} from "../../core/model/model.service";
 
 export type TableViewSection = "Tables" | "Columns" | "Calculations";
 export type FormulaAuthoringMode = "column" | "table" | "measure";
@@ -264,7 +264,7 @@ export class TableViewComponent implements OnInit {
     if (!tbl) return [];
 
     const rawRows =
-      this.tableDataStore()[tbl.name] ?? this.state.getTableRows(tbl.name);
+      this.tableDataStore()[tbl.name] ?? this.state.tableRows(tbl.name);
     const sortColName = this.sortColumn();
     const sortDir = this.sortDirection();
 
@@ -303,7 +303,7 @@ export class TableViewComponent implements OnInit {
 
   constructor() {
     if (this.state.sharedTables.length === 0) {
-      this.semanticModel.syncToStateManager(DEFAULT_SEMANTIC_MODEL, this.state);
+      this.semanticModel.pullState(DEFAULT_SEMANTIC_MODEL, this.state);
     }
     if (this.state.sharedTables.length > 0 && !this.selectedTableName()) {
       const first = this.state.sharedTables[0];
@@ -324,7 +324,7 @@ export class TableViewComponent implements OnInit {
 
   public ngOnInit(): void {
     if (this.state.sharedTables.length === 0) {
-      this.semanticModel.syncToStateManager(DEFAULT_SEMANTIC_MODEL, this.state);
+      this.semanticModel.pullState(DEFAULT_SEMANTIC_MODEL, this.state);
     }
     if (this.state.sharedTables.length > 0 && !this.selectedTableName()) {
       const first = this.state.sharedTables[0];
@@ -345,7 +345,7 @@ export class TableViewComponent implements OnInit {
     this.semanticModel.loadDefault().subscribe({
       next: (payload) => {
         if (payload?.tables?.length) {
-          this.semanticModel.syncToStateManager(payload, this.state);
+          this.semanticModel.pullState(payload, this.state);
           if (!this.selectedTableName()) {
             this.selectedTableName.set(payload.tables[0].name);
           }
@@ -360,14 +360,14 @@ export class TableViewComponent implements OnInit {
   }
 
   private fetchBackendRowsForTable(tableName: string): void {
-    this.semanticModel.fetchTableRows(tableName).subscribe({
+    this.semanticModel.fetchRows(tableName).subscribe({
       next: (rows) => {
         if (Array.isArray(rows) && rows.length > 0) {
           this.tableDataStore.update((store) => ({
             ...store,
             [tableName]: rows,
           }));
-          this.state.setTableRows(tableName, rows);
+          this.state.setRows(tableName, rows);
         }
       },
       error: () => {},
@@ -379,8 +379,8 @@ export class TableViewComponent implements OnInit {
       ...store,
       [tableName]: rows,
     }));
-    this.state.setTableRows(tableName, rows);
-    this.semanticModel.ingestTableRows(tableName, rows).subscribe({
+    this.state.setRows(tableName, rows);
+    this.semanticModel.ingestRows(tableName, rows).subscribe({
       error: () => {},
     });
   }
@@ -434,7 +434,7 @@ export class TableViewComponent implements OnInit {
       );
 
       const existingRows =
-        this.tableDataStore()[tbl.name] ?? this.state.getTableRows(tbl.name);
+        this.tableDataStore()[tbl.name] ?? this.state.tableRows(tbl.name);
       if (existingRows.length === 0) {
         this.fetchBackendRowsForTable(tbl.name);
       }
@@ -468,7 +468,7 @@ export class TableViewComponent implements OnInit {
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
     this.state.announce(
       `Changed column [${colName}] data type to ${dataType}.`,
@@ -531,7 +531,7 @@ export class TableViewComponent implements OnInit {
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
     const label = summarizeBy === "None" ? "Do not summarize" : summarizeBy;
     this.state.announce(`Set summarization for [${colName}] to ${label}.`);
@@ -546,7 +546,7 @@ export class TableViewComponent implements OnInit {
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
     if (normalized) {
       this.state.announce(
@@ -570,7 +570,7 @@ export class TableViewComponent implements OnInit {
     });
     this.state.addTable({ ...tbl, columns: updatedColumns });
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
     this.state.announce(
       nowHidden
@@ -604,7 +604,7 @@ export class TableViewComponent implements OnInit {
     );
     this.state.addTable({ ...tbl, columns: updatedColumns });
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
     this.state.announce(`Applied ${format} format to [${colName}].`);
   }
@@ -750,7 +750,7 @@ export class TableViewComponent implements OnInit {
     this.showFormulaSuggestions.set(false);
 
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
     this.state.announce(`Created new measure ${label} on ${tbl.name}.`);
   }
@@ -818,7 +818,7 @@ export class TableViewComponent implements OnInit {
 
     this.state.addTable(updatedTable);
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
 
     if (dateCol) {
@@ -862,7 +862,7 @@ export class TableViewComponent implements OnInit {
           table: tbl.name,
         });
         this.semanticModel
-          .syncFromStateManager(this.state)
+          .pushState(this.state)
           .subscribe({ error: () => {} });
         this.isFormulaActive.set(false);
         this.state.announce(
@@ -879,7 +879,7 @@ export class TableViewComponent implements OnInit {
 
       // Evaluate expression in row context across all table rows
       const sourceRows =
-        this.tableDataStore()[tbl.name] ?? this.state.getTableRows(tbl.name);
+        this.tableDataStore()[tbl.name] ?? this.state.tableRows(tbl.name);
       const evaluatedRows = sourceRows.map((row, idx) => {
         const computedVal = this.evaluateRowContextExpression(
           text,
@@ -946,7 +946,7 @@ export class TableViewComponent implements OnInit {
       this.loadTableRows(tbl.name, evaluatedRows);
       this.selectedColumnName.set(colName);
       this.semanticModel
-        .syncFromStateManager(this.state)
+        .pushState(this.state)
         .subscribe({ error: () => {} });
 
       this.state.announce(
@@ -967,7 +967,7 @@ export class TableViewComponent implements OnInit {
     this.loadTableRows(newTableName, rows);
     this.selectTable(newTableName);
     this.semanticModel
-      .syncFromStateManager(this.state)
+      .pushState(this.state)
       .subscribe({ error: () => {} });
     this.state.announce(
       `Calculated table ${newTableName} created from RAX expression (${rows.length} rows).`,
@@ -1019,7 +1019,7 @@ export class TableViewComponent implements OnInit {
       const filterPred = calcSumMatch[4]?.trim();
       const targetRows =
         this.tableDataStore()[targetTableName] ??
-        this.state.getTableRows(targetTableName);
+        this.state.tableRows(targetTableName);
 
       // Identify primary key or shared join column for context transition
       const pkCol =
@@ -1108,7 +1108,7 @@ export class TableViewComponent implements OnInit {
         const relTableName = (quotedTbl || rawTbl || "").trim();
         const relRows =
           this.tableDataStore()[relTableName] ??
-          this.state.getTableRows(relTableName);
+          this.state.tableRows(relTableName);
         if (relRows.length === 0) return "0";
         const matchedRow =
           relRows.find((r) =>
@@ -1406,7 +1406,7 @@ export class TableViewComponent implements OnInit {
         "";
       const sourceRows = factTableName
         ? (this.tableDataStore()[factTableName] ??
-          this.state.getTableRows(factTableName))
+          this.state.tableRows(factTableName))
         : [];
 
       const groupedMap = new Map<string, Record<string, unknown>>();

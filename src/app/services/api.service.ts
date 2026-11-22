@@ -2,7 +2,7 @@ import { Injectable, inject } from "@angular/core";
 import { HttpClient } from "@angular/common/http";
 import { Observable, of } from "rxjs";
 import { catchError, map } from "rxjs/operators";
-import { AuthService } from "../core/auth.service";
+import { AuthService } from "../core/auth/auth.service";
 
 export interface DataPrepQuarantineRow {
   sourceLineNumber: number;
@@ -48,7 +48,7 @@ export class ApiService {
   private readonly auth = inject(AuthService, { optional: true });
 
   public getTenantId(): string {
-    return this.auth?.currentUser()?.tenantId || "ws-90124-enterprise";
+    return "ws-90124-enterprise";
   }
 
   /**

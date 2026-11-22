@@ -1,13 +1,16 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { provideHttpClient } from "@angular/common/http";
-import { provideHttpClientTesting } from "@angular/common/http/testing";
+import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
 import { describe, expect, it, beforeEach } from "vitest";
 import { RaxRequestsComponent } from "./rax-requests.component";
 
 describe("RaxRequestsComponent", () => {
+  let httpMock: HttpTestingController;
+
   beforeEach(() => {
+    localStorage.clear();
     TestBed.configureTestingModule({
       imports: [RaxRequestsComponent],
       providers: [
@@ -17,6 +20,7 @@ describe("RaxRequestsComponent", () => {
         provideHttpClientTesting(),
       ],
     });
+    httpMock = TestBed.inject(HttpTestingController);
   });
 
   it("instantiates the component successfully", async () => {
@@ -242,6 +246,14 @@ describe("RaxRequestsComponent", () => {
 
     comp1.updateActiveContent("EVALUATE ROW(\"Check\", 40 + 2)");
     comp1.runQuery();
+    httpMock.expectOne("/api/reports/Untitled%20Project.rcp/query").flush({
+      cacheKey: "rax-check-42",
+      cacheHit: false,
+      routedEngine: "DUCKDB",
+      executionTimeMs: 2,
+      executedSql: "SELECT 42 AS \"Check\"",
+      rows: [{ Check: 42 }],
+    });
     fixture1.destroy();
 
     const fixture2 = TestBed.createComponent(RaxRequestsComponent);
@@ -269,7 +281,7 @@ describe("RaxRequestsComponent", () => {
       ],
       rowCount: 3,
     });
-    comp["state"].setTableRows("Orders", [
+    comp["state"].setRows("Orders", [
       { Region: "EMEA", Quantity: 2, Price: 50 },
       { Region: "EMEA", Quantity: 3, Price: 100 },
       { Region: "AMER", Quantity: 5, Price: 20 },
@@ -289,6 +301,21 @@ describe("RaxRequestsComponent", () => {
       ].join("\n"),
     );
     comp.runQuery();
+    httpMock.expectOne("/api/reports/Untitled%20Project.rcp/query").flush({
+      cacheKey: "rax-orders-row",
+      cacheHit: false,
+      routedEngine: "DUCKDB",
+      executionTimeMs: 4,
+      executedSql: "SELECT 10 AS \"Qty\", 500 AS \"Revenue\", 400 AS \"EMEA Revenue\", 50 AS \"Avg Unit\"",
+      rows: [
+        {
+          Qty: 10,
+          Revenue: 500,
+          "EMEA Revenue": 400,
+          "Avg Unit": 50,
+        },
+      ],
+    });
 
     const rowRes = comp.activeTab().lastResult?.rows?.[0];
     expect(rowRes).toEqual({
@@ -311,6 +338,17 @@ describe("RaxRequestsComponent", () => {
       ].join("\n"),
     );
     comp.runQuery();
+    httpMock.expectOne("/api/reports/Untitled%20Project.rcp/query").flush({
+      cacheKey: "rax-orders-summarize",
+      cacheHit: false,
+      routedEngine: "DUCKDB",
+      executionTimeMs: 5,
+      executedSql: "SELECT Region, SUM(Price * Quantity) AS \"Region Revenue\", SUM(Quantity) AS \"Region Qty\" FROM Orders GROUP BY Region ORDER BY \"Region Revenue\" DESC",
+      rows: [
+        { Region: "EMEA", "Region Revenue": 400, "Region Qty": 5 },
+        { Region: "AMER", "Region Revenue": 100, "Region Qty": 5 },
+      ],
+    });
 
     expect(comp.activeTab().lastResult?.rows).toEqual([
       { Region: "EMEA", "Region Revenue": 400, "Region Qty": 5 },

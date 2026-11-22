@@ -9,9 +9,9 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
 import { Router, RouterLink } from "@angular/router";
-import { AuthResponse, SignupData } from "../../core/auth.interface";
-import { AuthService } from "../../core/auth.service";
-import { StateManagerService } from "../../core/state-manager.service";
+import { AuthResponse, SignupData } from "../../core/auth/auth.interface";
+import { AuthService } from "../../core/auth/auth.service";
+import { StateManagerService } from "../../core/state/state.service";
 
 export interface PasswordStrength {
   readonly percent: number;
@@ -37,7 +37,6 @@ export class SignupComponent {
   public readonly email = signal<string>("");
   public readonly password = signal<string>("");
   public readonly confirmPassword = signal<string>("");
-  public readonly role = signal<string>("ROLE_OPERATOR");
   public readonly consentGiven = signal<boolean>(true);
 
   public readonly showPassword = signal<boolean>(false);
@@ -139,7 +138,6 @@ export class SignupComponent {
       username: this.username().trim().toLowerCase(),
       email: this.email().trim().toLowerCase(),
       password: this.password(),
-      role: this.role(),
     };
   }
 

@@ -17,7 +17,7 @@ import {
   registerables,
 } from 'chart.js';
 
-import { StateManagerService } from '../core/state-manager.service';
+import { StateManagerService } from '../core/state/state.service';
 
 // Register all standard Chart.js controllers, elements, scales, and plugins once for the application module.
 Chart.register(...registerables);

@@ -14,7 +14,9 @@ import {
   DataPrepPreview,
   DataPrepQuarantineRow,
 } from '../../services/api.service';
-import { StateManagerService } from '../../core/state-manager.service';
+import { switchMap } from 'rxjs';
+import { StateManagerService } from '../../core/state/state.service';
+import { SemanticModelService } from '../../core/model/model.service';
 import { IngestionService } from '../../core/ingestion/ingestion.service';
 import {
   AggregationFunction,
@@ -66,6 +68,7 @@ export const INITIAL_PREP_STEPS: readonly DataPrepStep[] = [];
 export class DataPrepComponent implements OnInit {
   private readonly api = inject(ApiService);
   private readonly state = inject(StateManagerService);
+  private readonly model = inject(SemanticModelService);
   public readonly ingestion = inject(IngestionService);
 
   public readonly filterOperators = FILTER_OPERATORS;
@@ -245,7 +248,7 @@ export class DataPrepComponent implements OnInit {
           type: toDisplayType(c.dataType),
           icon: toDisplayType(c.dataType),
         }));
-        const tblRows = [...this.state.getTableRows(tbl.name)];
+        const tblRows = [...this.state.tableRows(tbl.name)];
         snapshots[src.id] = { columns: cols, rows: tblRows };
         initialStepsMap[src.id] = [
           {
@@ -292,7 +295,7 @@ export class DataPrepComponent implements OnInit {
 
     const tableName = tableNameFromSource(source.name);
     const sharedTbl = this.state.sharedTables.find((t) => t.name === tableName);
-    const sharedRows = this.state.getTableRows(tableName);
+    const sharedRows = this.state.tableRows(tableName);
     if (sharedTbl && sharedTbl.columns.length > 0) {
       const cols = sharedTbl.columns.map((c) => ({
         name: c.name,
@@ -426,21 +429,20 @@ export class DataPrepComponent implements OnInit {
     if (!snapshot) return;
 
     const activeSlice = targetIdx >= 0 ? steps.slice(0, targetIdx + 1) : [];
-    const { columns, rows, quarantined } = this.ingestion.evaluateSteps(
-      snapshot.columns,
-      snapshot.rows,
-      activeSlice,
-    );
-
-    this.columns.set(columns);
-    this.rows.set(rows);
-    this.quarantinedRecords.set(quarantined);
-    this.quarantineStats.set({
-      rowsQuarantined: quarantined.length,
-      status: quarantined.length > 0 ? 'Isolated Records Detected' : 'Healthy',
-      targetTable: 'quarantine_records',
-    });
-    this.syncDefaultFormSelections();
+    this.ingestion
+      .evaluateSteps(snapshot.columns, snapshot.rows, activeSlice)
+      .subscribe(({ columns, rows, quarantined }) => {
+        this.columns.set(columns);
+        this.rows.set(rows);
+        this.quarantinedRecords.set(quarantined);
+        this.quarantineStats.set({
+          rowsQuarantined: quarantined.length,
+          status:
+            quarantined.length > 0 ? 'Isolated Records Detected' : 'Healthy',
+          targetTable: 'quarantine_records',
+        });
+        this.syncDefaultFormSelections();
+      });
 
     // Also synchronize asynchronously with backend RQueryTransformationEngine if raw payload exists
     const src = this.sources().find((s) => s.id === sourceId);
@@ -454,14 +456,8 @@ export class DataPrepComponent implements OnInit {
         if (other.id !== sourceId) {
           const otherSnap = this.rawSnapshotsBySource()[other.id];
           if (otherSnap) {
-            const otherSteps = this.stepsBySource()[other.id] ?? [];
-            const evaluatedOther = this.ingestion.evaluateSteps(
-              otherSnap.columns,
-              otherSnap.rows,
-              otherSteps,
-            );
-            lookupTables[tableNameFromSource(other.name)] = evaluatedOther.rows;
-            lookupTables[other.name] = evaluatedOther.rows;
+            lookupTables[tableNameFromSource(other.name)] = otherSnap.rows;
+            lookupTables[other.name] = otherSnap.rows;
           }
         }
       });
@@ -931,7 +927,11 @@ export class DataPrepComponent implements OnInit {
         columns: sharedCols,
         rowCount: rowData.length,
       });
-      this.state.setTableRows(tableName, [...rowData]);
+      this.state.setRows(tableName, [...rowData]);
+      this.model
+        .pushState(this.state)
+        .pipe(switchMap(() => this.model.ingestRows(tableName, rowData)))
+        .subscribe();
       this.state.announce(
         `Committed dataset "${tableName}" (${rowData.length} rows) to analytical cache and semantic model.`,
         { resetAfterMs: 4000 },
@@ -958,18 +958,19 @@ export class DataPrepComponent implements OnInit {
     format: 'CSV' | 'PARQUET' | 'XLSX' | 'REST',
     content: string,
   ): void {
-    const res = this.ingestion.loadDirect(name, format, content);
-    if (!res) return;
-    this.columns.set(res.columns);
-    this.rows.set(res.rows);
-    this.selectedStepIndex.set(0);
-    this.quarantinedRecords.set([]);
-    this.quarantineStats.set({
-      rowsQuarantined: 0,
-      status: 'Healthy',
-      targetTable: 'quarantine_records',
+    this.ingestion.loadDirect(name, format, content).subscribe((res) => {
+      if (!res) return;
+      this.columns.set(res.columns);
+      this.rows.set(res.rows);
+      this.selectedStepIndex.set(0);
+      this.quarantinedRecords.set([]);
+      this.quarantineStats.set({
+        rowsQuarantined: 0,
+        status: 'Healthy',
+        targetTable: 'quarantine_records',
+      });
+      this.syncDefaultFormSelections();
     });
-    this.syncDefaultFormSelections();
   }
 
   public toggleToolPanel(panel: Exclude<RibbonToolPanel, null>): void {

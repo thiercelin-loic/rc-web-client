@@ -20,10 +20,10 @@ import { FormsModule } from "@angular/forms";
 import {
   ExchangeLogEntry,
   StateManagerService,
-} from "./core/state-manager.service";
+} from "./core/state/state.service";
 import { ExportFormatType } from "./core/export/export.interface";
 import { ExportService } from "./core/export/export.service";
-import { AuthService } from "./core/auth.service";
+import { AuthService } from "./core/auth/auth.service";
 import { ProjectService } from "./core/project/project.service";
 import { IngestionService } from "./core/ingestion/ingestion.service";
 
@@ -345,7 +345,7 @@ interface FullscreenElement extends HTMLElement {
             <button
               type="button"
               class="rc-btn rc-btn-md rc-btn-outline d-md-none px-2 d-inline-flex align-items-center justify-content-center flex-shrink-0"
-              (click)="state.toggleMobileDrawer(true)"
+              (click)="state.toggleDrawer(true)"
               aria-label="Open Workspace and Tools Drawer"
             >
               <svg
@@ -873,27 +873,6 @@ interface FullscreenElement extends HTMLElement {
                               <line x1="3" y1="15" x2="21" y2="15"></line>
                               <line x1="9" y1="3" x2="9" y2="21"></line>
                               <line x1="15" y1="3" x2="15" y2="21"></line>
-                            </svg>
-                          }
-                          @case (".parquet") {
-                            <svg
-                              width="16"
-                              height="16"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              stroke="currentColor"
-                              stroke-width="1.8"
-                              stroke-linecap="round"
-                              stroke-linejoin="round"
-                              aria-hidden="true"
-                            >
-                              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
-                              <path
-                                d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"
-                              ></path>
-                              <path
-                                d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"
-                              ></path>
                             </svg>
                           }
                           @case (".csv") {
@@ -1582,7 +1561,7 @@ interface FullscreenElement extends HTMLElement {
               <button
                 type="button"
                 class="rc-btn rc-btn-secondary rc-btn-sm"
-                (click)="state.toggleMobileDrawer(false)"
+                (click)="state.toggleDrawer(false)"
                 aria-label="Close mobile workspace drawer"
               >
                 Close
@@ -1630,7 +1609,7 @@ interface FullscreenElement extends HTMLElement {
                         [class.rc-btn-outline]="state.activePage() !== page"
                         (click)="
                           onSelectReportPage(page);
-                          state.toggleMobileDrawer(false)
+                          state.toggleDrawer(false)
                         "
                       >
                         {{ page }}
@@ -1691,7 +1670,6 @@ export class AppComponent {
   public readonly exportFormats: readonly ExportFormatType[] = [
     ".pdf",
     ".xlsx",
-    ".parquet",
     ".csv",
   ];
 
@@ -1787,7 +1765,7 @@ export class AppComponent {
   }
 
   public navigateMobile(route: string): void {
-    this.state.toggleMobileDrawer(false);
+    this.state.toggleDrawer(false);
     this.router.navigate([route]);
   }
 
@@ -1798,7 +1776,7 @@ export class AppComponent {
   public triggerQuickExport(format: ExportFormatType): void {
     this.exportMenuOpen.set(false);
     if (this.state.mobileDrawerOpen()) {
-      this.state.toggleMobileDrawer(false);
+      this.state.toggleDrawer(false);
     }
     const reportId = this.state.activeProject().filename || "workspace-report";
     const visualId = this.state.activePage() || "executive-overview";

@@ -103,13 +103,6 @@ export const DATA_CONNECTORS: readonly DataConnector[] = [
     description: "Extensible Markup Language documents (.xml)",
     fileExtensions: ".xml",
   },
-  {
-    id: "parquet",
-    name: "Parquet (.parquet)",
-    category: "file",
-    description: "Apache Parquet & Avro columnar files (.parquet, .avro)",
-    fileExtensions: ".parquet,.avro",
-  },
 ];
 
 export interface RQueryAggregateDefinition {

@@ -14,14 +14,14 @@ import { FormsModule } from "@angular/forms";
 import {
   DEFAULT_SEMANTIC_MODEL,
   SemanticModelService,
-} from "../../core/semantic-model.service";
+} from "../../core/model/model.service";
 import {
   RaxMeasureDescriptor,
   SharedColumn,
   SharedTable,
   StateManagerService,
-} from "../../core/state-manager.service";
-import { RaxQueryService } from "../../core/rax-query.service";
+} from "../../core/state/state.service";
+import { QueryService } from "../../core/rax/query.service";
 
 export interface RaxDiagnostic {
   readonly severity: "error" | "warning" | "info";
@@ -164,7 +164,7 @@ const INFO_SCHEMA_FUNCTIONS: readonly string[] = [
 export class RaxRequestsComponent implements OnInit {
   private readonly state = inject(StateManagerService);
   private readonly semanticModelService = inject(SemanticModelService);
-  private readonly raxQueryService = inject(RaxQueryService);
+  private readonly raxQueryService = inject(QueryService);
 
   private readonly queryEditorRef =
     viewChild<ElementRef<HTMLTextAreaElement>>("queryEditor");
@@ -443,7 +443,7 @@ export class RaxRequestsComponent implements OnInit {
       this.state.measures.length === 0
     ) {
       this.semanticModelService.loadDefault().subscribe((payload) => {
-        this.semanticModelService.syncToStateManager(payload, this.state);
+        this.semanticModelService.pullState(payload, this.state);
       });
     }
   }
@@ -842,7 +842,7 @@ export class RaxRequestsComponent implements OnInit {
       description: "Calculated table materialized from RAX Requests",
       expression: rawContent,
     });
-    this.state.setTableRows(tableName, result.rows);
+    this.state.setRows(tableName, result.rows);
     this.patchActiveTab({
       statusText: `Materialized table "${tableName}" (${result.rows.length} rows)`,
     });
@@ -1039,7 +1039,7 @@ export class RaxRequestsComponent implements OnInit {
     });
 
     this.raxQueryService
-      .executeMeasureQuery("rax-studio-query", tab.content, "rax-studio")
+      .executeMeasure("rax-studio-query", tab.content, "rax-studio")
       .subscribe((result) => {
         const summary = `Completed in ${result.executionTimeMs} ms (${result.rows.length} row(s), ${result.routedEngine})`;
         this.patchActiveTab({
@@ -1311,11 +1311,6 @@ export class RaxRequestsComponent implements OnInit {
     // 10. Local evaluation of DEFINE MEASURE / VAR / ROW / SUMMARIZECOLUMNS / FILTER / TOPN / scalar formulas
     if (upper.includes("DEFINE") && /\bMEASURE\b/i.test(normalized)) {
       this.extractAndSaveMeasuresFromScript(normalized);
-    }
-
-    const studioEvalResult = this.raxQueryService.evaluateStudioQuery(normalized);
-    if (studioEvalResult) {
-      return studioEvalResult;
     }
 
     return null;

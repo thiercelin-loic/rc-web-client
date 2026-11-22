@@ -11,6 +11,7 @@ describe('AppComponent', () => {
   let httpMock: HttpTestingController;
 
   beforeEach(() => {
+    localStorage.clear();
     TestBed.configureTestingModule({
       imports: [AppComponent],
       providers: [
@@ -41,16 +42,16 @@ describe('AppComponent', () => {
     app.triggerQuickExport('.pdf');
     fixture.detectChanges();
 
-    httpMock.expectNone('/api/reports/export/pdf');
+    httpMock.expectNone('/api/reports/Untitled%20Project.rcp/export');
     expect(app.state.statusIsError()).toBe(true);
     expect(app.state.statusMessage()).toBe(
-      'Export of Workspace-Report-300DPI.pdf failed: page "Page 1" has no visuals to export — add at least one visual on the canvas first.'
+      'Export of Untitled Project.pdf failed: page "Page 1" has no visuals to export — add at least one visual on the canvas first.'
     );
 
     const footerEl = fixture.nativeElement.querySelector('footer.rc-zone-status') as HTMLElement;
     expect(footerEl.classList.contains('rc-zone-status-error')).toBe(true);
     expect(footerEl.textContent).toContain(
-      'Export of Workspace-Report-300DPI.pdf failed: page "Page 1" has no visuals to export — add at least one visual on the canvas first.'
+      'Export of Untitled Project.pdf failed: page "Page 1" has no visuals to export — add at least one visual on the canvas first.'
     );
   });
 
@@ -60,8 +61,8 @@ describe('AppComponent', () => {
     fixture.detectChanges();
 
     const app = fixture.componentInstance;
-    app.state.addVisualToActivePage('Bar');
-    app.state.setThemePreference('dark');
+    app.state.addVisual('Bar');
+    app.state.setTheme('dark');
     fixture.detectChanges();
 
     const layoutEl = fixture.nativeElement.querySelector('.app-workspace-layout') as HTMLElement;
@@ -78,7 +79,7 @@ describe('AppComponent', () => {
 
     app.triggerQuickExport('.pdf');
 
-    const req = httpMock.expectOne('/api/reports/export/pdf');
+    const req = httpMock.expectOne('/api/reports/Untitled%20Project.rcp/export');
     req.flush({
       jobId: 'job-pdf-header',
       format: '.pdf',
@@ -261,15 +262,44 @@ describe('AppComponent', () => {
       'CSV',
       'Region,Revenue\nEurope,1200\nNorth America,2400',
     );
+    const sheetsReq = httpMock.expectOne('/api/ingestion/sheets');
+    sheetsReq.flush({
+      sheets: [
+        {
+          id: 'sheet_1',
+          name: 'sales_global',
+          kind: 'table',
+          columns: [
+            { name: 'Region', type: 'string', icon: 'string' },
+            { name: 'Revenue', type: 'integer', icon: 'integer' },
+          ],
+          rows: [
+            { Region: 'Europe', Revenue: 1200 },
+            { Region: 'North America', Revenue: 2400 },
+          ],
+          rowCount: 2,
+        },
+      ],
+    });
     fixture.detectChanges();
     expect(app.ingestion.isNavigatorModalOpen()).toBe(true);
     expect(fixture.nativeElement.querySelector('#navigator-modal-title')).toBeTruthy();
 
     app.ingestion.confirmNavigator('load');
+    const previewReq = httpMock.expectOne('/api/ingestion/preview');
+    previewReq.flush([
+      {
+        schema: { Region: 'VARCHAR', Revenue: 'BIGINT' },
+        rows: [
+          { Region: 'Europe', Revenue: 1200 },
+          { Region: 'North America', Revenue: 2400 },
+        ],
+      },
+    ]);
     fixture.detectChanges();
     expect(app.ingestion.isNavigatorModalOpen()).toBe(false);
     expect(app.state.sharedTables.some((t) => t.name === 'sales_global')).toBe(true);
-    expect(app.state.getTableRows('sales_global').length).toBe(2);
+    expect(app.state.tableRows('sales_global').length).toBe(2);
   });
 
   it('caps Navigator preview DOM rows at 100 while loading full JSON dataset rows', async () => {
@@ -289,17 +319,40 @@ describe('AppComponent', () => {
       'JSON',
       JSON.stringify(records, null, 2),
     );
+    const jsonSheetsReq = httpMock.expectOne('/api/ingestion/sheets');
+    jsonSheetsReq.flush({
+      sheets: [
+        {
+          id: 'sheet_1',
+          name: 'Performances_Ligue1_10_Saisons',
+          kind: 'json-array',
+          columns: [
+            { name: 'joueur', type: 'string', icon: 'string' },
+            { name: 'buts', type: 'integer', icon: 'integer' },
+          ],
+          rows: records,
+          rowCount: 125,
+        },
+      ],
+    });
     fixture.detectChanges();
 
     const bodyRows = fixture.nativeElement.querySelectorAll('.rc-preview-table tbody tr');
     expect(bodyRows.length).toBe(100);
 
     app.ingestion.confirmNavigator('load');
+    const jsonPreviewReq = httpMock.expectOne('/api/ingestion/preview');
+    jsonPreviewReq.flush([
+      {
+        schema: { joueur: 'VARCHAR', buts: 'BIGINT' },
+        rows: records,
+      },
+    ]);
     fixture.detectChanges();
-    expect(app.state.getTableRows('Performances_Ligue1_10_Saisons').length).toBe(125);
+    expect(app.state.tableRows('Performances_Ligue1_10_Saisons').length).toBe(125);
   });
 
-  it('renders Full Screen button before project container and toggles full screen mode with telemetry', async () => {
+  it('renders Full Screen button in right ribbon cluster and toggles full screen mode with telemetry', async () => {
     const originalFullscreenElement = Object.getOwnPropertyDescriptor(document, 'fullscreenElement');
     const originalRequestFullscreen = Object.getOwnPropertyDescriptor(document.documentElement, 'requestFullscreen');
     const originalExitFullscreen = Object.getOwnPropertyDescriptor(document, 'exitFullscreen');
@@ -341,7 +394,7 @@ describe('AppComponent', () => {
       expect(projectContainer).toBeTruthy();
 
       const children = Array.from(rightCluster.children);
-      expect(children.indexOf(fullscreenBtn)).toBeLessThan(children.indexOf(projectContainer));
+      expect(children.indexOf(projectContainer)).toBeLessThan(children.indexOf(fullscreenBtn));
 
       expect(app.isFullscreen()).toBe(false);
       expect(fullscreenBtn.getAttribute('aria-label')).toBe('Enter full screen mode');

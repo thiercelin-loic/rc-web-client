@@ -12,8 +12,8 @@ import {
   DagDiagnosticMarker,
   SemanticModelApiPayload,
   SemanticModelService,
-} from '../../core/semantic-model.service';
-import { StateManagerService } from '../../core/state-manager.service';
+} from '../../core/model/model.service';
+import { StateManagerService } from '../../core/state/state.service';
 
 export interface ModelColumn {
   readonly name: string;
@@ -397,7 +397,7 @@ export class ModelViewComponent implements OnInit {
     this.semanticModelService.loadDefault().subscribe({
       next: (payload: SemanticModelApiPayload) => {
         if (payload?.tables?.length) {
-          this.semanticModelService.syncToStateManager(payload, this.state);
+          this.semanticModelService.pullState(payload, this.state);
           this.state.announce(`Semantic model loaded: ${payload.name}`);
 
           const mappedTables = layoutStarSchemaTables(

@@ -8,7 +8,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { describe, expect, it, beforeEach } from 'vitest';
 import { ReportBuilderComponent } from './report-builder.component';
-import { StateManagerService } from '../../core/state-manager.service';
+import { StateManagerService } from '../../core/state/state.service';
 
 describe('ReportBuilderComponent', () => {
   beforeEach(() => {
@@ -87,7 +87,7 @@ describe('ReportBuilderComponent', () => {
         rowCount: 1,
       },
     ]);
-    state.setTableRows('fact_transactions', [{ category: 'Alpha' }]);
+    state.setRows('fact_transactions', [{ category: 'Alpha' }]);
 
     const component = fixture.componentInstance;
     component.addVisual('Matrix');
@@ -516,7 +516,7 @@ describe('ReportBuilderComponent', () => {
         ],
       },
     ]);
-    state.setTableRows('orders', [
+    state.setRows('orders', [
       { region: 'EU', amount: 250 },
       { region: 'EU', amount: 150 },
       { region: 'US', amount: 600 },

@@ -9,9 +9,9 @@ import {
 import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
 import { ActivatedRoute, Router, RouterLink } from "@angular/router";
-import { AuthService } from "../../core/auth.service";
-import { AuthResponse, LoginCredentials } from "../../core/auth.interface";
-import { StateManagerService } from "../../core/state-manager.service";
+import { AuthService } from "../../core/auth/auth.service";
+import { AuthResponse, LoginCredentials } from "../../core/auth/auth.interface";
+import { StateManagerService } from "../../core/state/state.service";
 
 @Component({
   selector: "rc-login",
