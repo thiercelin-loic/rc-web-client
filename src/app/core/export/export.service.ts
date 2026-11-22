@@ -1,6 +1,11 @@
 import { ApplicationRef, Injectable, inject, signal } from "@angular/core";
 import { HttpClient, HttpErrorResponse } from "@angular/common/http";
-import { EMPTY, Observable, catchError, map, of, throwError } from "rxjs";
+import { EMPTY, Observable, catchError, map, throwError } from "rxjs";
+import {
+  DEFAULT_PROJECT_NAME,
+  EXPORT_API_BASE,
+  EXPORT_MIME_TYPES,
+} from "./export.constants";
 import {
   ExportChartData,
   ExportFormatMeta,
@@ -8,12 +13,8 @@ import {
   ExportJobReceipt,
   ExportPayload,
   ExportVisualSummary,
-  TabularExportData,
 } from "./export.interface";
-import { buildSheets, shapeDataset } from "./dataset.builder";
-import { encodeParquet } from "./parquet.encoder";
-import { encodeXlsx } from "./xlsx.encoder";
-import { StateManagerService } from "../state-manager.service";
+import { StateManagerService } from "../state/state.service";
 
 @Injectable({ providedIn: "root" })
 export class ExportService {
@@ -61,13 +62,7 @@ export class ExportService {
 
     this.state.setLoading(true, `Exporting ${format}...`);
 
-    if (format !== ".pdf") {
-      const localReceipt = this.createFallback(format, meta);
-      this.finalizeDownload(localReceipt);
-      return of(localReceipt);
-    }
-
-    const endpoint = this.resolveEndpoint(reportId, visualId, format);
+    const endpoint = this.resolveEndpoint(reportId);
     const payload = this.buildPayload(
       reportId,
       visualId,
@@ -82,9 +77,7 @@ export class ExportService {
         this.finalizeDownload(consolidated);
         return consolidated;
       }),
-      catchError((error: HttpErrorResponse) =>
-        this.handleError(error, format, meta),
-      ),
+      catchError((error: HttpErrorResponse) => this.handleError(error, meta)),
     );
   }
 
@@ -98,98 +91,58 @@ export class ExportService {
       return;
     }
 
-    const content = this.generateContent(receipt);
-    this.triggerDownload(content, receipt.filename, receipt.mimeType);
-  }
-
-  public buildDataset(_receipt: ExportJobReceipt): TabularExportData {
-    return shapeDataset(this.state.activePageVisuals(), this.chartSource);
-  }
-
-  public buildDelimited(receipt: ExportJobReceipt, delimiter: string): string {
-    const dataset = this.buildDataset(receipt);
-    const header = dataset.columns
-      .map((col) => this.escapeCell(col, delimiter))
-      .join(delimiter);
-    const rows = dataset.rows.map((row) =>
-      row.map((cell) => this.escapeCell(cell, delimiter)).join(delimiter),
-    );
-    return "\uFEFF" + [header, ...rows].join("\r\n") + "\r\n";
-  }
-
-  public buildXlsx(_receipt: ExportJobReceipt): Uint8Array {
-    const sheets = buildSheets(
-      this.state.activePageVisuals(),
-      this.chartSource,
-    );
-    return encodeXlsx(sheets);
-  }
-
-  public buildParquet(receipt: ExportJobReceipt): Uint8Array {
-    return encodeParquet(this.buildDataset(receipt));
-  }
-
-  private mergeReceipt(
-    serverReceipt: ExportJobReceipt,
-    format: ExportFormatType,
-    meta: ExportFormatMeta,
-  ): ExportJobReceipt {
-    return {
-      ...serverReceipt,
-      format,
-      filename: serverReceipt.filename || meta.filename,
-      mimeType: serverReceipt.mimeType || meta.mimeType,
-    };
-  }
-
-  private handleError(
-    error: HttpErrorResponse,
-    format: ExportFormatType,
-    meta: ExportFormatMeta,
-  ): Observable<ExportJobReceipt> {
-    if (error && error.status === 400) {
-      this.receiptSignal.set(null);
-      this.state.setLoading(false);
-      this.state.announceError(`Export of ${meta.filename}`, error);
-      return throwError(() => error);
+    const content = this.extractContent(receipt);
+    if (content !== null) {
+      this.triggerDownload(content, receipt.filename, receipt.mimeType);
     }
-
-    const fallbackReceipt = this.createFallback(format, meta);
-    this.finalizeDownload(fallbackReceipt);
-    return of(fallbackReceipt);
   }
 
   private finalizeDownload(receipt: ExportJobReceipt): void {
     this.receiptSignal.set(receipt);
-    this.downloadReceipt(receipt);
     this.state.setLoading(false);
-    this.state.announce(`Exported ${receipt.filename} (${receipt.mimeType}).`);
+    this.downloadReceipt(receipt);
+    this.state.announce(
+      `Exported ${receipt.filename} (${receipt.format.toUpperCase()}).`,
+    );
   }
 
-  private generateContent(receipt: ExportJobReceipt): BlobPart {
-    if (receipt.fileContentBase64) {
-      return this.decodeBase64(
-        receipt.fileContentBase64,
-      ) as unknown as BlobPart;
+  private handleError(
+    error: HttpErrorResponse,
+    meta: ExportFormatMeta,
+  ): Observable<ExportJobReceipt> {
+    this.receiptSignal.set(null);
+    this.state.setLoading(false);
+    this.state.announceError(`Export of ${meta.filename}`, error);
+    return throwError(() => error);
+  }
+
+  private mergeReceipt(
+    receipt: ExportJobReceipt,
+    format: ExportFormatType,
+    meta: ExportFormatMeta,
+  ): ExportJobReceipt {
+    return {
+      ...receipt,
+      format: receipt.format || format,
+      mimeType: receipt.mimeType || meta.mimeType,
+      filename: receipt.filename || meta.filename,
+    };
+  }
+
+  private extractContent(receipt: ExportJobReceipt): BlobPart | null {
+    if (!receipt.fileContentBase64) {
+      return null;
     }
-    if (receipt.format === ".csv" || receipt.format === ".tsv") {
-      const delimiter = receipt.format === ".tsv" ? "\t" : ";";
-      return this.buildDelimited(receipt, delimiter);
+    return this.decodeBase64(receipt.fileContentBase64) as unknown as BlobPart;
+  }
+
+  private decodeBase64(base64: string): Uint8Array {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
     }
-    if (receipt.format === ".xlsx") {
-      return this.buildXlsx(receipt) as unknown as BlobPart;
-    }
-    if (receipt.format === ".parquet") {
-      return this.buildParquet(receipt) as unknown as BlobPart;
-    }
-    return (
-      `%PDF-1.4\n` +
-      `% Export Document\n` +
-      `% Project: ${this.state.activeProject().filename}\n` +
-      `% Page: ${this.state.activePage()}\n` +
-      `% Generated: ${receipt.timestamp}\n` +
-      `%%EOF`
-    );
+    return bytes;
   }
 
   private triggerDownload(
@@ -201,201 +154,133 @@ export class ExportService {
       return;
     }
     const blob = new Blob([content], { type: mimeType });
-    const objectUrl = URL.createObjectURL(blob);
+    const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
-    anchor.href = objectUrl;
+    anchor.href = url;
     anchor.download = filename;
+    anchor.style.display = "none";
     document.body.appendChild(anchor);
     anchor.click();
     document.body.removeChild(anchor);
-
-    setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+    URL.revokeObjectURL(url);
   }
 
   private printLight(): void {
-    this.state.setPrintingLightMode(true);
-    const savedThemes = this.applyLight();
-    const printStyle = this.injectOrientation();
-    const previousTitle = typeof document !== "undefined" ? document.title : "";
+    this.state.setPrinting(true);
+    this.appRef.tick();
 
-    if (typeof document !== "undefined") {
-      document.title = this.projectName();
-    }
-
-    try {
+    const restored = this.applyLight();
+    const cleanup = () => {
+      this.state.setPrinting(false);
       this.appRef.tick();
-      window.print();
-    } finally {
-      if (typeof document !== "undefined") {
-        document.title = previousTitle;
+      for (const entry of restored) {
+        if (entry.originalTheme !== null) {
+          entry.element.setAttribute("data-theme", entry.originalTheme);
+        } else {
+          entry.element.removeAttribute("data-theme");
+        }
       }
-      printStyle?.remove();
-      this.state.setPrintingLightMode(false);
-      this.restoreThemes(savedThemes);
-      this.appRef.tick();
-    }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("afterprint", cleanup);
+      }
+    };
+
+    window.addEventListener("afterprint", cleanup);
+    setTimeout(() => {
+      window.print();
+      setTimeout(cleanup, 1000);
+    }, 60);
   }
 
-  private applyLight(): { element: HTMLElement; originalTheme: string | null }[] {
+  private applyLight(): {
+    element: HTMLElement;
+    originalTheme: string | null;
+  }[] {
     if (typeof document === "undefined") {
       return [];
     }
-    const saved: { element: HTMLElement; originalTheme: string | null }[] = [];
-    const root = document.documentElement;
-    saved.push({
-      element: root,
-      originalTheme: root.getAttribute("data-bs-theme"),
+    const targets: HTMLElement[] = [document.documentElement, document.body];
+    document.querySelectorAll<HTMLElement>("[data-theme]").forEach((el) => {
+      if (!targets.includes(el)) {
+        targets.push(el);
+      }
     });
-    root.setAttribute("data-bs-theme", "light");
 
-    document.querySelectorAll<HTMLElement>("[data-bs-theme]").forEach((el) => {
-      if (el !== root) {
-        saved.push({
+    const snapshots: { element: HTMLElement; originalTheme: string | null }[] =
+      [];
+    for (const el of targets) {
+      if (el) {
+        snapshots.push({
           element: el,
-          originalTheme: el.getAttribute("data-bs-theme"),
+          originalTheme: el.getAttribute("data-theme"),
         });
-        el.setAttribute("data-bs-theme", "light");
-      }
-    });
-    return saved;
-  }
-
-  private injectOrientation(): HTMLStyleElement | null {
-    if (typeof document === "undefined") {
-      return null;
-    }
-    const sheet = document.querySelector<HTMLElement>(".rc-report-page-sheet");
-    if (!sheet) {
-      return null;
-    }
-    const width = sheet.offsetWidth || 1280;
-    const height = sheet.offsetHeight || 720;
-    const isPortrait = height > width;
-    const style = document.createElement("style");
-    style.id = "rc-print-dynamic-orientation";
-    style.textContent = `@page { size: ${isPortrait ? "portrait" : "landscape"}; margin: 6mm; }`;
-    document.head.appendChild(style);
-    return style;
-  }
-
-  private restoreThemes(
-    saved: readonly { element: HTMLElement; originalTheme: string | null }[],
-  ): void {
-    for (const { element, originalTheme } of saved) {
-      if (originalTheme !== null) {
-        element.setAttribute("data-bs-theme", originalTheme);
-      } else {
-        element.removeAttribute("data-bs-theme");
+        el.setAttribute("data-theme", "light");
       }
     }
-  }
-
-  private resolveEndpoint(
-    reportId: string,
-    visualId: string,
-    format: ExportFormatType,
-  ): string {
-    return format === ".pdf"
-      ? "/api/reports/export/pdf"
-      : `/api/reports/${encodeURIComponent(reportId)}/visuals/${encodeURIComponent(visualId)}/export`;
+    return snapshots;
   }
 
   private buildPayload(
     reportId: string,
     visualId: string,
     format: ExportFormatType,
-    visuals: readonly ExportVisualSummary[],
+    activeVisuals: readonly {
+      readonly id: string;
+      readonly title: string;
+      readonly archetype: string;
+      readonly width: "half" | "full";
+      readonly metricLabel: string;
+      readonly metricValue: string;
+      readonly metricSubtext: string;
+    }[],
     canvasDimensions?: { width: number; height: number; preset?: string },
   ): ExportPayload {
+    const visuals: ExportVisualSummary[] = activeVisuals.map((v) => ({
+      id: v.id,
+      title: v.title,
+      archetype: v.archetype,
+      width: v.width,
+      metricLabel: v.metricLabel,
+      metricValue: v.metricValue,
+      metricSubtext: v.metricSubtext,
+      chartData: this.chartSource ? this.chartSource(v) : null,
+    }));
+
     return {
       reportId,
       visualId,
       format,
-      dpi: 300,
       includeBom: true,
       delimiter: format === ".tsv" ? "\t" : ";",
-      contextHash: this.state.activeFilters().toContextHash(),
-      projectName: this.state.activeProject().filename,
+      contextHash: this.state.activeFilters().contextHash(),
+      projectName: this.projectName(),
       pageName: this.state.activePage(),
       canvasDimensions,
-      visuals: visuals.map((visual) => ({
-        id: visual.id,
-        title: visual.title,
-        archetype: visual.archetype,
-        width: visual.width,
-        metricLabel: visual.metricLabel,
-        metricValue: visual.metricValue,
-        metricSubtext: visual.metricSubtext,
-        chartData: this.chartSource?.(visual) ?? null,
-      })),
-      measures: this.state.measures.map((measure) => ({
-        id: measure.id,
-        label: measure.label,
-        formula: measure.formula,
-        table: measure.table,
+      visuals,
+      measures: this.state.measures.map((m) => ({
+        id: m.id,
+        label: m.label,
+        formula: m.formula,
+        table: m.table,
       })),
     };
   }
 
-  private createFallback(
-    format: ExportFormatType,
-    meta: ExportFormatMeta,
-  ): ExportJobReceipt {
-    return {
-      jobId: `exp-local-${Date.now()}`,
-      format,
-      mimeType: meta.mimeType,
-      filename: meta.filename,
-      status: "COMPLETED",
-      timestamp: new Date().toISOString(),
-    };
+  private resolveEndpoint(reportId: string): string {
+    return `${EXPORT_API_BASE}/${encodeURIComponent(reportId)}/export`;
   }
 
   private formatMeta(format: ExportFormatType): ExportFormatMeta {
     const filename = `${this.projectName()}${format}`;
-    switch (format) {
-      case ".pdf":
-        return { mimeType: "application/pdf", filename };
-      case ".xlsx":
-        return {
-          mimeType:
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          filename,
-        };
-      case ".parquet":
-        return { mimeType: "application/vnd.apache.parquet", filename };
-      case ".tsv":
-        return {
-          mimeType: "text/tab-separated-values; charset=utf-8",
-          filename,
-        };
-      case ".csv":
-      default:
-        return { mimeType: "text/csv; charset=utf-8", filename };
-    }
+    return {
+      mimeType: EXPORT_MIME_TYPES[format] ?? EXPORT_MIME_TYPES[".csv"],
+      filename,
+    };
   }
 
   private projectName(): string {
     const raw = (this.state.activeProject()?.filename ?? "").trim();
     const stripped = raw.replace(/\.rcp$/i, "").trim();
-    return stripped || "Untitled Project";
-  }
-
-  private escapeCell(value: string, _delimiter?: string): string {
-    const safeValue = value ?? "";
-    const escapedValue = safeValue.replace(/"/g, '""');
-    return `"${escapedValue}"`;
-  }
-
-  private decodeBase64(base64: string): Uint8Array {
-    if (typeof atob === "function") {
-      const binaryString = atob(base64);
-      const outputBytes = new Uint8Array(binaryString.length);
-      for (let index = 0; index < binaryString.length; index++) {
-        outputBytes[index] = binaryString.charCodeAt(index);
-      }
-      return outputBytes;
-    }
-    return new TextEncoder().encode(base64);
+    return stripped || DEFAULT_PROJECT_NAME;
   }
 }
