@@ -48,16 +48,33 @@ describe("IngestionService", () => {
     });
 
     req.flush({
+      tableName: "Metrics_Dataset_Sample",
       sheets: [
         {
           id: "table_1",
           name: "Metrics_Dataset_Sample",
           kind: "Table",
           sheetName: "Metrics_Dataset_Sample",
+          tableName: "Metrics_Dataset_Sample",
           columns: [
-            { name: "Column1", type: "String", icon: "String" },
-            { name: "Column2", type: "String", icon: "String" },
-            { name: "Column3", type: "String", icon: "String" },
+            {
+              name: "Column1",
+              type: "String",
+              displayType: "String",
+              icon: "String",
+            },
+            {
+              name: "Column2",
+              type: "String",
+              displayType: "String",
+              icon: "String",
+            },
+            {
+              name: "Column3",
+              type: "String",
+              displayType: "String",
+              icon: "String",
+            },
           ],
           rows: [
             { Column1: "entity", Column2: "category", Column3: "runs" },
@@ -90,15 +107,27 @@ describe("IngestionService", () => {
     expect(req.request.body.rawPayloadBase64).toBe("UEsDBA==");
 
     req.flush({
+      tableName: "Stats_NBA",
       sheets: [
         {
           id: "sheet_1",
           name: "Stats NBA",
           kind: "Sheet",
           sheetName: "Stats NBA",
+          tableName: "Stats_NBA",
           columns: [
-            { name: "Column1", type: "String", icon: "String" },
-            { name: "Column2", type: "String", icon: "String" },
+            {
+              name: "Column1",
+              type: "String",
+              displayType: "String",
+              icon: "String",
+            },
+            {
+              name: "Column2",
+              type: "String",
+              displayType: "String",
+              icon: "String",
+            },
           ],
           rows: [
             { Column1: "Joueur", Column2: "Points" },
@@ -113,7 +142,7 @@ describe("IngestionService", () => {
     expect(service.navigatorSheets()[0].name).toBe("Stats NBA");
   });
 
-  it("loads direct datasets via backend POST /api/ingestion/preview", () => {
+  it("loads direct datasets via backend POST /api/ingestion/pipeline/preview", () => {
     let loadedDataset: unknown;
     service
       .loadDirect("sales.csv", "CSV", "Region,Revenue\nEMEA,1200")
@@ -121,22 +150,54 @@ describe("IngestionService", () => {
         loadedDataset = res;
       });
 
-    const req = httpMock.expectOne("/api/ingestion/preview");
+    const req = httpMock.expectOne("/api/ingestion/pipeline/preview");
     expect(req.request.method).toBe("POST");
+    expect(req.request.body.fileName).toBe("sales.csv");
     expect(req.request.body.format).toBe("CSV");
     expect(req.request.body.rawPayload).toBe("Region,Revenue\nEMEA,1200");
 
     req.flush([
       {
         batchIndex: 0,
+        tableName: "sales",
         schema: { Region: "UTF8_STRING", Revenue: "INT64" },
+        columns: [
+          {
+            name: "Region",
+            type: "UTF8_STRING",
+            displayType: "String",
+            icon: "String",
+            numeric: false,
+          },
+          {
+            name: "Revenue",
+            type: "INT64",
+            displayType: "Int64",
+            icon: "Int64",
+            numeric: true,
+          },
+        ],
         rows: [{ Region: "EMEA", Revenue: 1200 }],
         quarantinedRecords: [],
       },
     ]);
 
+    const modelReq = httpMock.expectOne((r) =>
+      r.url.startsWith("/api/models/"),
+    );
+    expect(modelReq.request.method).toBe("PUT");
+    modelReq.flush({});
+
+    const rowsReq = httpMock.expectOne(
+      (r) =>
+        r.url.includes("/api/models/") && r.url.endsWith("/tables/sales/rows"),
+    );
+    expect(rowsReq.request.method).toBe("POST");
+    rowsReq.flush({});
+
     expect(loadedDataset).toBeTruthy();
     expect(service.sources()).toHaveLength(1);
     expect(service.sources()[0].name).toBe("sales.csv");
+    expect(service.sources()[0].tableName).toBe("sales");
   });
 });

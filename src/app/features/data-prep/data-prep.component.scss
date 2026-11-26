@@ -1,4 +1,4 @@
-﻿// ============================================================================
+// ============================================================================
 // Data Preparation Studio Styles (R-Query Pipelines & Preview Grid)
 // Shared workspace grid, headers, tabs, and 320px Tools dock live in src/styles/_workspace.scss
 // ============================================================================
@@ -234,7 +234,13 @@
     border-radius: 3px;
     background-color: var(--rc-card-border);
     color: var(--rc-text-primary);
-    text-transform: uppercase;
+  }
+
+  .numeric-indicator {
+    font-size: var(--rc-font-size-2xs);
+    font-family: var(--rc-font-mono);
+    font-weight: var(--rc-font-weight-bold);
+    color: var(--rc-primary);
   }
 
   .col-title {

@@ -1,4 +1,4 @@
-﻿<div class="rc-workspace-grid rc-dataprep-grid">
+<div class="rc-workspace-grid rc-dataprep-grid">
   <!-- Mobile Tab Bar -->
   <nav
     class="d-md-none border-bottom px-2 bg-body-tertiary"
@@ -103,7 +103,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'filter'"
-          (click)="onAddFilter()"
+          (click)="openFilter()"
           title="Add FilterRowsStep"
           id="data-prep-filter-btn"
         >
@@ -129,7 +129,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'changeType'"
-          (click)="onChangeType()"
+          (click)="openTypes()"
           title="Add ChangeTypeStep or Detect Data Type"
           id="data-prep-change-type-btn"
         >
@@ -157,7 +157,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'unpivot'"
-          (click)="onUnpivot()"
+          (click)="openUnpivot()"
           title="Add UnpivotColumnsStep or UnpivotOtherColumnsStep"
           id="data-prep-unpivot-btn"
         >
@@ -185,7 +185,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'groupBy'"
-          (click)="onGroupBy()"
+          (click)="openGroup()"
           title="Add GroupRowsStep"
           id="data-prep-groupby-btn"
         >
@@ -211,7 +211,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'customColumn'"
-          (click)="onCustomColumn()"
+          (click)="openCustom()"
           title="Add Custom Column or Surrogate Key Index"
           id="data-prep-custom-column-btn"
         >
@@ -236,7 +236,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'mergeQueries'"
-          (click)="onMergeQueries()"
+          (click)="openMerge()"
           title="Merge Queries (Join &amp; Expand or Aggregate)"
           id="data-prep-merge-queries-btn"
         >
@@ -263,7 +263,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'shaping'"
-          (click)="onTableShaping()"
+          (click)="openShaping()"
           title="Table Shaping (Promote Headers, Transpose, Split/Merge Columns, Deduplicate)"
           id="data-prep-shaping-btn"
         >
@@ -292,7 +292,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           [class.active]="activeToolPanel() === 'incrementalRefresh'"
-          (click)="toggleToolPanel('incrementalRefresh')"
+          (click)="togglePanel('incrementalRefresh')"
           id="data-prep-range-params-btn"
           title="Configure RangeStart and RangeEnd Incremental Refresh Parameters"
           aria-label="Incremental Refresh Parameters"
@@ -319,7 +319,7 @@
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
-          (click)="onRunIncrementalRefresh()"
+          (click)="runRefresh()"
           id="data-prep-refresh-btn"
           title="Run incremental refresh across watermark partition"
           aria-label="Run Incremental Refresh"
@@ -345,7 +345,7 @@
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-primary d-inline-flex align-items-center gap-2"
-          (click)="onApplyAndLoad()"
+          (click)="applyLoad()"
           id="data-prep-apply-close-btn"
           title="Commit pipeline transformations and load to semantic model"
           aria-label="Close and Apply transformations"
@@ -384,7 +384,7 @@
                 id="filter-col-select"
                 class="form-select form-select-sm"
                 [value]="filterColumn()"
-                (change)="filterColumn.set($any($event.target).value)"
+                (change)="filterColumn.set(readValue($event))"
               >
                 @for (col of columns(); track col.name) {
                   <option [value]="col.name">{{ col.name }}</option>
@@ -399,7 +399,7 @@
                 id="filter-op-select"
                 class="form-select form-select-sm"
                 [value]="filterOperator()"
-                (change)="filterOperator.set($any($event.target).value)"
+                (change)="filterOperator.set(readTyped($event))"
               >
                 @for (op of filterOperators; track op.id) {
                   <option [value]="op.id">{{ op.label }}</option>
@@ -417,7 +417,7 @@
                   class="form-control form-control-sm"
                   placeholder="Compare value..."
                   [value]="filterValue()"
-                  (input)="filterValue.set($any($event.target).value)"
+                  (input)="filterValue.set(readValue($event))"
                 />
               </div>
             }
@@ -432,7 +432,7 @@
                   class="form-control form-control-sm"
                   placeholder="Upper bound..."
                   [value]="filterValueTo()"
-                  (input)="filterValueTo.set($any($event.target).value)"
+                  (input)="filterValueTo.set(readValue($event))"
                 />
               </div>
             }
@@ -440,7 +440,7 @@
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary"
-                (click)="applyFilterStep()"
+                (click)="applyFilter()"
                 id="apply-filter-step-btn"
               >
                 Apply Filter
@@ -466,7 +466,7 @@
                 id="changetype-col-select"
                 class="form-select form-select-sm"
                 [value]="changeTypeColumn()"
-                (change)="changeTypeColumn.set($any($event.target).value)"
+                (change)="changeTypeColumn.set(readValue($event))"
               >
                 @for (col of columns(); track col.name) {
                   <option [value]="col.name">{{ col.name }}</option>
@@ -481,22 +481,23 @@
                 id="changetype-target-select"
                 class="form-select form-select-sm"
                 [value]="changeTypeTarget()"
-                (change)="changeTypeTarget.set($any($event.target).value)"
+                (change)="changeTypeTarget.set(readValue($event))"
               >
-                <option value="String">Text (UTF8_STRING)</option>
-                <option value="Int64">Whole Number (INT64)</option>
-                <option value="Float64">Decimal Number (FLOAT64)</option>
-                <option value="Currency">Currency (CURRENCY)</option>
-                <option value="Date">Date (ISO_DATE)</option>
-                <option value="DateTime">Date/Time (ISO_DATETIME)</option>
-                <option value="Boolean">True/False (BOOLEAN)</option>
+                <option value="UTF8_STRING">Text (String)</option>
+                <option value="INT64">Whole Number (Int64)</option>
+                <option value="FLOAT64">Decimal Number (Float64)</option>
+                <option value="DECIMAL">Fixed Decimal (Decimal)</option>
+                <option value="CURRENCY">Currency (Currency)</option>
+                <option value="ISO_DATE">Date (Date)</option>
+                <option value="ISO_DATETIME">Date/Time (DateTime)</option>
+                <option value="BOOLEAN">True/False (Boolean)</option>
               </select>
             </div>
             <div class="d-flex gap-1">
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary"
-                (click)="applyChangeTypeStep()"
+                (click)="applyType()"
                 id="apply-change-type-btn"
               >
                 Apply Type
@@ -504,7 +505,7 @@
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-outline"
-                (click)="applyDetectDataTypes()"
+                (click)="detectTypes()"
                 id="detect-all-types-btn"
               >
                 Detect All Data Types
@@ -530,7 +531,7 @@
                 id="unpivot-mode-select"
                 class="form-select form-select-sm"
                 [value]="unpivotMode()"
-                (change)="unpivotMode.set($any($event.target).value)"
+                (change)="unpivotMode.set(readTyped($event))"
               >
                 <option value="selected">Unpivot Selected Columns</option>
                 <option value="other">
@@ -545,7 +546,7 @@
                   class="rc-btn rc-btn-sm"
                   [class.rc-btn-primary]="unpivotColumns().includes(col.name)"
                   [class.rc-btn-outline]="!unpivotColumns().includes(col.name)"
-                  (click)="toggleUnpivotColumnSelection(col.name)"
+                  (click)="toggleUnpivot(col.name)"
                 >
                   {{ col.name }}
                 </button>
@@ -560,7 +561,7 @@
                 type="text"
                 class="form-control form-control-sm"
                 [value]="unpivotAttrName()"
-                (input)="unpivotAttrName.set($any($event.target).value)"
+                (input)="unpivotAttrName.set(readValue($event))"
               />
             </div>
             <div>
@@ -572,14 +573,14 @@
                 type="text"
                 class="form-control form-control-sm"
                 [value]="unpivotValName()"
-                (input)="unpivotValName.set($any($event.target).value)"
+                (input)="unpivotValName.set(readValue($event))"
               />
             </div>
             <div class="d-flex gap-1">
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary"
-                (click)="applyUnpivotStep()"
+                (click)="applyUnpivot()"
                 id="apply-unpivot-btn"
               >
                 Apply Unpivot
@@ -608,7 +609,7 @@
                     [class.rc-btn-outline]="
                       !groupByColumns().includes(col.name)
                     "
-                    (click)="toggleGroupByColumnSelection(col.name)"
+                    (click)="toggleGroup(col.name)"
                   >
                     {{ col.name }}
                   </button>
@@ -623,7 +624,7 @@
                 id="groupby-fn-select"
                 class="form-select form-select-sm"
                 [value]="groupByFunction()"
-                (change)="groupByFunction.set($any($event.target).value)"
+                (change)="groupByFunction.set(readTyped($event))"
               >
                 <option value="SUM">Sum</option>
                 <option value="AVG">Average</option>
@@ -640,7 +641,7 @@
                 id="groupby-src-select"
                 class="form-select form-select-sm"
                 [value]="groupBySourceColumn()"
-                (change)="groupBySourceColumn.set($any($event.target).value)"
+                (change)="groupBySourceColumn.set(readValue($event))"
               >
                 @for (col of columns(); track col.name) {
                   <option [value]="col.name">{{ col.name }}</option>
@@ -656,14 +657,14 @@
                 type="text"
                 class="form-control form-control-sm"
                 [value]="groupByOutputColumn()"
-                (input)="groupByOutputColumn.set($any($event.target).value)"
+                (input)="groupByOutputColumn.set(readValue($event))"
               />
             </div>
             <div class="d-flex gap-1">
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary"
-                (click)="applyGroupByStep()"
+                (click)="applyGroup()"
                 id="apply-groupby-btn"
               >
                 Apply Group By
@@ -689,7 +690,7 @@
                 id="custom-mode-select"
                 class="form-select form-select-sm"
                 [value]="customColumnMode()"
-                (change)="customColumnMode.set($any($event.target).value)"
+                (change)="customColumnMode.set(readTyped($event))"
               >
                 <option value="expression">Custom Formula Expression</option>
                 <option value="index">
@@ -706,7 +707,7 @@
                 type="text"
                 class="form-control form-control-sm"
                 [value]="customColumnName()"
-                (input)="customColumnName.set($any($event.target).value)"
+                (input)="customColumnName.set(readValue($event))"
               />
             </div>
             @if (customColumnMode() === "expression") {
@@ -721,9 +722,7 @@
                   class="form-control form-control-sm font-monospace"
                   placeholder="[colA] * [colB]"
                   [value]="customColumnExpression()"
-                  (input)="
-                    customColumnExpression.set($any($event.target).value)
-                  "
+                  (input)="customColumnExpression.set(readValue($event))"
                 />
               </div>
             } @else {
@@ -737,7 +736,7 @@
                   class="form-control form-control-sm"
                   style="width: 80px"
                   [value]="indexInitialValue()"
-                  (input)="indexInitialValue.set(+$any($event.target).value)"
+                  (input)="indexInitialValue.set(readNumber($event))"
                 />
               </div>
               <div>
@@ -750,7 +749,7 @@
                   class="form-control form-control-sm"
                   style="width: 80px"
                   [value]="indexIncrement()"
-                  (input)="indexIncrement.set(+$any($event.target).value)"
+                  (input)="indexIncrement.set(readNumber($event))"
                 />
               </div>
             }
@@ -758,7 +757,7 @@
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary"
-                (click)="applyCustomColumnStep()"
+                (click)="applyCustom()"
                 id="apply-custom-col-btn"
               >
                 Add Column
@@ -784,7 +783,7 @@
                 id="merge-target-select"
                 class="form-select form-select-sm"
                 [value]="mergeTargetSourceId()"
-                (change)="mergeTargetSourceId.set($any($event.target).value)"
+                (change)="mergeTargetSourceId.set(readValue($event))"
               >
                 @for (sib of siblingSources(); track sib.id) {
                   <option [value]="sib.id">{{ sib.name }}</option>
@@ -799,7 +798,7 @@
                 id="merge-key-select"
                 class="form-select form-select-sm"
                 [value]="mergeJoinKey()"
-                (change)="mergeJoinKey.set($any($event.target).value)"
+                (change)="mergeJoinKey.set(readValue($event))"
               >
                 @for (col of columns(); track col.name) {
                   <option [value]="col.name">{{ col.name }}</option>
@@ -814,7 +813,7 @@
                 id="merge-kind-select"
                 class="form-select form-select-sm"
                 [value]="mergeJoinType()"
-                (change)="mergeJoinType.set($any($event.target).value)"
+                (change)="mergeJoinType.set(readTyped($event))"
               >
                 <option value="LEFT">Left Outer</option>
                 <option value="INNER">Inner Join</option>
@@ -828,7 +827,7 @@
                 id="merge-action-select"
                 class="form-select form-select-sm"
                 [value]="mergePostAction()"
-                (change)="mergePostAction.set($any($event.target).value)"
+                (change)="mergePostAction.set(readTyped($event))"
               >
                 <option value="expand">Expand Columns</option>
                 <option value="aggregate">Aggregate Matched Rows</option>
@@ -838,7 +837,7 @@
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary"
-                (click)="applyMergeQueriesStep()"
+                (click)="applyMerge()"
                 id="apply-merge-queries-btn"
               >
                 Apply Merge
@@ -859,7 +858,7 @@
             <button
               type="button"
               class="rc-btn rc-btn-sm rc-btn-outline"
-              (click)="applyPromoteHeaders()"
+              (click)="promoteHeaders()"
               id="promote-headers-btn"
             >
               Use First Row as Headers
@@ -867,7 +866,7 @@
             <button
               type="button"
               class="rc-btn rc-btn-sm rc-btn-outline"
-              (click)="applyTranspose()"
+              (click)="transposeTable()"
               id="transpose-table-btn"
             >
               Transpose
@@ -875,7 +874,7 @@
             <button
               type="button"
               class="rc-btn rc-btn-sm rc-btn-outline"
-              (click)="applyRemoveDuplicates()"
+              (click)="removeDuplicates()"
               id="remove-duplicates-btn"
             >
               Remove Duplicates
@@ -887,20 +886,20 @@
                 class="form-control form-control-sm"
                 style="width: 64px"
                 [value]="shapingRowCount()"
-                (input)="shapingRowCount.set(+$any($event.target).value)"
+                (input)="shapingRowCount.set(readNumber($event))"
                 aria-label="Number of rows to remove"
               />
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-outline"
-                (click)="applyRemoveTopRows()"
+                (click)="removeTop()"
               >
                 Remove Top N
               </button>
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-outline"
-                (click)="applyRemoveBottomRows()"
+                (click)="removeBottom()"
               >
                 Remove Bottom N
               </button>
@@ -910,7 +909,7 @@
                 class="form-select form-select-sm"
                 style="width: auto"
                 [value]="bulkRenameOperation()"
-                (change)="bulkRenameOperation.set($any($event.target).value)"
+                (change)="bulkRenameOperation.set(readTyped($event))"
                 aria-label="Bulk rename column operation"
               >
                 <option value="UPPERCASE">UPPERCASE Headers</option>
@@ -921,7 +920,7 @@
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-outline"
-                (click)="applyBulkRenameColumns()"
+                (click)="bulkRename()"
                 id="bulk-rename-cols-btn"
               >
                 Format Headers
@@ -932,7 +931,7 @@
                 class="form-select form-select-sm"
                 style="width: auto"
                 [value]="splitColumnTarget()"
-                (change)="splitColumnTarget.set($any($event.target).value)"
+                (change)="splitColumnTarget.set(readValue($event))"
                 aria-label="Column to split"
               >
                 @for (col of columns(); track col.name) {
@@ -944,13 +943,13 @@
                 class="form-control form-control-sm"
                 style="width: 56px"
                 [value]="splitDelimiter()"
-                (input)="splitDelimiter.set($any($event.target).value)"
+                (input)="splitDelimiter.set(readValue($event))"
                 aria-label="Split delimiter"
               />
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-outline"
-                (click)="applySplitColumn()"
+                (click)="splitColumn()"
                 id="split-col-btn"
               >
                 Split Column
@@ -969,7 +968,7 @@
                 id="ir-col-select"
                 class="form-select form-select-sm"
                 [value]="partitionDateColumn()"
-                (change)="partitionDateColumn.set($any($event.target).value)"
+                (change)="partitionDateColumn.set(readValue($event))"
               >
                 <option value="">-- Select Date Column --</option>
                 @for (col of columns(); track col.name) {
@@ -986,7 +985,7 @@
                 type="text"
                 class="form-control form-control-sm font-monospace"
                 [value]="rangeStart()"
-                (input)="rangeStart.set($any($event.target).value)"
+                (input)="rangeStart.set(readValue($event))"
               />
             </div>
             <div>
@@ -998,14 +997,22 @@
                 type="text"
                 class="form-control form-control-sm font-monospace"
                 [value]="rangeEnd()"
-                (input)="rangeEnd.set($any($event.target).value)"
+                (input)="rangeEnd.set(readValue($event))"
               />
             </div>
             <div class="d-flex gap-1">
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-primary"
-                (click)="onRunIncrementalRefresh(); activeToolPanel.set(null)"
+                (click)="applyRange()"
+                id="apply-range-params-btn"
+              >
+                Apply Range Parameters
+              </button>
+              <button
+                type="button"
+                class="rc-btn rc-btn-sm rc-btn-outline"
+                (click)="runRefresh(); activeToolPanel.set(null)"
               >
                 Apply Partition Filter &amp; Refresh
               </button>
@@ -1049,7 +1056,7 @@
                 type="button"
                 class="source-item flex-grow-1"
                 [class.active]="selectedSourceId() === src.id"
-                (click)="onSelectSource(src)"
+                (click)="selectSource(src)"
                 [id]="'source-' + src.id"
               >
                 <span
@@ -1068,13 +1075,13 @@
                       : '')
                   "
                 >
-                  {{ src.name }}
+                  {{ src.tableName || src.name }}
                 </span>
               </button>
               <button
                 type="button"
                 class="rc-btn rc-btn-sm rc-btn-ghost px-1"
-                (click)="toggleSourceEnableLoad(src.id, $event)"
+                (click)="toggleLoad(src.id, $event)"
                 [title]="
                   src.enableLoad === false
                     ? 'Enable Load to Semantic Model'
@@ -1144,10 +1151,9 @@
           <div class="preview-info d-flex align-items-center">
             @if (selectedSource(); as src) {
               <span>Previewing:</span>
-              <strong class="ms-1">{{ src.name }}</strong>
+              <strong class="ms-1">{{ src.tableName || src.name }}</strong>
               <span class="text-muted ms-2">
-                ({{ rows().length }} Rows, Step
-                {{ selectedStepIndex() + 1 }} of
+                ({{ rows().length }} Rows, Step {{ selectedStepIndex() + 1 }} of
                 {{ appliedSteps().length || 1 }})
               </span>
             } @else {
@@ -1177,7 +1183,7 @@
           <button
             type="button"
             class="rc-btn rc-btn-sm rc-btn-ghost p-1"
-            (click)="onCopyFormula()"
+            (click)="copyFormula()"
             title="Copy formula expression"
             aria-label="Copy formula"
           >
@@ -1208,22 +1214,29 @@
                       <div class="col-th-inner">
                         <span
                           class="type-icon-tag"
-                          [class]="(col.icon || 'text').toLowerCase()"
+                          [class]="(col.displayType || col.icon || 'string').toLowerCase()"
+                          [attr.data-numeric]="col.numeric === true ? 'true' : 'false'"
                         >
-                          {{ col.icon || "TEXT" }}
+                          {{ col.displayType || col.icon || "String" }}
                         </span>
+                        @if (col.numeric) {
+                          <span
+                            class="numeric-indicator"
+                            title="Numeric column"
+                            aria-label="Numeric column"
+                            >#</span
+                          >
+                        }
                         @if (editingColumnName() === col.name) {
                           <input
                             type="text"
                             class="form-control form-control-sm py-0 px-1 font-monospace"
                             style="width: 120px; font-size: 11px; height: 22px"
                             [value]="editingColumnValue()"
-                            (input)="
-                              editingColumnValue.set($any($event.target).value)
-                            "
-                            (keydown.enter)="saveColumnRename(col.name)"
-                            (keydown.escape)="cancelColumnRename()"
-                            (blur)="saveColumnRename(col.name)"
+                            (input)="editingColumnValue.set(readValue($event))"
+                            (keydown.enter)="saveRename(col.name)"
+                            (keydown.escape)="cancelRename()"
+                            (blur)="saveRename(col.name)"
                             (click)="$event.stopPropagation()"
                             aria-label="Rename column name"
                           />
@@ -1240,7 +1253,7 @@
                           class="col-menu-trigger"
                           title="Inline Cleansing Actions"
                           [attr.aria-label]="'Column actions for ' + col.name"
-                          (click)="toggleColumnMenu(col.name, $event)"
+                          (click)="toggleMenu(col.name, $event)"
                         >
                           <svg
                             width="12"
@@ -1271,42 +1284,42 @@
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="changeColumnType(col.name, 'String')"
+                            (click)="changeType(col.name, 'UTF8_STRING')"
                           >
                             <span>Text (String)</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="changeColumnType(col.name, 'Float64')"
+                            (click)="changeType(col.name, 'FLOAT64')"
                           >
                             <span>Decimal (Float64)</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="changeColumnType(col.name, 'Int64')"
+                            (click)="changeType(col.name, 'INT64')"
                           >
                             <span>Integer (Int64)</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="changeColumnType(col.name, 'Currency')"
+                            (click)="changeType(col.name, 'CURRENCY')"
                           >
-                            <span>Currency (â‚¬)</span>
+                            <span>Currency (€)</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="changeColumnType(col.name, 'Date')"
+                            (click)="changeType(col.name, 'ISO_DATE')"
                           >
                             <span>Date / Time</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="changeColumnType(col.name, 'Boolean')"
+                            (click)="changeType(col.name, 'BOOLEAN')"
                           >
                             <span>Boolean (True/False)</span>
                           </button>
@@ -1331,7 +1344,7 @@
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="fillDownColumn(col.name)"
+                            (click)="fillDown(col.name)"
                           >
                             <span>Fill Down</span>
                           </button>
@@ -1342,49 +1355,49 @@
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="filterOutNulls(col.name)"
+                            (click)="filterNulls(col.name)"
                           >
                             <span>Remove Empty / Null Rows</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="cleanseColumnText(col.name, 'TRIM')"
+                            (click)="cleanseText(col.name, 'TRIM')"
                           >
                             <span>Trim Whitespace</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="cleanseColumnText(col.name, 'UPPERCASE')"
+                            (click)="cleanseText(col.name, 'UPPERCASE')"
                           >
                             <span>UPPERCASE</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="cleanseColumnText(col.name, 'LOWERCASE')"
+                            (click)="cleanseText(col.name, 'LOWERCASE')"
                           >
                             <span>lowercase</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="extractDigitsFromColumn(col.name)"
+                            (click)="extractDigits(col.name)"
                           >
                             <span>Extract Digits (Text.Select)</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="startRenameColumn(col.name)"
+                            (click)="startRename(col.name)"
                           >
                             <span>Rename Column...</span>
                           </button>
                           <button
                             type="button"
                             class="rc-dropdown-item d-flex align-items-center gap-2"
-                            (click)="removeOtherColumns(col.name)"
+                            (click)="keepColumn(col.name)"
                           >
                             <span>Remove Other Columns</span>
                           </button>
@@ -1407,11 +1420,11 @@
                     @for (col of columns(); track col.name) {
                       <td>
                         @if (col.name === "sale_id" || col.name === "id") {
-                          <code>{{ formatCellValue(row, col.name) }}</code>
+                          <code>{{ formatCell(row, col.name) }}</code>
                         } @else if (col.name === "sku_code") {
-                          <strong>{{ formatCellValue(row, col.name) }}</strong>
+                          <strong>{{ formatCell(row, col.name) }}</strong>
                         } @else {
-                          {{ formatCellValue(row, col.name) }}
+                          {{ formatCell(row, col.name) }}
                         }
                       </td>
                     }
@@ -1469,7 +1482,7 @@
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-ghost text-muted p-1 d-inline-flex align-items-center justify-content-center"
-          (click)="toggleCollapseAll()"
+          (click)="toggleAll()"
           [title]="
             isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
           "
@@ -1505,12 +1518,12 @@
         <!-- Section 1: Applied Steps -->
         <div
           class="rc-tools-section rc-page-tab-group position-relative"
-          [class.is-expanded]="isSectionExpanded('Steps')"
+          [class.is-expanded]="isExpanded('Steps')"
         >
           <button
             type="button"
             class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
-            [attr.aria-expanded]="isSectionExpanded('Steps')"
+            [attr.aria-expanded]="isExpanded('Steps')"
             aria-controls="tools-section-steps"
             id="tools-header-steps"
             (click)="toggleSection('Steps')"
@@ -1519,7 +1532,7 @@
             <div class="rc-section-header-title-wrap text-truncate">
               <svg
                 class="rc-section-chevron"
-                [class.is-rotated]="isSectionExpanded('Steps')"
+                [class.is-rotated]="isExpanded('Steps')"
                 width="12"
                 height="12"
                 viewBox="0 0 24 24"
@@ -1537,7 +1550,7 @@
             <span class="steps-count-badge">{{ appliedSteps().length }}</span>
           </button>
 
-          @if (isSectionExpanded("Steps")) {
+          @if (isExpanded("Steps")) {
             <div
               id="tools-section-steps"
               role="region"
@@ -1550,10 +1563,10 @@
                     class="step-card"
                     [class.is-selected]="selectedStepIndex() === idx"
                     [class.latest]="idx === appliedSteps().length - 1"
-                    (click)="onSelectStep(idx)"
+                    (click)="selectStep(idx)"
                     role="button"
                     tabindex="0"
-                    (keydown.enter)="onSelectStep(idx)"
+                    (keydown.enter)="selectStep(idx)"
                     [attr.aria-label]="
                       'Select transformation step ' +
                       (idx + 1) +
@@ -1645,12 +1658,12 @@
         <!-- Section 2: Step Definition -->
         <div
           class="rc-tools-section rc-page-tab-group position-relative"
-          [class.is-expanded]="isSectionExpanded('Definition')"
+          [class.is-expanded]="isExpanded('Definition')"
         >
           <button
             type="button"
             class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
-            [attr.aria-expanded]="isSectionExpanded('Definition')"
+            [attr.aria-expanded]="isExpanded('Definition')"
             aria-controls="tools-section-definition"
             id="tools-header-definition"
             (click)="toggleSection('Definition')"
@@ -1659,7 +1672,7 @@
             <div class="rc-section-header-title-wrap text-truncate">
               <svg
                 class="rc-section-chevron"
-                [class.is-rotated]="isSectionExpanded('Definition')"
+                [class.is-rotated]="isExpanded('Definition')"
                 width="12"
                 height="12"
                 viewBox="0 0 24 24"
@@ -1676,7 +1689,7 @@
             </div>
           </button>
 
-          @if (isSectionExpanded("Definition")) {
+          @if (isExpanded("Definition")) {
             <div
               id="tools-section-definition"
               role="region"
@@ -1714,7 +1727,7 @@
                   <button
                     type="button"
                     class="rc-btn rc-btn-sm rc-btn-outline py-0 px-2 d-inline-flex align-items-center gap-1"
-                    (click)="onCopyDefinition()"
+                    (click)="copyDefinition()"
                     title="Copy step definition"
                     aria-label="Copy step definition JSON"
                   >
@@ -1768,12 +1781,12 @@
         <!-- Section 3: Quarantine Queue -->
         <div
           class="rc-tools-section rc-page-tab-group position-relative"
-          [class.is-expanded]="isSectionExpanded('Quarantine')"
+          [class.is-expanded]="isExpanded('Quarantine')"
         >
           <button
             type="button"
             class="rc-tools-section-header rc-page-tab w-100 d-flex align-items-center justify-content-between text-start border-0"
-            [attr.aria-expanded]="isSectionExpanded('Quarantine')"
+            [attr.aria-expanded]="isExpanded('Quarantine')"
             aria-controls="tools-section-quarantine"
             id="tools-header-quarantine"
             (click)="toggleSection('Quarantine')"
@@ -1782,7 +1795,7 @@
             <div class="rc-section-header-title-wrap text-truncate">
               <svg
                 class="rc-section-chevron"
-                [class.is-rotated]="isSectionExpanded('Quarantine')"
+                [class.is-rotated]="isExpanded('Quarantine')"
                 width="12"
                 height="12"
                 viewBox="0 0 24 24"
@@ -1799,7 +1812,7 @@
             </div>
           </button>
 
-          @if (isSectionExpanded("Quarantine")) {
+          @if (isExpanded("Quarantine")) {
             <div
               id="tools-section-quarantine"
               role="region"
@@ -1840,9 +1853,13 @@
                 </div>
                 @if (quarantinedRecords().length > 0) {
                   <div class="mt-2 pt-2 border-top">
-                    @for (q of quarantinedRecords().slice(0, 3); track $index) {
+                    @for (
+                      q of quarantinedRecords().slice(0, 3);
+                      track q.sourceLineNumber
+                    ) {
                       <div class="text-truncate" [title]="q.errorReason">
-                        Line {{ q.sourceLineNumber }}: {{ q.errorReason }}
+                        Line {{ q.sourceLineNumber }} [{{ q.columnName }}]:
+                        {{ q.errorReason }}
                       </div>
                     }
                   </div>
@@ -1858,7 +1875,7 @@
         <button
           type="button"
           class="rc-btn rc-btn-primary w-100 justify-content-center p-2"
-          (click)="onApplyAndLoad()"
+          (click)="applyLoad()"
           id="data-prep-apply-load-btn"
         >
           <span>Apply &amp; Load to Cache</span>
