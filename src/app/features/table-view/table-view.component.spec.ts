@@ -1,13 +1,26 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { provideHttpClient } from "@angular/common/http";
-import { provideHttpClientTesting } from "@angular/common/http/testing";
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
-import { describe, expect, it, beforeEach, vi } from "vitest";
-import { TableViewComponent } from "./table-view.component";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  DEFAULT_MODEL_ID,
+  MODELS_ENDPOINT,
+} from "../../core/model/model.service";
+import {
+  RAX_CALCULATED_COLUMN_ENDPOINT,
+  RAX_CALCULATED_TABLE_ENDPOINT,
+} from "../../core/rax/rax.service";
 import { StateManagerService } from "../../core/state/state.service";
+import { TableViewComponent } from "./table-view.component";
 
 describe("TableViewComponent", () => {
+  let httpMock: HttpTestingController;
+
   beforeEach(() => {
     TestBed.configureTestingModule({
       imports: [TableViewComponent],
@@ -18,6 +31,7 @@ describe("TableViewComponent", () => {
         provideHttpClientTesting(),
       ],
     });
+    httpMock = TestBed.inject(HttpTestingController);
     const state = TestBed.inject(StateManagerService);
     state.syncTables([
       {
@@ -63,24 +77,24 @@ describe("TableViewComponent", () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    expect(component.isSectionExpanded("Tables")).toBe(true);
-    expect(component.isSectionExpanded("Columns")).toBe(true);
-    expect(component.isSectionExpanded("Calculations")).toBe(true);
+    expect(component.sectionExpanded("Tables")).toBe(true);
+    expect(component.sectionExpanded("Columns")).toBe(true);
+    expect(component.sectionExpanded("Calculations")).toBe(true);
 
     component.toggleSection("Tables");
-    expect(component.isSectionExpanded("Tables")).toBe(false);
+    expect(component.sectionExpanded("Tables")).toBe(false);
 
     component.toggleSection("Tables");
-    expect(component.isSectionExpanded("Tables")).toBe(true);
+    expect(component.sectionExpanded("Tables")).toBe(true);
 
-    component.toggleCollapseAll();
-    expect(component.isSectionExpanded("Tables")).toBe(false);
-    expect(component.isSectionExpanded("Columns")).toBe(false);
-    expect(component.isSectionExpanded("Calculations")).toBe(false);
+    component.toggleAll();
+    expect(component.sectionExpanded("Tables")).toBe(false);
+    expect(component.sectionExpanded("Columns")).toBe(false);
+    expect(component.sectionExpanded("Calculations")).toBe(false);
     expect(component.isAllCollapsed()).toBe(true);
 
-    component.toggleCollapseAll();
-    expect(component.isSectionExpanded("Tables")).toBe(true);
+    component.toggleAll();
+    expect(component.sectionExpanded("Tables")).toBe(true);
     expect(component.isAllCollapsed()).toBe(false);
   });
 
@@ -131,7 +145,7 @@ describe("TableViewComponent", () => {
 
     const component = fixture.componentInstance;
     component.selectTable("fact_transactions");
-    component.loadTableRows("fact_transactions", [
+    component.loadRows("fact_transactions", [
       { transaction_id: 1, volume: 100 },
       { transaction_id: 2, volume: 50 },
       { transaction_id: 3, volume: 200 },
@@ -166,7 +180,7 @@ describe("TableViewComponent", () => {
     expect(component.sortColumn()).toBeNull();
   });
 
-  it("authors and commits a calculated column in row context and persists to StateManagerService", async () => {
+  it("authors and commits a calculated column via RaxService endpoint and persists to StateManagerService", async () => {
     const fixture = TestBed.createComponent(TableViewComponent);
     await fixture.whenStable();
     fixture.detectChanges();
@@ -174,19 +188,40 @@ describe("TableViewComponent", () => {
     const component = fixture.componentInstance;
     const state = TestBed.inject(StateManagerService);
     component.selectTable("fact_transactions");
-    component.loadTableRows("fact_transactions", [
+    component.loadRows("fact_transactions", [
       { transaction_id: 1, volume: 4, gross_amount: 500, cost_amount: 300 },
     ]);
     fixture.detectChanges();
 
-    component.onNewColumn();
+    component.createColumn();
     expect(component.isFormulaActive()).toBe(true);
     expect(component.formulaTarget().startsWith("[NewColumn")).toBe(true);
     expect(component.formulaText()).toContain("'fact_transactions'[");
 
     component.formulaTarget.set("[Margin]");
-    component.formulaText.set("'fact_transactions'[gross_amount] - 'fact_transactions'[cost_amount]");
+    component.formulaText.set(
+      "'fact_transactions'[gross_amount] - 'fact_transactions'[cost_amount]",
+    );
     component.commitFormula();
+
+    const colReq = httpMock.expectOne(RAX_CALCULATED_COLUMN_ENDPOINT);
+    expect(colReq.request.method).toBe("POST");
+    colReq.flush({
+      tableName: "fact_transactions",
+      columnName: "Margin",
+      dataType: "INT",
+      expression:
+        "'fact_transactions'[gross_amount] - 'fact_transactions'[cost_amount]",
+      rows: [
+        {
+          transaction_id: 1,
+          volume: 4,
+          gross_amount: 500,
+          cost_amount: 300,
+          Margin: 200,
+        },
+      ],
+    });
     fixture.detectChanges();
 
     expect(component.isFormulaActive()).toBe(false);
@@ -197,7 +232,7 @@ describe("TableViewComponent", () => {
     expect(state.tableRows("fact_transactions")[0]["Margin"]).toBe(200);
   });
 
-  it("creates a full 365-day calculated calendar table with Offset columns, SUMMARIZECOLUMNS, and INFO.VIEW Data Dictionary", async () => {
+  it("creates calculated tables via RaxService endpoint", async () => {
     const fixture = TestBed.createComponent(TableViewComponent);
     await fixture.whenStable();
     fixture.detectChanges();
@@ -205,7 +240,7 @@ describe("TableViewComponent", () => {
     const component = fixture.componentInstance;
     const initialTableCount = component.tables().length;
 
-    component.onNewTable();
+    component.createTable();
     expect(component.isFormulaActive()).toBe(true);
 
     component.formulaTarget.set("Calendar2026");
@@ -213,6 +248,10 @@ describe("TableViewComponent", () => {
       'ADDCOLUMNS(CALENDAR(DATE(2026, 1, 1), DATE(2026, 12, 31)), "Offset Day", DATEDIFF(TODAY(), [Date], DAY))',
     );
     component.commitFormula();
+
+    const calReq = httpMock.expectOne(RAX_CALCULATED_TABLE_ENDPOINT);
+    expect(calReq.request.method).toBe("POST");
+    calReq.error(new ProgressEvent("error"));
     fixture.detectChanges();
 
     expect(component.tables().length).toBe(initialTableCount + 1);
@@ -225,13 +264,15 @@ describe("TableViewComponent", () => {
       component.activeColumns().some((c) => c.name === "Offset Day"),
     ).toBe(true);
 
-    // Create Data Dictionary via INFO.VIEW functions
-    component.onNewTable();
+    component.createTable();
     component.formulaTarget.set("Data Dictionary");
     component.formulaText.set(
       "UNION(INFO.VIEW.COLUMNS(), INFO.VIEW.MEASURES(), INFO.VIEW.TABLES())",
     );
     component.commitFormula();
+
+    const dictReq = httpMock.expectOne(RAX_CALCULATED_TABLE_ENDPOINT);
+    dictReq.error(new ProgressEvent("error"));
     fixture.detectChanges();
 
     expect(component.activeTable()?.name).toBe("Data Dictionary");
@@ -243,9 +284,9 @@ describe("TableViewComponent", () => {
       "Description",
       "Rax",
     ]);
-  }, 15000);
+  });
 
-  it("adds a new measure, marks date table with primary key, and configures Column Tools properties", async () => {
+  it("adds a new measure, marks date table with primary key, and configures Column Tools properties via SemanticModelService", async () => {
     const fixture = TestBed.createComponent(TableViewComponent);
     await fixture.whenStable();
     fixture.detectChanges();
@@ -255,24 +296,112 @@ describe("TableViewComponent", () => {
     const initialMeasureCount = state.measures.length;
 
     component.selectTable("dim_calendar");
-    component.onNewMeasure();
+    component.createMeasure();
     fixture.detectChanges();
 
     expect(state.measures.length).toBe(initialMeasureCount + 1);
 
-    component.onMarkDateTable("date_id");
+    component.markDate("date_id");
+    const dateReq = httpMock.expectOne(
+      `${MODELS_ENDPOINT}/${DEFAULT_MODEL_ID}/date-table`,
+    );
+    expect(dateReq.request.method).toBe("POST");
+    expect(dateReq.request.body).toEqual({
+      tableName: "dim_calendar",
+      dateTable: true,
+      dateColumn: "date_id",
+    });
+    dateReq.flush({
+      schema: {
+        modelId: DEFAULT_MODEL_ID,
+        name: "Test",
+        tables: [
+          {
+            name: "dim_calendar",
+            role: "DIMENSION",
+            isDateTable: true,
+            dateColumn: "date_id",
+            columns: [
+              { name: "date_id", dataType: "DATE", isPrimaryKey: true },
+              { name: "calendar_year", dataType: "INT", summarizeBy: "default" },
+            ],
+          },
+        ],
+        relationships: [],
+      },
+      dagValidation: { valid: true, diagnostics: [] },
+      rsdl: "",
+    });
     expect(state.liveAnnouncement()).toContain("marked as Date Table");
     expect(component.activeTable()?.isDateTable).toBe(true);
     expect(component.activeTable()?.dateColumn).toBe("date_id");
 
-    // Column Tools: Do not summarize, Hide in Report View, and Format override
-    component.updateColumnSummarization("calendar_year", "None");
+    component.updateSummarization("calendar_year", "None");
+    const sumReq = httpMock.expectOne(
+      `${MODELS_ENDPOINT}/${DEFAULT_MODEL_ID}/tables/dim_calendar/columns/calendar_year`,
+    );
+    expect(sumReq.request.method).toBe("PATCH");
+    expect(sumReq.request.body.summarizeBy).toBe("None");
+    sumReq.flush({
+      schema: {
+        modelId: DEFAULT_MODEL_ID,
+        name: "Test",
+        tables: [
+          {
+            name: "dim_calendar",
+            role: "DIMENSION",
+            isDateTable: true,
+            dateColumn: "date_id",
+            columns: [
+              { name: "date_id", dataType: "DATE", isPrimaryKey: true },
+              { name: "calendar_year", dataType: "INT", summarizeBy: "None" },
+            ],
+          },
+        ],
+        relationships: [],
+      },
+      dagValidation: { valid: true, diagnostics: [] },
+      rsdl: "",
+    });
+
     const yearCol = component
       .activeColumns()
       .find((c) => c.name === "calendar_year")!;
     expect(yearCol.summarizeBy).toBe("None");
 
-    component.toggleColumnHidden("calendar_year");
+    component.toggleHidden("calendar_year");
+    const hideReq = httpMock.expectOne(
+      `${MODELS_ENDPOINT}/${DEFAULT_MODEL_ID}/tables/dim_calendar/columns/calendar_year`,
+    );
+    expect(hideReq.request.method).toBe("PATCH");
+    expect(hideReq.request.body.isHidden).toBe(true);
+    hideReq.flush({
+      schema: {
+        modelId: DEFAULT_MODEL_ID,
+        name: "Test",
+        tables: [
+          {
+            name: "dim_calendar",
+            role: "DIMENSION",
+            isDateTable: true,
+            dateColumn: "date_id",
+            columns: [
+              { name: "date_id", dataType: "DATE", isPrimaryKey: true },
+              {
+                name: "calendar_year",
+                dataType: "INT",
+                summarizeBy: "None",
+                isHidden: true,
+              },
+            ],
+          },
+        ],
+        relationships: [],
+      },
+      dagValidation: { valid: true, diagnostics: [] },
+      rsdl: "",
+    });
+
     expect(
       component.activeColumns().find((c) => c.name === "calendar_year")
         ?.isHidden,
@@ -287,30 +416,28 @@ describe("TableViewComponent", () => {
     const component = fixture.componentInstance;
 
     const currencyCol = { name: "gross_amount", dataType: "DECIMAL" };
-    expect(component.formatCellValue(12500.5, currencyCol)).toBe("€12,500.50");
+    expect(component.formatCell(12500.5, currencyCol)).toBe("€12,500.50");
 
     const pctCol = { name: "margin_pct", dataType: "FLOAT" };
-    expect(component.formatCellValue(0.245, pctCol)).toBe("24.5%");
+    expect(component.formatCell(0.245, pctCol)).toBe("24.5%");
 
     const nullCol = { name: "unknown", dataType: "VARCHAR" };
-    expect(component.formatCellValue(null, nullCol)).toBe("—");
+    expect(component.formatCell(null, nullCol)).toBe("—");
 
     const boolCol = { name: "is_weekend", dataType: "BOOLEAN" };
-    expect(component.formatCellValue(true, boolCol)).toBe("True");
-    expect(component.formatCellValue(false, boolCol)).toBe("False");
+    expect(component.formatCell(true, boolCol)).toBe("True");
+    expect(component.formatCell(false, boolCol)).toBe("False");
 
-    // French monetary column heuristics
     const frenchPriceCol = { name: "Prix_Unitaire_EUR", dataType: "FLOAT64" };
-    expect(component.formatCellValue(8.68, frenchPriceCol)).toBe("€8.68");
+    expect(component.formatCell(8.68, frenchPriceCol)).toBe("€8.68");
 
     const frenchCaCol = { name: "Chiffre_Affaires_EUR", dataType: "FLOAT64" };
-    expect(component.formatCellValue(52.08, frenchCaCol)).toBe("€52.08");
+    expect(component.formatCell(52.08, frenchCaCol)).toBe("€52.08");
 
-    // Explicit Column Tools Format override
     component.selectTable("fact_transactions");
-    component.setColumnFormat("volume", "Currency");
+    component.setFormat("volume", "Currency");
     const volCol = component.activeColumns().find((c) => c.name === "volume")!;
-    expect(component.formatCellValue(42, volCol)).toBe("€42.00");
+    expect(component.formatCell(42, volCol)).toBe("€42.00");
   });
 
   it("normalizes column data types and computes effective date column", async () => {
@@ -319,14 +446,116 @@ describe("TableViewComponent", () => {
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
-    expect(component.getColumnDataType({ name: "col1", dataType: "STRING" })).toBe("STRING");
-    expect(component.getColumnDataType({ name: "col2", dataType: "FLOAT64" })).toBe("FLOAT64");
-    expect(component.getColumnDataType({ name: "col3", dataType: "INT64" })).toBe("INT64");
-    expect(component.getColumnDataType({ name: "col4", dataType: "VARCHAR" })).toBe("VARCHAR");
-    expect(component.isCustomDataType("STRING")).toBe(false);
-    expect(component.isCustomDataType("UUID")).toBe(true);
+    expect(component.columnType({ name: "col1", dataType: "STRING" })).toBe(
+      "STRING",
+    );
+    expect(component.columnType({ name: "col2", dataType: "FLOAT64" })).toBe(
+      "FLOAT64",
+    );
+    expect(component.columnType({ name: "col3", dataType: "INT64" })).toBe(
+      "INT64",
+    );
+    expect(component.columnType({ name: "col4", dataType: "VARCHAR" })).toBe(
+      "VARCHAR",
+    );
+    expect(component.customType("STRING")).toBe(false);
+    expect(component.customType("UUID")).toBe(true);
 
-    // effectiveDateColumn should fallback gracefully
     expect(component.effectiveDateColumn()).toBeTruthy();
+  });
+
+  it("registers unsynced local tables via PUT /api/models/{modelId} before PATCH column metadata and surfaces RFC 9457 ProblemDetail", async () => {
+    const fixture = TestBed.createComponent(TableViewComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const defaultReq = httpMock.expectOne("/api/models/default");
+    defaultReq.flush({
+      modelId: DEFAULT_MODEL_ID,
+      name: "Untitled Project",
+      tables: [],
+      relationships: [],
+      measures: [],
+    });
+
+    const syncPut = httpMock.expectOne(`${MODELS_ENDPOINT}/${DEFAULT_MODEL_ID}`);
+    expect(syncPut.request.method).toBe("PUT");
+    syncPut.flush({
+      schema: {
+        modelId: DEFAULT_MODEL_ID,
+        name: "Untitled Project",
+        tables: [
+          {
+            name: "fact_transactions",
+            role: "FACT",
+            columns: [
+              { name: "transaction_id", dataType: "BIGINT", isPrimaryKey: true },
+              { name: "volume", dataType: "INT" },
+            ],
+          },
+          {
+            name: "dim_calendar",
+            role: "DIMENSION",
+            columns: [
+              { name: "date_id", dataType: "DATE", isPrimaryKey: true },
+              { name: "calendar_year", dataType: "INT" },
+            ],
+          },
+        ],
+        relationships: [],
+      },
+      dagValidation: { valid: true, diagnostics: [] },
+      rsdl: "",
+    });
+
+    const component = fixture.componentInstance;
+    component.selectTable("dim_calendar");
+    component.updateSort("calendar_year", "calendar_year");
+
+    const badSortReq = httpMock.expectOne(
+      `${MODELS_ENDPOINT}/${DEFAULT_MODEL_ID}/tables/dim_calendar/columns/calendar_year`,
+    );
+    expect(badSortReq.request.method).toBe("PATCH");
+    expect(badSortReq.request.body.sortByColumn).toBe("calendar_year");
+    badSortReq.flush(
+      {
+        title: "Invalid Request Argument",
+        status: 400,
+        detail: "Column 'calendar_year' cannot sort by itself.",
+        errorCode: "ERR_INVALID_ARGUMENT",
+      },
+      { status: 400, statusText: "Bad Request" },
+    );
+    fixture.detectChanges();
+
+    expect(component.lastError()?.errorCode).toBe("ERR_INVALID_ARGUMENT");
+    expect(component.lastError()?.detail).toContain("cannot sort by itself");
+    expect(component.state.statusIsError()).toBe(true);
+
+    component.updateSort("calendar_year", "");
+    const clearSortReq = httpMock.expectOne(
+      `${MODELS_ENDPOINT}/${DEFAULT_MODEL_ID}/tables/dim_calendar/columns/calendar_year`,
+    );
+    expect(clearSortReq.request.body.sortByColumn).toBe("");
+    clearSortReq.flush({
+      schema: {
+        modelId: DEFAULT_MODEL_ID,
+        name: "Untitled Project",
+        tables: [
+          {
+            name: "dim_calendar",
+            role: "DIMENSION",
+            columns: [
+              { name: "date_id", dataType: "DATE", isPrimaryKey: true },
+              { name: "calendar_year", dataType: "INT", sortByColumn: "" },
+            ],
+          },
+        ],
+        relationships: [],
+      },
+      dagValidation: { valid: true, diagnostics: [] },
+      rsdl: "",
+    });
+    expect(component.lastError()).toBeNull();
   });
 });

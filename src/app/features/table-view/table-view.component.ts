@@ -1,12 +1,20 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
+  OnInit,
   computed,
   inject,
-  OnInit,
   signal,
 } from "@angular/core";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
 import { FormsModule } from "@angular/forms";
+import { switchMap } from "rxjs";
+import {
+  DEFAULT_SEMANTIC_MODEL,
+  SemanticModelService,
+} from "../../core/model/model.service";
+import { RaxService } from "../../core/rax/rax.service";
 import {
   ColumnDisplayFormat,
   ColumnSummarization,
@@ -15,10 +23,6 @@ import {
   SharedTable,
   StateManagerService,
 } from "../../core/state/state.service";
-import {
-  DEFAULT_SEMANTIC_MODEL,
-  SemanticModelService,
-} from "../../core/model/model.service";
 
 export type TableViewSection = "Tables" | "Columns" | "Calculations";
 export type FormulaAuthoringMode = "column" | "table" | "measure";
@@ -37,6 +41,19 @@ export interface FormulaSuggestion {
   readonly category: "Function" | "Column" | "Measure" | "Table";
   readonly description: string;
 }
+
+const STANDARD_DATA_TYPES: readonly string[] = [
+  "STRING",
+  "VARCHAR",
+  "INT64",
+  "INT",
+  "FLOAT64",
+  "FLOAT",
+  "DECIMAL",
+  "DATE",
+  "DATETIME",
+  "BOOLEAN",
+];
 
 const RAX_TABLE_FUNCTIONS: readonly FormulaSuggestion[] = [
   {
@@ -108,13 +125,16 @@ const RAX_TABLE_FUNCTIONS: readonly FormulaSuggestion[] = [
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class TableViewComponent implements OnInit {
-  public readonly state = inject(StateManagerService);
+  private readonly destroyRef = inject(DestroyRef);
   private readonly semanticModel = inject(SemanticModelService);
+  private readonly rax = inject(RaxService);
+  public readonly state = inject(StateManagerService);
 
-  // Active view & mobile responsive state
+  private readonly tableDataStore = signal<
+    Readonly<Record<string, readonly TableRowData[]>>
+  >({});
+
   public readonly activeMobileTab = signal<"grid" | "tools">("grid");
-
-  // Accordion state matching Report Builder / Model View standard
   public readonly expandedSections = signal<Record<TableViewSection, boolean>>({
     Tables: true,
     Columns: true,
@@ -126,27 +146,14 @@ export class TableViewComponent implements OnInit {
     return !s.Tables && !s.Columns && !s.Calculations;
   });
 
-  // Active table & column selection
   public readonly selectedTableName = signal<string>("");
   public readonly selectedColumnName = signal<string>("");
   public readonly dateColumnCandidate = signal<string>("");
-  public readonly effectiveDateColumn = computed<string>(() => {
-    const explicit = this.dateColumnCandidate();
-    if (explicit) return explicit;
-    const tbl = this.activeTable();
-    if (!tbl || !tbl.columns.length) return "";
-    const dateCol = tbl.columns.find(
-      (c) =>
-        c.dataType.toUpperCase().includes("DATE") ||
-        c.name.toLowerCase().includes("date"),
-    );
-    return tbl.dateColumn || dateCol?.name || tbl.columns[0]?.name || "";
-  });
   public readonly tableSearchQuery = signal<string>("");
 
-  public readonly tables = computed<readonly SharedTable[]>(() => {
-    return this.state.sharedTables;
-  });
+  public readonly tables = computed<readonly SharedTable[]>(
+    () => this.state.sharedTables,
+  );
 
   public readonly filteredTables = computed<readonly SharedTable[]>(() => {
     const query = this.tableSearchQuery().trim().toLowerCase();
@@ -185,19 +192,25 @@ export class TableViewComponent implements OnInit {
     return cols.length > 0 ? cols[0] : null;
   });
 
-  // Table rows map (table name -> array of records)
-  private readonly tableDataStore = signal<Record<string, TableRowData[]>>({});
+  public readonly effectiveDateColumn = computed<string>(() => {
+    const explicit = this.dateColumnCandidate();
+    if (explicit) return explicit;
+    const tbl = this.activeTable();
+    if (!tbl || !tbl.columns.length) return "";
+    const dateCol = tbl.columns.find(
+      (c) =>
+        c.dataType.toUpperCase().includes("DATE") ||
+        c.name.toLowerCase().includes("date"),
+    );
+    return tbl.dateColumn || dateCol?.name || tbl.columns[0]?.name || "";
+  });
 
-  // Dynamic calculated columns state (tableName -> colName -> formula)
-  public readonly calculatedExpressions = signal<
-    Record<string, Record<string, string>>
-  >({});
+  public readonly calculatedExpressions = this.rax.expressions;
+  public readonly lastError = this.semanticModel.lastError;
 
-  // Sorting state
   public readonly sortColumn = signal<string | null>(null);
   public readonly sortDirection = signal<"asc" | "desc">("asc");
 
-  // Formula bar state & WAI-ARIA combobox autocomplete
   public readonly formulaMode = signal<FormulaAuthoringMode>("column");
   public readonly activeEditingMeasureId = signal<string>("");
   public readonly formulaTarget = signal<string>("");
@@ -206,10 +219,9 @@ export class TableViewComponent implements OnInit {
   public readonly showFormulaSuggestions = signal<boolean>(false);
   public readonly selectedSuggestionIndex = signal<number>(0);
 
-  // Column formatting configuration overrides
-  public readonly columnFormats = signal<Record<string, ColumnFormatConfig>>(
-    {},
-  );
+  public readonly columnFormats = signal<
+    Readonly<Record<string, ColumnFormatConfig>>
+  >({});
 
   public readonly formulaSuggestions = computed<readonly FormulaSuggestion[]>(
     () => {
@@ -258,7 +270,6 @@ export class TableViewComponent implements OnInit {
     },
   );
 
-  // Computed displayed rows (with Sort by Column and active calculations applied)
   public readonly displayedRows = computed<readonly TableRowData[]>(() => {
     const tbl = this.activeTable();
     if (!tbl) return [];
@@ -281,12 +292,10 @@ export class TableViewComponent implements OnInit {
       if (valA === null || valA === undefined) return 1;
       if (valB === null || valB === undefined) return -1;
 
-      let comparison = 0;
-      if (typeof valA === "number" && typeof valB === "number") {
-        comparison = valA - valB;
-      } else {
-        comparison = String(valA).localeCompare(String(valB));
-      }
+      const comparison =
+        typeof valA === "number" && typeof valB === "number"
+          ? valA - valB
+          : String(valA).localeCompare(String(valB));
       return sortDir === "asc" ? comparison : -comparison;
     });
   });
@@ -302,27 +311,78 @@ export class TableViewComponent implements OnInit {
   });
 
   constructor() {
-    if (this.state.sharedTables.length === 0) {
-      this.semanticModel.pullState(DEFAULT_SEMANTIC_MODEL, this.state);
-    }
-    if (this.state.sharedTables.length > 0 && !this.selectedTableName()) {
-      const first = this.state.sharedTables[0];
-      this.selectedTableName.set(first.name);
-      if (first.columns.length > 0) {
-        this.selectedColumnName.set(first.columns[0].name);
-        const dateCol = first.columns.find(
-          (c) =>
-            c.dataType.toUpperCase().includes("DATE") ||
-            c.name.toLowerCase().includes("date"),
-        );
-        this.dateColumnCandidate.set(
-          first.dateColumn || dateCol?.name || first.columns[0]?.name || "",
-        );
-      }
-    }
+    this.initSelection();
   }
 
   public ngOnInit(): void {
+    this.initSelection();
+    this.semanticModel
+      .loadDefault()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (payload) => {
+          const backendNames = new Set(
+            (payload?.tables ?? []).map((t) => t.name.toLowerCase()),
+          );
+          const unsyncedLocal = this.state.sharedTables.filter(
+            (t) => !backendNames.has(t.name.toLowerCase()),
+          );
+
+          if (payload?.tables?.length) {
+            this.semanticModel.applyPayload(payload);
+            for (const localTbl of unsyncedLocal) {
+              this.state.addTable(localTbl);
+            }
+            if (!this.selectedTableName()) {
+              this.selectedTableName.set(payload.tables[0].name);
+            }
+          }
+
+          if (unsyncedLocal.length > 0) {
+            this.syncBackend(unsyncedLocal);
+          }
+
+          const activeName = this.selectedTableName();
+          if (activeName && this.displayedRows().length === 0) {
+            this.fetchRows(activeName);
+          }
+        },
+        error: (err: unknown) => {
+          console.warn("[TableViewComponent] Default model load failed:", err);
+        },
+      });
+  }
+
+  public clearError(): void {
+    this.semanticModel.clearError();
+  }
+
+  private syncBackend(tablesToIngest: readonly SharedTable[]): void {
+    this.semanticModel
+      .pushState(this.state)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          if (!res) return;
+          for (const tbl of tablesToIngest) {
+            const rows =
+              this.tableDataStore()[tbl.name] ??
+              this.state.tableRows(tbl.name);
+            if (rows.length > 0) {
+              this.semanticModel
+                .ingestRows(tbl.name, rows)
+                .pipe(takeUntilDestroyed(this.destroyRef))
+                .subscribe();
+            }
+          }
+        },
+        error: (err: unknown) => {
+          console.warn("[TableViewComponent] Schema sync failed:", err);
+        },
+      });
+  }
+
+  private initSelection(): void {
     if (this.state.sharedTables.length === 0) {
       this.semanticModel.pullState(DEFAULT_SEMANTIC_MODEL, this.state);
     }
@@ -341,55 +401,39 @@ export class TableViewComponent implements OnInit {
         );
       }
     }
-
-    this.semanticModel.loadDefault().subscribe({
-      next: (payload) => {
-        if (payload?.tables?.length) {
-          this.semanticModel.pullState(payload, this.state);
-          if (!this.selectedTableName()) {
-            this.selectedTableName.set(payload.tables[0].name);
-          }
-          const activeName = this.selectedTableName();
-          if (activeName && this.displayedRows().length === 0) {
-            this.fetchBackendRowsForTable(activeName);
-          }
-        }
-      },
-      error: () => {},
-    });
   }
 
-  private fetchBackendRowsForTable(tableName: string): void {
-    this.semanticModel.fetchRows(tableName).subscribe({
-      next: (rows) => {
-        if (Array.isArray(rows) && rows.length > 0) {
-          this.tableDataStore.update((store) => ({
-            ...store,
-            [tableName]: rows,
-          }));
-          this.state.setRows(tableName, rows);
-        }
-      },
-      error: () => {},
-    });
+  private fetchRows(tableName: string): void {
+    this.semanticModel
+      .fetchRows(tableName)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (rows) => {
+          if (Array.isArray(rows) && rows.length > 0) {
+            this.tableDataStore.update((store) => ({
+              ...store,
+              [tableName]: rows,
+            }));
+            this.state.setRows(tableName, rows);
+          }
+        },
+        error: () => {},
+      });
   }
 
-  public loadTableRows(tableName: string, rows: TableRowData[]): void {
+  public loadRows(tableName: string, rows: readonly TableRowData[]): void {
     this.tableDataStore.update((store) => ({
       ...store,
       [tableName]: rows,
     }));
     this.state.setRows(tableName, rows);
-    this.semanticModel.ingestRows(tableName, rows).subscribe({
-      error: () => {},
-    });
+    this.semanticModel
+      .ingestRows(tableName, rows)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({ error: () => {} });
   }
 
-  // ---------------------------------------------------------------------------
-  // Accordion Management
-  // ---------------------------------------------------------------------------
-
-  public isSectionExpanded(section: TableViewSection): boolean {
+  public sectionExpanded(section: TableViewSection): boolean {
     return this.expandedSections()[section] ?? false;
   }
 
@@ -400,7 +444,7 @@ export class TableViewComponent implements OnInit {
     }));
   }
 
-  public toggleCollapseAll(): void {
+  public toggleAll(): void {
     const willExpand = this.isAllCollapsed();
     this.expandedSections.set({
       Tables: willExpand,
@@ -408,10 +452,6 @@ export class TableViewComponent implements OnInit {
       Calculations: willExpand,
     });
   }
-
-  // ---------------------------------------------------------------------------
-  // Table & Column Selection + Column Tools Governance
-  // ---------------------------------------------------------------------------
 
   public selectTable(tableName: string): void {
     this.selectedTableName.set(tableName);
@@ -436,7 +476,7 @@ export class TableViewComponent implements OnInit {
       const existingRows =
         this.tableDataStore()[tbl.name] ?? this.state.tableRows(tbl.name);
       if (existingRows.length === 0) {
-        this.fetchBackendRowsForTable(tbl.name);
+        this.fetchRows(tbl.name);
       }
       this.state.announce(
         `Inspecting table ${tableName} (${this.displayedRows().length} rows).`,
@@ -460,36 +500,24 @@ export class TableViewComponent implements OnInit {
     }
   }
 
-  public updateColumnDataType(colName: string, dataType: string): void {
+  public updateType(colName: string, dataType: string): void {
     const tbl = this.activeTable();
     if (!tbl) return;
-    const updatedColumns = tbl.columns.map((c) =>
-      c.name === colName ? { ...c, dataType } : c,
-    );
-    this.state.addTable({ ...tbl, columns: updatedColumns });
+    this.semanticModel.clearError();
     this.semanticModel
-      .pushState(this.state)
-      .subscribe({ error: () => {} });
-    this.state.announce(
-      `Changed column [${colName}] data type to ${dataType}.`,
-    );
+      .patchColumn({ tableName: tbl.name, columnName: colName, dataType })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((res) => {
+        if (!res) return;
+        this.state.announce(
+          `Changed column [${colName}] data type to ${dataType}.`,
+        );
+      });
   }
 
-  public getColumnDataType(col: SharedColumn): string {
+  public columnType(col: SharedColumn): string {
     const raw = (col.dataType || "STRING").toUpperCase();
-    const standard = [
-      "STRING",
-      "VARCHAR",
-      "INT64",
-      "INT",
-      "FLOAT64",
-      "FLOAT",
-      "DECIMAL",
-      "DATE",
-      "DATETIME",
-      "BOOLEAN",
-    ];
-    if (standard.includes(raw)) return raw;
+    if (STANDARD_DATA_TYPES.includes(raw)) return raw;
     if (raw.includes("CHAR") || raw.includes("TEXT") || raw.includes("STRING"))
       return "STRING";
     if (raw.includes("INT")) return raw.includes("64") ? "INT64" : "INT";
@@ -502,86 +530,79 @@ export class TableViewComponent implements OnInit {
     return raw;
   }
 
-  public isCustomDataType(dataType: string | undefined): boolean {
+  public customType(dataType: string | undefined): boolean {
     if (!dataType) return false;
-    const raw = dataType.toUpperCase();
-    const standard = [
-      "STRING",
-      "VARCHAR",
-      "INT64",
-      "INT",
-      "FLOAT64",
-      "FLOAT",
-      "DECIMAL",
-      "DATE",
-      "DATETIME",
-      "BOOLEAN",
-    ];
-    return !standard.includes(raw);
+    return !STANDARD_DATA_TYPES.includes(dataType.toUpperCase());
   }
 
-  public updateColumnSummarization(
+  public updateSummarization(
     colName: string,
     summarizeBy: ColumnSummarization,
   ): void {
     const tbl = this.activeTable();
     if (!tbl) return;
-    const updatedColumns = tbl.columns.map((c) =>
-      c.name === colName ? { ...c, summarizeBy } : c,
-    );
-    this.state.addTable({ ...tbl, columns: updatedColumns });
+    this.semanticModel.clearError();
     this.semanticModel
-      .pushState(this.state)
-      .subscribe({ error: () => {} });
-    const label = summarizeBy === "None" ? "Do not summarize" : summarizeBy;
-    this.state.announce(`Set summarization for [${colName}] to ${label}.`);
+      .patchColumn({ tableName: tbl.name, columnName: colName, summarizeBy })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((res) => {
+        if (!res) return;
+        const label = summarizeBy === "None" ? "Do not summarize" : summarizeBy;
+        this.state.announce(`Set summarization for [${colName}] to ${label}.`);
+      });
   }
 
-  public updateSortByColumn(colName: string, sortByColumn: string): void {
+  public updateSort(colName: string, sortByColumn: string): void {
     const tbl = this.activeTable();
     if (!tbl) return;
-    const normalized = sortByColumn.trim() || undefined;
-    const updatedColumns = tbl.columns.map((c) =>
-      c.name === colName ? { ...c, sortByColumn: normalized } : c,
-    );
-    this.state.addTable({ ...tbl, columns: updatedColumns });
+    this.semanticModel.clearError();
+    const normalized = sortByColumn.trim() || null;
     this.semanticModel
-      .pushState(this.state)
-      .subscribe({ error: () => {} });
-    if (normalized) {
-      this.state.announce(
-        `Column [${colName}] configured to sort by [${normalized}].`,
-      );
-    } else {
-      this.state.announce(`Cleared custom sort column for [${colName}].`);
-    }
+      .patchColumn({
+        tableName: tbl.name,
+        columnName: colName,
+        sortByColumn: normalized,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((res) => {
+        if (!res) return;
+        if (normalized) {
+          this.state.announce(
+            `Column [${colName}] configured to sort by [${normalized}].`,
+          );
+        } else {
+          this.state.announce(`Cleared custom sort column for [${colName}].`);
+        }
+      });
   }
 
-  public toggleColumnHidden(colName: string): void {
+  public toggleHidden(colName: string): void {
     const tbl = this.activeTable();
     if (!tbl) return;
-    let nowHidden = false;
-    const updatedColumns = tbl.columns.map((c) => {
-      if (c.name === colName) {
-        nowHidden = !c.isHidden;
-        return { ...c, isHidden: nowHidden };
-      }
-      return c;
-    });
-    this.state.addTable({ ...tbl, columns: updatedColumns });
+    this.semanticModel.clearError();
+    const current = tbl.columns.find((c) => c.name === colName);
+    const nowHidden = !current?.isHidden;
     this.semanticModel
-      .pushState(this.state)
-      .subscribe({ error: () => {} });
-    this.state.announce(
-      nowHidden
-        ? `Column [${colName}] hidden in Report View.`
-        : `Column [${colName}] visible in Report View.`,
-    );
+      .patchColumn({
+        tableName: tbl.name,
+        columnName: colName,
+        isHidden: nowHidden,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((res) => {
+        if (!res) return;
+        this.state.announce(
+          nowHidden
+            ? `Column [${colName}] hidden in Report View.`
+            : `Column [${colName}] visible in Report View.`,
+        );
+      });
   }
 
-  public setColumnFormat(colName: string, format: ColumnDisplayFormat): void {
+  public setFormat(colName: string, format: ColumnDisplayFormat): void {
     const tbl = this.activeTable();
     if (!tbl) return;
+    this.semanticModel.clearError();
     const alignment: "left" | "right" | "center" =
       format === "Currency" ||
       format === "Percentage" ||
@@ -592,6 +613,7 @@ export class TableViewComponent implements OnInit {
           ? "center"
           : "left";
 
+    const prevFormats = this.columnFormats();
     const formatKey = `${tbl.name}.${colName}`;
     this.columnFormats.update((curr) => ({
       ...curr,
@@ -599,14 +621,16 @@ export class TableViewComponent implements OnInit {
       [colName]: { format, alignment },
     }));
 
-    const updatedColumns = tbl.columns.map((c) =>
-      c.name === colName ? { ...c, format } : c,
-    );
-    this.state.addTable({ ...tbl, columns: updatedColumns });
     this.semanticModel
-      .pushState(this.state)
-      .subscribe({ error: () => {} });
-    this.state.announce(`Applied ${format} format to [${colName}].`);
+      .patchColumn({ tableName: tbl.name, columnName: colName, format })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((res) => {
+        if (!res) {
+          this.columnFormats.set(prevFormats);
+          return;
+        }
+        this.state.announce(`Applied ${format} format to [${colName}].`);
+      });
   }
 
   public toggleSort(columnName: string): void {
@@ -627,18 +651,14 @@ export class TableViewComponent implements OnInit {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Formula Bar, WAI-ARIA Combobox Autocomplete & Calculations Lifecycle
-  // ---------------------------------------------------------------------------
-
-  public onFormulaInputChange(value: string): void {
+  public inputFormula(value: string): void {
     this.formulaText.set(value);
     this.isFormulaActive.set(true);
     this.selectedSuggestionIndex.set(0);
     this.showFormulaSuggestions.set(value.trim().length > 0);
   }
 
-  public onFormulaKeydown(event: KeyboardEvent): void {
+  public keydownFormula(event: KeyboardEvent): void {
     const suggestions = this.formulaSuggestions();
     if (this.showFormulaSuggestions() && suggestions.length > 0) {
       if (event.key === "ArrowDown") {
@@ -659,7 +679,7 @@ export class TableViewComponent implements OnInit {
         event.preventDefault();
         const chosen = suggestions[this.selectedSuggestionIndex()];
         if (chosen) {
-          this.applyFormulaSuggestion(chosen);
+          this.applySuggestion(chosen);
         }
         return;
       }
@@ -679,7 +699,7 @@ export class TableViewComponent implements OnInit {
     }
   }
 
-  public applyFormulaSuggestion(suggestion: FormulaSuggestion): void {
+  public applySuggestion(suggestion: FormulaSuggestion): void {
     const current = this.formulaText();
     const replaced = current.replace(/([a-zA-Z0-9_.'[\]]+)$/, suggestion.token);
     this.formulaText.set(
@@ -688,7 +708,7 @@ export class TableViewComponent implements OnInit {
     this.showFormulaSuggestions.set(false);
   }
 
-  public onNewColumn(): void {
+  public createColumn(): void {
     const tbl = this.activeTable();
     if (!tbl) return;
 
@@ -710,7 +730,7 @@ export class TableViewComponent implements OnInit {
     );
   }
 
-  public onNewTable(): void {
+  public createTable(): void {
     const baseName = "CalculatedTable";
     let tblName = baseName;
     let counter = 1;
@@ -726,7 +746,7 @@ export class TableViewComponent implements OnInit {
     this.state.announce(`Authoring calculated table ${tblName}.`);
   }
 
-  public onNewMeasure(): void {
+  public createMeasure(): void {
     const tbl = this.activeTable();
     if (!tbl) return;
 
@@ -751,6 +771,7 @@ export class TableViewComponent implements OnInit {
 
     this.semanticModel
       .pushState(this.state)
+      .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({ error: () => {} });
     this.state.announce(`Created new measure ${label} on ${tbl.name}.`);
   }
@@ -765,7 +786,7 @@ export class TableViewComponent implements OnInit {
     this.state.announce(`Editing explicit measure ${measure.label}.`);
   }
 
-  public onMarkDateTable(explicitDateColumn?: string): void {
+  public markDate(explicitDateColumn?: string): void {
     const tbl = this.activeTable();
     if (!tbl) return;
 
@@ -773,62 +794,22 @@ export class TableViewComponent implements OnInit {
       explicitDateColumn ||
       this.effectiveDateColumn() ||
       this.dateColumnCandidate();
-    const dateCol =
-      tbl.columns.find((c) => c.name === candidateName) ??
-      tbl.columns.find(
-        (c) =>
-          c.dataType.toUpperCase().includes("DATE") ||
-          c.name.toLowerCase().includes("date"),
-      ) ??
-      tbl.columns[0];
-
-    const updatedColumns: SharedColumn[] = tbl.columns.map((c) => {
-      if (dateCol && c.name === dateCol.name) {
-        return {
-          ...c,
-          dataType: c.dataType.toUpperCase().includes("DATE")
-            ? c.dataType
-            : "DATE",
-          keyType: "PK",
-          summarizeBy: "None",
-        };
-      }
-      const lower = c.name.toLowerCase();
-      if (
-        lower.includes("year") ||
-        lower.includes("annee") ||
-        lower.includes("day") ||
-        lower.includes("month")
-      ) {
-        return {
-          ...c,
-          summarizeBy: "None",
-        };
-      }
-      return c;
-    });
-
-    const updatedTable: SharedTable = {
-      ...tbl,
-      role: "DIMENSION",
-      isDateTable: true,
-      dateColumn: dateCol?.name,
-      columns: updatedColumns,
-    };
-
-    this.state.addTable(updatedTable);
     this.semanticModel
-      .pushState(this.state)
-      .subscribe({ error: () => {} });
-
-    if (dateCol) {
-      this.dateColumnCandidate.set(dateCol.name);
-      this.state.announce(
-        `Table ${tbl.name} marked as Date Table with primary key [${dateCol.name}].`,
-      );
-    } else {
-      this.state.announce(`Table ${tbl.name} marked as Date Table.`);
-    }
+      .markDate(tbl.name, true, candidateName || undefined)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((res) => {
+        if (!res) return;
+        const updated = this.state.sharedTables.find((t) => t.name === tbl.name);
+        const resolvedCol = updated?.dateColumn || candidateName;
+        if (resolvedCol) {
+          this.dateColumnCandidate.set(resolvedCol);
+          this.state.announce(
+            `Table ${tbl.name} marked as Date Table with primary key [${resolvedCol}].`,
+          );
+        } else {
+          this.state.announce(`Table ${tbl.name} marked as Date Table.`);
+        }
+      });
   }
 
   public commitFormula(): void {
@@ -843,7 +824,6 @@ export class TableViewComponent implements OnInit {
       return;
     }
 
-    // 1. Explicit Measure commit
     if (this.formulaMode() === "measure" && tbl && !target.startsWith("[")) {
       const upperText = text.toUpperCase();
       const isTableGeneratingExpr =
@@ -863,6 +843,7 @@ export class TableViewComponent implements OnInit {
         });
         this.semanticModel
           .pushState(this.state)
+          .pipe(takeUntilDestroyed(this.destroyRef))
           .subscribe({ error: () => {} });
         this.isFormulaActive.set(false);
         this.state.announce(
@@ -872,107 +853,140 @@ export class TableViewComponent implements OnInit {
       }
     }
 
-    // 2. Calculated Column definition [ColName] = ...
     if (target.startsWith("[") && target.endsWith("]") && tbl) {
       const colName = target.slice(1, -1).trim();
-      const isExisting = tbl.columns.some((c) => c.name === colName);
-
-      // Evaluate expression in row context across all table rows
       const sourceRows =
         this.tableDataStore()[tbl.name] ?? this.state.tableRows(tbl.name);
-      const evaluatedRows = sourceRows.map((row, idx) => {
-        const computedVal = this.evaluateRowContextExpression(
-          text,
-          row,
-          tbl,
-          idx,
-        );
-        return {
-          ...row,
-          [colName]: computedVal,
-        };
-      });
+      this.semanticModel.clearError();
 
-      const sampleVal = evaluatedRows.find(
-        (r) => r[colName] !== null && r[colName] !== undefined,
-      )?.[colName];
-      const inferredType =
-        typeof sampleVal === "boolean"
-          ? "BOOLEAN"
-          : typeof sampleVal === "string"
-            ? "VARCHAR"
-            : Number.isInteger(sampleVal)
-              ? "INT"
-              : "DECIMAL";
-
-      const updatedColumns: SharedColumn[] = isExisting
-        ? tbl.columns.map((c) =>
-            c.name === colName
-              ? { ...c, dataType: inferredType, expression: text }
-              : c,
-          )
-        : [
-            ...tbl.columns,
-            {
-              name: colName,
-              dataType: inferredType,
-              keyType: "None",
-              expression: text,
-              summarizeBy:
-                inferredType === "DECIMAL" || inferredType === "INT"
-                  ? "Sum"
-                  : "None",
-            },
-          ];
-
-      const updatedTable: SharedTable = {
-        ...tbl,
-        columns: updatedColumns,
-      };
-
-      this.state.addTable(updatedTable);
-
-      this.calculatedExpressions.update((exprs) => {
-        const tableExprs = exprs[tbl.name] ?? {};
-        return {
-          ...exprs,
-          [tbl.name]: {
-            ...tableExprs,
-            [colName]: text,
-          },
-        };
-      });
-
-      this.loadTableRows(tbl.name, evaluatedRows);
-      this.selectedColumnName.set(colName);
       this.semanticModel
-        .pushState(this.state)
-        .subscribe({ error: () => {} });
-
-      this.state.announce(
-        `Calculated column ${target} committed successfully on ${tbl.name}.`,
-      );
-      this.isFormulaActive.set(false);
+        .ensureTable(tbl.name)
+        .pipe(
+          switchMap(() =>
+            this.rax.evalColumn({
+              modelId: this.semanticModel.modelId(),
+              tableName: tbl.name,
+              columnName: colName,
+              formula: text,
+              rows: sourceRows,
+            }),
+          ),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe({
+          next: (res) => {
+            this.semanticModel.markTable(tbl.name);
+            this.loadRows(tbl.name, res.rows);
+            this.selectedColumnName.set(colName);
+            this.semanticModel
+              .pushState(this.state)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe({
+                error: (err: unknown) =>
+                  console.warn("[TableViewComponent] pushState failed:", err),
+              });
+            this.state.announce(
+              `Calculated column ${target} committed successfully on ${tbl.name}.`,
+            );
+            this.isFormulaActive.set(false);
+          },
+          error: (err: unknown) => {
+            console.warn(
+              "[TableViewComponent] Calculated column evaluation error:",
+              err,
+            );
+          },
+        });
       return;
     }
 
-    // 3. Calculated Table definition (CALENDAR, ADDCOLUMNS, SUMMARIZECOLUMNS, INFO.VIEW Data Dictionary)
     const newTableName = target.replace(/^\[|\]$/g, "").trim();
-    const { tableDef, rows } = this.buildCalculatedTableFromFormula(
-      newTableName,
-      text,
-    );
+    const upperExpr = text.toUpperCase();
+    const isTableFormula =
+      this.formulaMode() === "table" ||
+      upperExpr.includes("CALENDAR") ||
+      upperExpr.includes("ADDCOLUMNS") ||
+      upperExpr.includes("SUMMARIZECOLUMNS") ||
+      upperExpr.includes("INFO.");
+    /** Route untyped formula bar edits to calculated column when formulaMode is column and active table exists. */
+    if (!isTableFormula && this.formulaMode() === "column" && tbl) {
+      const sourceRows =
+        this.tableDataStore()[tbl.name] ?? this.state.tableRows(tbl.name);
+      this.semanticModel.clearError();
+      this.semanticModel
+        .ensureTable(tbl.name)
+        .pipe(
+          switchMap(() =>
+            this.rax.evalColumn({
+              modelId: this.semanticModel.modelId(),
+              tableName: tbl.name,
+              columnName: newTableName,
+              formula: text,
+              rows: sourceRows,
+            }),
+          ),
+          takeUntilDestroyed(this.destroyRef),
+        )
+        .subscribe({
+          next: (res) => {
+            this.semanticModel.markTable(tbl.name);
+            this.loadRows(tbl.name, res.rows);
+            this.selectedColumnName.set(newTableName);
+            this.semanticModel
+              .pushState(this.state)
+              .pipe(takeUntilDestroyed(this.destroyRef))
+              .subscribe({
+                error: (err: unknown) =>
+                  console.warn("[TableViewComponent] pushState failed:", err),
+              });
+            this.state.announce(
+              `Calculated column [${newTableName}] committed successfully on ${tbl.name}.`,
+            );
+            this.isFormulaActive.set(false);
+          },
+          error: (err: unknown) => {
+            console.warn(
+              "[TableViewComponent] Calculated column evaluation error:",
+              err,
+            );
+          },
+        });
+      return;
+    }
 
-    this.state.addTable(tableDef);
-    this.loadTableRows(newTableName, rows);
-    this.selectTable(newTableName);
-    this.semanticModel
-      .pushState(this.state)
-      .subscribe({ error: () => {} });
-    this.state.announce(
-      `Calculated table ${newTableName} created from RAX expression (${rows.length} rows).`,
-    );
-    this.isFormulaActive.set(false);
+    this.semanticModel.clearError();
+    this.rax
+      .evalTable({
+        modelId: this.semanticModel.modelId(),
+        tableName: newTableName,
+        formula: text,
+      })
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (res) => {
+          const resolvedName = res.table.name || newTableName;
+          this.semanticModel.markTable(resolvedName);
+          this.loadRows(resolvedName, res.rows);
+          this.selectTable(resolvedName);
+          this.semanticModel
+            .pushState(this.state)
+            .pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe({
+              error: (err: unknown) =>
+                console.warn("[TableViewComponent] pushState failed:", err),
+            });
+          this.state.announce(
+            `Calculated table ${resolvedName} created from RAX expression (${res.rows.length} rows).`,
+          );
+          this.isFormulaActive.set(false);
+        },
+        error: (err: unknown) => {
+          console.warn(
+            "[TableViewComponent] Calculated table evaluation error:",
+            err,
+          );
+        },
+      });
   }
 
   public cancelFormula(): void {
@@ -982,7 +996,7 @@ export class TableViewComponent implements OnInit {
     this.state.announce("Formula authoring cancelled.");
   }
 
-  public editCalculatedColumn(colName: string): void {
+  public editColumn(colName: string): void {
     const tbl = this.activeTable();
     if (!tbl) return;
 
@@ -997,584 +1011,7 @@ export class TableViewComponent implements OnInit {
     this.selectedColumnName.set(colName);
   }
 
-  // ---------------------------------------------------------------------------
-  // Row-Context & Table-Expression Evaluators (Power BI Desktop DAX/RAX Parity)
-  // ---------------------------------------------------------------------------
-
-  private evaluateRowContextExpression(
-    formula: string,
-    row: TableRowData,
-    table: SharedTable,
-    rowIndex: number,
-  ): unknown {
-    const expr = formula.trim();
-
-    // 1. Context transition: CALCULATE(SUM('Table'[Col]), optionalFilter)
-    const calcSumMatch = expr.match(
-      /^CALCULATE\s*\(\s*SUM\s*\(\s*(?:'([^']+)'|([a-zA-Z0-9_]+))?\[([^\]]+)\]\s*\)(?:\s*,\s*([^)]+))?\s*\)$/i,
-    );
-    if (calcSumMatch) {
-      const targetTableName = calcSumMatch[1] || calcSumMatch[2] || table.name;
-      const targetCol = calcSumMatch[3].trim();
-      const filterPred = calcSumMatch[4]?.trim();
-      const targetRows =
-        this.tableDataStore()[targetTableName] ??
-        this.state.tableRows(targetTableName);
-
-      // Identify primary key or shared join column for context transition
-      const pkCol =
-        table.columns.find((c) => c.keyType === "PK")?.name ||
-        table.columns[0]?.name;
-      const pkVal = pkCol ? row[pkCol] : undefined;
-
-      let sum = 0;
-      for (const tRow of targetRows) {
-        if (
-          pkCol &&
-          pkVal !== undefined &&
-          pkCol in tRow &&
-          tRow[pkCol] !== pkVal
-        ) {
-          continue;
-        }
-        if (filterPred) {
-          const predMatch = filterPred.match(
-            /(?:'([^']+)'|([a-zA-Z0-9_]+))?\[([^\]]+)\]\s*=\s*["']?([^"']+)["']?/,
-          );
-          if (predMatch) {
-            const predCol = predMatch[3].trim();
-            const predVal = predMatch[4].trim();
-            if (predCol in tRow && String(tRow[predCol]) !== predVal) {
-              continue;
-            }
-          }
-        }
-        const num = Number(tRow[targetCol]);
-        if (!isNaN(num)) {
-          sum += num;
-        }
-      }
-      return Number(sum.toFixed(2));
-    }
-
-    // 2. DATEDIFF(TODAY(), [Date], DAY | MONTH | YEAR)
-    const dateDiffMatch = expr.match(
-      /^DATEDIFF\s*\(\s*TODAY\s*\(\s*\)\s*,\s*(?:'[^']*')?\[([^\]]+)\]\s*,\s*(DAY|MONTH|YEAR)\s*\)$/i,
-    );
-    if (dateDiffMatch) {
-      const colName = dateDiffMatch[1].trim();
-      const unit = dateDiffMatch[2].toUpperCase();
-      const rawDate = row[colName];
-      const targetDate = rawDate ? new Date(String(rawDate)) : new Date();
-      const today = new Date();
-      if (unit === "YEAR") {
-        return targetDate.getFullYear() - today.getFullYear();
-      }
-      if (unit === "MONTH") {
-        return (
-          (targetDate.getFullYear() - today.getFullYear()) * 12 +
-          (targetDate.getMonth() - today.getMonth())
-        );
-      }
-      const diffMs =
-        targetDate.setHours(0, 0, 0, 0) - today.setHours(0, 0, 0, 0);
-      return Math.round(diffMs / 86400000);
-    }
-
-    // 3. Conditional IF(col > val, trueExpr, falseExpr)
-    const ifMatch = expr.match(/^IF\s*\(([^,]+),([^,]+),([^)]+)\)$/i);
-    if (ifMatch) {
-      const condStr = ifMatch[1].trim();
-      const trueBranch = ifMatch[2].trim();
-      const falseBranch = ifMatch[3].trim();
-      const condResult = this.evaluateRowCondition(
-        condStr,
-        row,
-        table,
-        rowIndex,
-      );
-      return this.evaluateRowContextExpression(
-        condResult ? trueBranch : falseBranch,
-        row,
-        table,
-        rowIndex,
-      );
-    }
-
-    // 4. Replace RELATED('OtherTable'[Col]) with lookup value
-    let resolvedExpr = expr.replace(
-      /RELATED\s*\(\s*(?:'([^']+)'|([a-zA-Z0-9_]+))\[([^\]]+)\]\s*\)/gi,
-      (_, quotedTbl: string, rawTbl: string, targetCol: string) => {
-        const relTableName = (quotedTbl || rawTbl || "").trim();
-        const relRows =
-          this.tableDataStore()[relTableName] ??
-          this.state.tableRows(relTableName);
-        if (relRows.length === 0) return "0";
-        const matchedRow =
-          relRows.find((r) =>
-            Object.keys(r).some(
-              (k) => k in row && row[k] !== null && r[k] === row[k],
-            ),
-          ) ?? relRows[0];
-        const val = matchedRow?.[targetCol.trim()];
-        return typeof val === "number" ? String(val) : "0";
-      },
-    );
-
-    // 5. Replace 'Table'[Col] or [Col] references with row values
-    let hasNumericReference = false;
-    let directValue: unknown = undefined;
-    const singleRefMatch = resolvedExpr.match(
-      /^(?:'[^']+'|[a-zA-Z0-9_]+)?\[([^\]]+)\]$/,
-    );
-    if (singleRefMatch) {
-      const colKey = singleRefMatch[1].trim();
-      directValue = this.resolveRowField(row, colKey);
-      if (directValue !== undefined && directValue !== null) {
-        return directValue;
-      }
-    }
-
-    resolvedExpr = resolvedExpr.replace(
-      /(?:'[^']+'|[a-zA-Z0-9_]+)?\[([^\]]+)\]/g,
-      (_, colKey: string) => {
-        const val = this.resolveRowField(row, colKey.trim());
-        const num = Number(val);
-        if (val !== null && val !== undefined && !isNaN(num)) {
-          hasNumericReference = true;
-          return String(num);
-        }
-        return "0";
-      },
-    );
-
-    // 6. Safe arithmetic evaluation (+, -, *, /, parentheses, numbers)
-    if (
-      /^[0-9+\-*/().\s]+$/.test(resolvedExpr) &&
-      resolvedExpr.trim().length > 0
-    ) {
-      const arithmeticResult = this.evaluateSafeArithmetic(resolvedExpr);
-      if (arithmeticResult !== null && !isNaN(arithmeticResult)) {
-        return Number(arithmeticResult.toFixed(2));
-      }
-    }
-
-    if (
-      hasNumericReference &&
-      row["gross_amount"] !== undefined &&
-      row["cost_amount"] !== undefined
-    ) {
-      return Number(
-        (Number(row["gross_amount"]) - Number(row["cost_amount"])).toFixed(2),
-      );
-    }
-
-    return Number(((rowIndex + 1) * 14.5).toFixed(2));
-  }
-
-  private evaluateRowCondition(
-    cond: string,
-    row: TableRowData,
-    table: SharedTable,
-    rowIndex: number,
-  ): boolean {
-    const match = cond.match(/^(.+?)(>=|<=|<>|!=|=|>|<)(.+)$/);
-    if (!match) return false;
-    const left = Number(
-      this.evaluateRowContextExpression(match[1], row, table, rowIndex),
-    );
-    const op = match[2];
-    const right = Number(
-      this.evaluateRowContextExpression(match[3], row, table, rowIndex),
-    );
-    switch (op) {
-      case ">":
-        return left > right;
-      case "<":
-        return left < right;
-      case ">=":
-        return left >= right;
-      case "<=":
-        return left <= right;
-      case "=":
-        return left === right;
-      case "<>":
-      case "!=":
-        return left !== right;
-      default:
-        return false;
-    }
-  }
-
-  private resolveRowField(row: TableRowData, colName: string): unknown {
-    if (colName in row) {
-      return row[colName];
-    }
-    const lower = colName.toLowerCase();
-    for (const key of Object.keys(row)) {
-      if (key.toLowerCase() === lower) {
-        return row[key];
-      }
-    }
-    return undefined;
-  }
-
-  private evaluateSafeArithmetic(expr: string): number | null {
-    const tokens = expr.match(/\d+(?:\.\d+)?|[+\-*/()]/g);
-    if (!tokens || tokens.length === 0) return null;
-    let pos = 0;
-
-    const parseExpression = (): number => {
-      let value = parseTerm();
-      while (
-        pos < tokens.length &&
-        (tokens[pos] === "+" || tokens[pos] === "-")
-      ) {
-        const op = tokens[pos++];
-        const right = parseTerm();
-        value = op === "+" ? value + right : value - right;
-      }
-      return value;
-    };
-
-    const parseTerm = (): number => {
-      let value = parseFactor();
-      while (
-        pos < tokens.length &&
-        (tokens[pos] === "*" || tokens[pos] === "/")
-      ) {
-        const op = tokens[pos++];
-        const right = parseFactor();
-        value = op === "*" ? value * right : right !== 0 ? value / right : 0;
-      }
-      return value;
-    };
-
-    const parseFactor = (): number => {
-      if (tokens[pos] === "(") {
-        pos++;
-        const val = parseExpression();
-        if (tokens[pos] === ")") pos++;
-        return val;
-      }
-      if (tokens[pos] === "-") {
-        pos++;
-        return -parseFactor();
-      }
-      if (tokens[pos] === "+") {
-        pos++;
-        return parseFactor();
-      }
-      const num = Number(tokens[pos++]);
-      return isNaN(num) ? 0 : num;
-    };
-
-    return parseExpression();
-  }
-
-  private buildCalculatedTableFromFormula(
-    tableName: string,
-    formula: string,
-  ): { tableDef: SharedTable; rows: TableRowData[] } {
-    const upper = formula.toUpperCase();
-
-    // 1. Data Dictionary table via INFO.VIEW.COLUMNS / INFO.VIEW.MEASURES / INFO.VIEW.TABLES
-    if (upper.includes("INFO.VIEW.")) {
-      const dictColumns: SharedColumn[] = [
-        {
-          name: "Type",
-          dataType: "VARCHAR",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-        {
-          name: "Name",
-          dataType: "VARCHAR",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-        {
-          name: "Table",
-          dataType: "VARCHAR",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-        {
-          name: "Description",
-          dataType: "VARCHAR",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-        {
-          name: "Rax",
-          dataType: "VARCHAR",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-      ];
-      const dictRows: TableRowData[] = [];
-
-      for (const t of this.tables()) {
-        if (t.name === tableName || t.isHidden) continue;
-        for (const c of t.columns) {
-          if (c.isHidden) continue;
-          dictRows.push({
-            Type: "Column",
-            Name: c.name,
-            Table: t.name,
-            Description: c.description || "",
-            Rax: c.expression || "",
-          });
-        }
-      }
-      for (const m of this.state.measures) {
-        if (m.isHidden) continue;
-        dictRows.push({
-          Type: "Measure",
-          Name: m.label,
-          Table: m.table,
-          Description: m.description || "",
-          Rax: m.formula,
-        });
-      }
-      for (const t of this.tables()) {
-        if (t.name === tableName || t.isHidden) continue;
-        dictRows.push({
-          Type: "Table",
-          Name: t.name,
-          Table: "n/a",
-          Description: t.description || "",
-          Rax: t.expression || "",
-        });
-      }
-
-      return {
-        tableDef: {
-          id: `tbl-${Date.now()}-${tableName}`,
-          name: tableName,
-          role: "DIMENSION",
-          columns: dictColumns,
-          rowCount: dictRows.length,
-          expression: formula,
-          description:
-            "Semantic model documentation table generated from INFO.VIEW functions.",
-        },
-        rows: dictRows,
-      };
-    }
-
-    // 2. Aggregated table via SUMMARIZECOLUMNS(...)
-    if (upper.includes("SUMMARIZECOLUMNS")) {
-      const colRefs = Array.from(
-        formula.matchAll(/(?:'([^']+)'|([a-zA-Z0-9_]+))\[([^\]]+)\]/g),
-      );
-      const aliasMatches = Array.from(
-        formula.matchAll(
-          /"([^"]+)"\s*,\s*(SUM|AVERAGE|COUNT|MIN|MAX)\s*\(\s*(?:'([^']+)'|([a-zA-Z0-9_]+))?\[([^\]]+)\]\s*\)/gi,
-        ),
-      );
-
-      const aggSourceCols = new Set(aliasMatches.map((m) => m[5].trim()));
-      const groupCols = colRefs
-        .map((m) => ({
-          table: (m[1] || m[2] || "").trim(),
-          col: m[3].trim(),
-        }))
-        .filter((g) => !aggSourceCols.has(g.col));
-
-      const columns: SharedColumn[] = [
-        ...groupCols.map((g) => ({
-          name: g.col,
-          dataType: "VARCHAR",
-          keyType: "None" as const,
-          summarizeBy: "None" as const,
-        })),
-        ...aliasMatches.map((m) => ({
-          name: m[1].trim(),
-          dataType: "DECIMAL",
-          keyType: "None" as const,
-          summarizeBy: "Sum" as const,
-        })),
-      ];
-
-      // Gather source rows from the referenced fact table or active table
-      const factTableName =
-        aliasMatches[0]?.[3] ||
-        aliasMatches[0]?.[4] ||
-        groupCols[0]?.table ||
-        this.activeTable()?.name ||
-        "";
-      const sourceRows = factTableName
-        ? (this.tableDataStore()[factTableName] ??
-          this.state.tableRows(factTableName))
-        : [];
-
-      const groupedMap = new Map<string, Record<string, unknown>>();
-      for (const row of sourceRows) {
-        const keyParts = groupCols.map((g) =>
-          String(this.resolveRowField(row, g.col) ?? ""),
-        );
-        const groupKey = keyParts.join("||");
-        const existing = groupedMap.get(groupKey) ?? {};
-        groupCols.forEach((g, idx) => {
-          existing[g.col] = keyParts[idx];
-        });
-        for (const agg of aliasMatches) {
-          const alias = agg[1].trim();
-          const targetCol = agg[5].trim();
-          const val = Number(this.resolveRowField(row, targetCol) ?? 0);
-          existing[alias] =
-            Number(existing[alias] ?? 0) + (isNaN(val) ? 0 : val);
-        }
-        groupedMap.set(groupKey, existing);
-      }
-
-      const aggRows = Array.from(groupedMap.values());
-      return {
-        tableDef: {
-          id: `tbl-${Date.now()}-${tableName}`,
-          name: tableName,
-          role: "FACT",
-          columns:
-            columns.length > 0
-              ? columns
-              : [
-                  {
-                    name: "SummaryValue",
-                    dataType: "DECIMAL",
-                    keyType: "None",
-                  },
-                ],
-          rowCount: aggRows.length,
-          expression: formula,
-        },
-        rows: aggRows,
-      };
-    }
-
-    // 3. Calendar / Time Table via CALENDAR(...) or CALENDARAUTO() (with optional Offset columns)
-    const isCalendar = upper.includes("CALENDAR");
-    const includeOffsets =
-      upper.includes("OFFSET") || upper.includes("DATEDIFF");
-    const dateMatches = Array.from(
-      formula.matchAll(
-        /DATE\s*\(\s*(\d{4})\s*,\s*(\d{1,2})\s*,\s*(\d{1,2})\s*\)/gi,
-      ),
-    );
-
-    const startDate =
-      dateMatches.length >= 1
-        ? new Date(
-            Number(dateMatches[0][1]),
-            Number(dateMatches[0][2]) - 1,
-            Number(dateMatches[0][3]),
-          )
-        : new Date(2026, 0, 1);
-    const endDate =
-      dateMatches.length >= 2
-        ? new Date(
-            Number(dateMatches[1][1]),
-            Number(dateMatches[1][2]) - 1,
-            Number(dateMatches[1][3]),
-          )
-        : new Date(startDate.getFullYear(), 11, 31);
-
-    const calendarColumns: SharedColumn[] = [
-      {
-        name: "Date",
-        dataType: "DATE",
-        keyType: "PK",
-        summarizeBy: "None",
-        format: "Date",
-      },
-      {
-        name: "Year",
-        dataType: "INT",
-        keyType: "None",
-        summarizeBy: "None",
-        format: "WholeNumber",
-      },
-      {
-        name: "Quarter",
-        dataType: "VARCHAR",
-        keyType: "None",
-        summarizeBy: "None",
-      },
-      {
-        name: "Month",
-        dataType: "VARCHAR",
-        keyType: "None",
-        summarizeBy: "None",
-        sortByColumn: "MonthNum",
-      },
-      {
-        name: "MonthNum",
-        dataType: "INT",
-        keyType: "None",
-        summarizeBy: "None",
-        isHidden: true,
-      },
-      {
-        name: "YearMonth",
-        dataType: "VARCHAR",
-        keyType: "None",
-        summarizeBy: "None",
-      },
-      {
-        name: "Day",
-        dataType: "INT",
-        keyType: "None",
-        summarizeBy: "None",
-        format: "WholeNumber",
-      },
-    ];
-
-    if (includeOffsets) {
-      calendarColumns.push(
-        {
-          name: "Offset Day",
-          dataType: "INT",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-        {
-          name: "Offset Month",
-          dataType: "INT",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-        {
-          name: "Offset Year",
-          dataType: "INT",
-          keyType: "None",
-          summarizeBy: "None",
-        },
-      );
-    }
-
-    const calendarRows = isCalendar
-      ? this.generateCalendarRowsRange(startDate, endDate, includeOffsets)
-      : [];
-
-    const newTable: SharedTable = {
-      id: `tbl-${Date.now()}-${tableName}`,
-      name: tableName,
-      role: "DIMENSION",
-      isDateTable: isCalendar,
-      dateColumn: isCalendar ? "Date" : undefined,
-      expression: formula,
-      columns: calendarColumns,
-      rowCount: calendarRows.length,
-    };
-
-    return { tableDef: newTable, rows: calendarRows };
-  }
-
-  // ---------------------------------------------------------------------------
-  // Data Formatting & Rendering
-  // ---------------------------------------------------------------------------
-
-  public formatCellValue(val: unknown, col: SharedColumn): string {
+  public formatCell(val: unknown, col: SharedColumn): string {
     if (val === null || val === undefined) {
       return "—";
     }
@@ -1660,7 +1097,7 @@ export class TableViewComponent implements OnInit {
     return String(val);
   }
 
-  public getColumnAlignment(
+  public columnAlignment(
     col: SharedColumn,
   ): "text-start" | "text-end" | "text-center" {
     const tblName = this.activeTable()?.name || "";
@@ -1684,62 +1121,5 @@ export class TableViewComponent implements OnInit {
       return "text-center";
     }
     return "text-start";
-  }
-
-  // ---------------------------------------------------------------------------
-  // Complete Daily Calendar Generator for CALENDAR() & Offset RAX Expressions
-  // ---------------------------------------------------------------------------
-
-  private generateCalendarRowsRange(
-    startDate: Date,
-    endDate: Date,
-    includeOffsets: boolean = false,
-  ): TableRowData[] {
-    const rows: TableRowData[] = [];
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    const startMs = startDate.getTime();
-    const endMs = Math.max(startMs, endDate.getTime());
-    const totalDays = Math.min(
-      Math.floor((endMs - startMs) / 86400000) + 1,
-      1461, // up to 4 full years (including leap year)
-    );
-
-    for (let i = 0; i < totalDays; i++) {
-      const d = new Date(
-        startDate.getFullYear(),
-        startDate.getMonth(),
-        startDate.getDate() + i,
-      );
-      const year = d.getFullYear();
-      const monthNum = d.getMonth() + 1;
-      const month = String(monthNum).padStart(2, "0");
-      const day = String(d.getDate()).padStart(2, "0");
-      const q = Math.floor(d.getMonth() / 3) + 1;
-
-      const row: Record<string, unknown> = {
-        Date: `${year}-${month}-${day}`,
-        Year: year,
-        Quarter: `Q${q}`,
-        Month: d.toLocaleString("en-US", { month: "short" }),
-        MonthNum: monthNum,
-        YearMonth: `${year}-${month}`,
-        Day: d.getDate(),
-      };
-
-      if (includeOffsets) {
-        const diffDays = Math.round((d.getTime() - today.getTime()) / 86400000);
-        const diffMonths =
-          (year - today.getFullYear()) * 12 + (d.getMonth() - today.getMonth());
-        const diffYears = year - today.getFullYear();
-        row["Offset Day"] = diffDays;
-        row["Offset Month"] = diffMonths;
-        row["Offset Year"] = diffYears;
-      }
-
-      rows.push(row);
-    }
-    return rows;
   }
 }

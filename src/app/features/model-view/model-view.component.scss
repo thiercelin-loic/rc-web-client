@@ -155,6 +155,17 @@
     color: var(--rc-accent-text);
   }
 
+  &.selected {
+    background: var(--rc-primary-glow);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+
+  &.is-hidden {
+    opacity: 0.55;
+    text-decoration: line-through;
+  }
+
   .col-name {
     font-size: var(--rc-font-size-xs);
   }

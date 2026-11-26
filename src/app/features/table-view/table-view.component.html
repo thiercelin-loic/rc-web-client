@@ -130,7 +130,7 @@
         <button
           type="button"
           class="rc-ribbon-btn btn btn-sm py-1 px-2 d-inline-flex align-items-center gap-1"
-          (click)="onNewMeasure()"
+          (click)="createMeasure()"
           title="Create a new explicit RAX measure"
         >
           <svg
@@ -153,7 +153,7 @@
         <button
           type="button"
           class="rc-ribbon-btn btn btn-sm py-1 px-2 d-inline-flex align-items-center gap-1"
-          (click)="onNewColumn()"
+          (click)="createColumn()"
           title="Add a row-context calculated column"
         >
           <svg
@@ -174,7 +174,7 @@
         <button
           type="button"
           class="rc-ribbon-btn btn btn-sm py-1 px-2 d-inline-flex align-items-center gap-1"
-          (click)="onNewTable()"
+          (click)="createTable()"
           title="Add a calculated table (CALENDAR, SUMMARIZECOLUMNS, or INFO.VIEW)"
         >
           <svg
@@ -227,7 +227,7 @@
         <button
           type="button"
           class="rc-ribbon-btn btn btn-sm py-1 px-2 d-inline-flex align-items-center gap-1"
-          (click)="onMarkDateTable()"
+          (click)="markDate()"
           title="Designate this table as a Date Dimension (Calendar Options)"
         >
           <svg
@@ -264,6 +264,22 @@
         >
           fx
         </span>
+        <input
+          type="text"
+          class="form-control form-control-sm font-monospace py-0 px-2"
+          [ngModel]="formulaTarget()"
+          (ngModelChange)="formulaTarget.set($event)"
+          placeholder="[Column] or Table"
+          aria-label="Formula target name"
+          style="
+            width: 148px;
+            height: 26px;
+            font-size: 12px;
+            background-color: var(--rc-card-bg);
+            color: var(--rc-text-primary);
+            border: 1px solid var(--rc-card-border);
+          "
+        />
         <span class="text-secondary rc-fs-12">=</span>
       </div>
 
@@ -280,8 +296,8 @@
           aria-controls="table-formula-suggestions-listbox"
           class="form-control form-control-sm font-monospace rc-formula-input"
           [ngModel]="formulaText()"
-          (ngModelChange)="onFormulaInputChange($event)"
-          (keydown)="onFormulaKeydown($event)"
+          (ngModelChange)="inputFormula($event)"
+          (keydown)="keydownFormula($event)"
           placeholder="Enter RAX expression (e.g. 'Table'[Col1] - 'Table'[Col2], CALENDAR(...), or SUMMARIZECOLUMNS(...))"
           style="
             background-color: var(--rc-card-bg);
@@ -322,7 +338,7 @@
                 "
                
                 (mousedown)="
-                  applyFormulaSuggestion(item); $event.preventDefault()
+                  applySuggestion(item); $event.preventDefault()
                 "
               >
                 <span
@@ -384,6 +400,63 @@
         }
       </div>
     </section>
+
+    @if (lastError(); as problem) {
+      <div
+        role="alert"
+        class="px-3 py-1 border-bottom d-flex align-items-center justify-content-between gap-2 rc-fs-12"
+        style="
+          background-color: rgba(220, 53, 69, 0.14);
+          color: var(--rc-text-primary);
+          border-left: 3px solid #dc3545;
+        "
+      >
+        <div class="d-flex align-items-center gap-2 min-w-0">
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="#dc3545"
+            stroke-width="2"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            class="flex-shrink-0"
+            aria-hidden="true"
+          >
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+          </svg>
+          @if (problem.errorCode) {
+            <span class="badge bg-danger font-monospace rc-fs-10">
+              {{ problem.errorCode }}
+            </span>
+          }
+          <span class="text-truncate">{{ problem.detail || problem.title }}</span>
+        </div>
+        <button
+          type="button"
+          class="btn btn-sm btn-link p-0 text-decoration-none"
+          style="color: var(--rc-text-primary)"
+          (click)="clearError()"
+          aria-label="Dismiss error"
+        >
+          <svg
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            aria-hidden="true"
+          >
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
+        </button>
+      </div>
+    }
 
     <!-- Main Data Grid Surface -->
     <div
@@ -488,16 +561,16 @@
                     <div
                       class="d-flex align-items-center gap-1.5 w-100"
                       [class.justify-content-end]="
-                        getColumnAlignment(col) === 'text-end'
+                        columnAlignment(col) === 'text-end'
                       "
                       [class.justify-content-center]="
-                        getColumnAlignment(col) === 'text-center'
+                        columnAlignment(col) === 'text-center'
                       "
                       [class.justify-content-between]="
-                        getColumnAlignment(col) === 'text-start'
+                        columnAlignment(col) === 'text-start'
                       "
                     >
-                      @if (getColumnAlignment(col) === "text-end") {
+                      @if (columnAlignment(col) === "text-end") {
                         <!-- Right-aligned header: Type badge on the left, Name & Sort caret on the right -->
                         <span
                           class="badge font-monospace text-secondary flex-shrink-0"
@@ -683,7 +756,7 @@
                   @for (col of activeColumns(); track col.name) {
                     <td
                       class="rc-td-cell border-bottom border-end px-2 py-1 rc-fs-12 rc-text-primary"
-                      [class]="getColumnAlignment(col)"
+                      [class]="columnAlignment(col)"
                       [style.opacity]="col.isHidden ? '0.6' : '1'"
                      
                     >
@@ -691,7 +764,7 @@
                         class="font-monospace text-truncate d-inline-block rc-max-w-full"
                        
                       >
-                        {{ formatCellValue(row[col.name], col) }}
+                        {{ formatCell(row[col.name], col) }}
                       </span>
                     </td>
                   }
@@ -781,7 +854,7 @@
         <button
           type="button"
           class="rc-btn rc-btn-xs rc-btn-ghost text-secondary px-1 py-0"
-          (click)="toggleCollapseAll()"
+          (click)="toggleAll()"
           [title]="
             isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
           "
@@ -813,14 +886,14 @@
             type="button"
             class="rc-tools-section-header"
             (click)="toggleSection('Tables')"
-            [attr.aria-expanded]="isSectionExpanded('Tables')"
+            [attr.aria-expanded]="sectionExpanded('Tables')"
           >
             <span
               class="rc-section-header-title-wrap d-flex align-items-center gap-2"
             >
               <svg
                 class="rc-section-chevron"
-                [class.is-rotated]="isSectionExpanded('Tables')"
+                [class.is-rotated]="sectionExpanded('Tables')"
                 width="12"
                 height="12"
                 viewBox="0 0 24 24"
@@ -843,7 +916,7 @@
             </span>
           </button>
 
-          @if (isSectionExpanded("Tables")) {
+          @if (sectionExpanded("Tables")) {
             <div class="rc-tools-section-body p-2">
               <!-- Search Table Input -->
               <div class="input-group input-group-sm mb-2">
@@ -921,14 +994,14 @@
             type="button"
             class="rc-tools-section-header"
             (click)="toggleSection('Columns')"
-            [attr.aria-expanded]="isSectionExpanded('Columns')"
+            [attr.aria-expanded]="sectionExpanded('Columns')"
           >
             <span
               class="rc-section-header-title-wrap d-flex align-items-center gap-2"
             >
               <svg
                 class="rc-section-chevron"
-                [class.is-rotated]="isSectionExpanded('Columns')"
+                [class.is-rotated]="sectionExpanded('Columns')"
                 width="12"
                 height="12"
                 viewBox="0 0 24 24"
@@ -951,7 +1024,7 @@
             </span>
           </button>
 
-          @if (isSectionExpanded("Columns")) {
+          @if (sectionExpanded("Columns")) {
             <div class="rc-tools-section-body p-2">
               @if (!activeTable()) {
                 <p class="small text-muted mb-0">
@@ -982,7 +1055,7 @@
                         [class.btn-outline-secondary]="!activeCol.isHidden"
                         [class.btn-outline-warning]="activeCol.isHidden"
                        
-                        (click)="toggleColumnHidden(activeCol.name)"
+                        (click)="toggleHidden(activeCol.name)"
                         title="Toggle visibility in Report View"
                       >
                         {{ activeCol.isHidden ? "Unhide" : "Hide in Report" }}
@@ -1000,9 +1073,9 @@
                         <select
                           class="form-select form-select-sm py-0 px-1 font-monospace rc-fs-11 rc-h-24"
                          
-                          [ngModel]="getColumnDataType(activeCol)"
+                          [ngModel]="columnType(activeCol)"
                           (ngModelChange)="
-                            updateColumnDataType(activeCol.name, $event)
+                            updateType(activeCol.name, $event)
                           "
                           aria-label="Column Data Type"
                         >
@@ -1016,7 +1089,7 @@
                           <option value="DATE">DATE</option>
                           <option value="DATETIME">DATETIME</option>
                           <option value="BOOLEAN">BOOLEAN</option>
-                          @if (isCustomDataType(activeCol.dataType)) {
+                          @if (customType(activeCol.dataType)) {
                             <option [value]="activeCol.dataType">
                               {{ activeCol.dataType }}
                             </option>
@@ -1036,7 +1109,7 @@
                          
                           [ngModel]="activeCol.format || 'General'"
                           (ngModelChange)="
-                            setColumnFormat(activeCol.name, $event)
+                            setFormat(activeCol.name, $event)
                           "
                           aria-label="Column Format"
                         >
@@ -1063,7 +1136,7 @@
                          
                           [ngModel]="activeCol.summarizeBy || 'None'"
                           (ngModelChange)="
-                            updateColumnSummarization(activeCol.name, $event)
+                            updateSummarization(activeCol.name, $event)
                           "
                           aria-label="Column Summarization"
                         >
@@ -1089,22 +1162,20 @@
                          
                           [ngModel]="activeCol.sortByColumn || ''"
                           (ngModelChange)="
-                            updateSortByColumn(activeCol.name, $event)
+                            updateSort(activeCol.name, $event)
                           "
                           aria-label="Sort by Column"
                         >
                           <option value="">
-                            Default ({{ activeCol.name }})
+                            Default (None)
                           </option>
                           @for (
                             otherCol of activeColumns();
                             track otherCol.name
                           ) {
-                            @if (otherCol.name !== activeCol.name) {
-                              <option [value]="otherCol.name">
-                                {{ otherCol.name }}
-                              </option>
-                            }
+                            <option [value]="otherCol.name">
+                              {{ otherCol.name }}
+                            </option>
                           }
                         </select>
                       </div>
@@ -1169,7 +1240,7 @@
                             type="button"
                             class="btn btn-link btn-xs p-0 text-decoration-none text-info rc-fs-11"
                             (click)="
-                              editCalculatedColumn(col.name);
+                              editColumn(col.name);
                               $event.stopPropagation()
                             "
                            
@@ -1192,14 +1263,14 @@
             type="button"
             class="rc-tools-section-header"
             (click)="toggleSection('Calculations')"
-            [attr.aria-expanded]="isSectionExpanded('Calculations')"
+            [attr.aria-expanded]="sectionExpanded('Calculations')"
           >
             <span
               class="rc-section-header-title-wrap d-flex align-items-center gap-2"
             >
               <svg
                 class="rc-section-chevron"
-                [class.is-rotated]="isSectionExpanded('Calculations')"
+                [class.is-rotated]="sectionExpanded('Calculations')"
                 width="12"
                 height="12"
                 viewBox="0 0 24 24"
@@ -1222,7 +1293,7 @@
             </span>
           </button>
 
-          @if (isSectionExpanded("Calculations")) {
+          @if (sectionExpanded("Calculations")) {
             <div class="rc-tools-section-body p-2">
               <div
                 class="d-flex align-items-center justify-content-between mb-2"
@@ -1233,7 +1304,7 @@
                 <button
                   type="button"
                   class="btn btn-xs btn-outline-primary py-1 px-2 rc-fs-10"
-                  (click)="onNewMeasure()"
+                  (click)="createMeasure()"
                  
                 >
                   + Add

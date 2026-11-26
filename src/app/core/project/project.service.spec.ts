@@ -76,8 +76,10 @@ describe("ProjectService", () => {
     });
 
     await new Promise((resolve) => setTimeout(resolve, 10));
-    const modelReq = httpMock.expectOne("/api/models");
-    expect(modelReq.request.method).toBe("POST");
+    const modelReq = httpMock.expectOne((r) =>
+      r.url.startsWith("/api/models/"),
+    );
+    expect(modelReq.request.method).toBe("PUT");
     modelReq.flush({ status: "OK" });
 
     await new Promise((resolve) => setTimeout(resolve, 10));
