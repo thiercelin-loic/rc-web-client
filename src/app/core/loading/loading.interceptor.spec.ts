@@ -67,11 +67,13 @@ describe("loadingInterceptor", () => {
     const sub = http.post("/api/ingestion/preview", {}).subscribe({
       error: () => undefined,
     });
+    const previewReq = httpMock.expectOne("/api/ingestion/preview");
 
     vi.advanceTimersByTime(LOADING_DELAY_MS);
     expect(loading.isWaiting()).toBe(true);
 
     sub.unsubscribe();
+    expect(previewReq.cancelled).toBe(true);
     expect(loading.activeCount()).toBe(0);
     expect(loading.isWaiting()).toBe(false);
 

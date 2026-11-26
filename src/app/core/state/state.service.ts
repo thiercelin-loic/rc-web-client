@@ -1376,8 +1376,13 @@ export class StateManagerService {
         const nestedRec = nestedError as Record<string, unknown>;
         const detail =
           nestedRec["detail"] ?? nestedRec["message"] ?? nestedRec["error"];
+        const code =
+          typeof nestedRec["errorCode"] === "string" &&
+          nestedRec["errorCode"].trim()
+            ? `[${nestedRec["errorCode"].trim()}] `
+            : "";
         if (typeof detail === "string" && detail.trim()) {
-          return detail.trim();
+          return `${code}${detail.trim()}`;
         }
       }
       if (

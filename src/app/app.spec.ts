@@ -286,7 +286,7 @@ describe('AppComponent', () => {
     expect(fixture.nativeElement.querySelector('#navigator-modal-title')).toBeTruthy();
 
     app.ingestion.confirmNavigator('load');
-    const previewReq = httpMock.expectOne('/api/ingestion/preview');
+    const previewReq = httpMock.expectOne('/api/ingestion/pipeline/preview');
     previewReq.flush([
       {
         schema: { Region: 'VARCHAR', Revenue: 'BIGINT' },
@@ -341,7 +341,7 @@ describe('AppComponent', () => {
     expect(bodyRows.length).toBe(100);
 
     app.ingestion.confirmNavigator('load');
-    const jsonPreviewReq = httpMock.expectOne('/api/ingestion/preview');
+    const jsonPreviewReq = httpMock.expectOne('/api/ingestion/pipeline/preview');
     jsonPreviewReq.flush([
       {
         schema: { joueur: 'VARCHAR', buts: 'BIGINT' },

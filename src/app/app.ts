@@ -598,7 +598,7 @@ interface FullscreenElement extends HTMLElement {
                 (click)="ingestion.toggleMenu()"
                 [attr.aria-expanded]="ingestion.importMenuOpen()"
                 aria-haspopup="true"
-                title="Import file formats (.xlsx, .csv, .json, .xml, .parquet)"
+                title="Import file formats (Excel, CSV, JSON, XML, Parquet)"
                 aria-label="Import file formats"
               >
                 <svg
@@ -1608,8 +1608,7 @@ interface FullscreenElement extends HTMLElement {
                         [class.rc-btn-primary]="state.activePage() === page"
                         [class.rc-btn-outline]="state.activePage() !== page"
                         (click)="
-                          onSelectReportPage(page);
-                          state.toggleDrawer(false)
+                          onSelectReportPage(page); state.toggleDrawer(false)
                         "
                       >
                         {{ page }}

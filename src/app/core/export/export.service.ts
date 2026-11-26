@@ -167,29 +167,26 @@ export class ExportService {
 
   private printLight(): void {
     this.state.setPrinting(true);
-    this.appRef.tick();
+    const savedThemes = this.applyLight();
+    const printStyle = this.injectOrientation();
+    const previousTitle = typeof document !== "undefined" ? document.title : "";
 
-    const restored = this.applyLight();
-    const cleanup = () => {
-      this.state.setPrinting(false);
+    if (typeof document !== "undefined") {
+      document.title = this.projectName();
+    }
+
+    try {
       this.appRef.tick();
-      for (const entry of restored) {
-        if (entry.originalTheme !== null) {
-          entry.element.setAttribute("data-theme", entry.originalTheme);
-        } else {
-          entry.element.removeAttribute("data-theme");
-        }
-      }
-      if (typeof window !== "undefined") {
-        window.removeEventListener("afterprint", cleanup);
-      }
-    };
-
-    window.addEventListener("afterprint", cleanup);
-    setTimeout(() => {
       window.print();
-      setTimeout(cleanup, 1000);
-    }, 60);
+    } finally {
+      if (typeof document !== "undefined") {
+        document.title = previousTitle;
+      }
+      printStyle?.remove();
+      this.state.setPrinting(false);
+      this.restoreThemes(savedThemes);
+      this.appRef.tick();
+    }
   }
 
   private applyLight(): {
@@ -199,25 +196,54 @@ export class ExportService {
     if (typeof document === "undefined") {
       return [];
     }
-    const targets: HTMLElement[] = [document.documentElement, document.body];
-    document.querySelectorAll<HTMLElement>("[data-theme]").forEach((el) => {
-      if (!targets.includes(el)) {
-        targets.push(el);
+    const saved: { element: HTMLElement; originalTheme: string | null }[] = [];
+    const root = document.documentElement;
+    saved.push({
+      element: root,
+      originalTheme: root.getAttribute("data-bs-theme"),
+    });
+    root.setAttribute("data-bs-theme", "light");
+
+    document.querySelectorAll<HTMLElement>("[data-bs-theme]").forEach((el) => {
+      if (el !== root) {
+        saved.push({
+          element: el,
+          originalTheme: el.getAttribute("data-bs-theme"),
+        });
+        el.setAttribute("data-bs-theme", "light");
       }
     });
+    return saved;
+  }
 
-    const snapshots: { element: HTMLElement; originalTheme: string | null }[] =
-      [];
-    for (const el of targets) {
-      if (el) {
-        snapshots.push({
-          element: el,
-          originalTheme: el.getAttribute("data-theme"),
-        });
-        el.setAttribute("data-theme", "light");
+  private injectOrientation(): HTMLStyleElement | null {
+    if (typeof document === "undefined") {
+      return null;
+    }
+    const sheet = document.querySelector<HTMLElement>(".rc-report-page-sheet");
+    if (!sheet) {
+      return null;
+    }
+    const width = sheet.offsetWidth || 1280;
+    const height = sheet.offsetHeight || 720;
+    const isPortrait = height > width;
+    const style = document.createElement("style");
+    style.id = "rc-print-dynamic-orientation";
+    style.textContent = `@page { size: ${isPortrait ? "portrait" : "landscape"}; margin: 6mm; }`;
+    document.head.appendChild(style);
+    return style;
+  }
+
+  private restoreThemes(
+    saved: readonly { element: HTMLElement; originalTheme: string | null }[],
+  ): void {
+    for (const { element, originalTheme } of saved) {
+      if (originalTheme !== null) {
+        element.setAttribute("data-bs-theme", originalTheme);
+      } else {
+        element.removeAttribute("data-bs-theme");
       }
     }
-    return snapshots;
   }
 
   private buildPayload(
