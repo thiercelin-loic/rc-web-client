@@ -179,7 +179,7 @@
           type="button"
           class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
           id="btn-find-replace"
-          (click)="toggleFindReplace()"
+          (click)="toggleReplace()"
           [attr.aria-expanded]="findReplaceOpen()"
           title="Find and replace in query (Ctrl+H)"
           aria-label="Find and replace"
@@ -200,12 +200,12 @@
         </button>
 
         <!-- CodeLens: Update Model (when DEFINE MEASURE or TMDL createOrReplace is present) -->
-        @if (hasModelDefinableContent()) {
+        @if (hasDefinable()) {
           <button
             type="button"
             class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
             id="btn-apply-model"
-            (click)="applyToModel()"
+            (click)="applyModel()"
             title="Apply measure definitions and descriptions to semantic model"
             aria-label="Update model with measure definitions"
           >
@@ -260,7 +260,7 @@
             type="button"
             class="rc-btn rc-btn-sm rc-btn-outline d-inline-flex align-items-center gap-2"
             id="btn-materialize-table"
-            (click)="materializeResultAsTable()"
+            (click)="materializeTable()"
             title="Save result grid as a calculated table in the semantic model"
             aria-label="Save results as model table"
           >
@@ -283,7 +283,7 @@
             type="button"
             class="rc-btn rc-btn-sm rc-btn-ghost d-inline-flex align-items-center gap-2"
             id="btn-export-csv"
-            (click)="exportResultsCsv()"
+            (click)="exportCsv()"
             title="Export results to CSV"
             aria-label="Export results to CSV"
           >
@@ -306,7 +306,33 @@
       </div>
     </div>
 
-
+    @if (errorBanner(); as err) {
+      <div
+        id="rax-error-banner"
+        role="alert"
+        class="d-flex align-items-center justify-content-between gap-2 px-3 py-2 border-bottom bg-danger-subtle text-danger-emphasis small"
+      >
+        <div class="d-flex align-items-center gap-2 text-truncate">
+          @if (err.errorCode) {
+            <span class="badge bg-danger text-white font-monospace">{{
+              err.errorCode
+            }}</span>
+          }
+          <span class="fw-semibold"
+            >{{ err.title || "Request Error" }}:</span
+          >
+          <span>{{ err.detail }}</span>
+        </div>
+        <button
+          type="button"
+          class="rc-btn rc-btn-ghost rc-btn-xs"
+          (click)="clearError()"
+          aria-label="Dismiss error"
+        >
+          Dismiss
+        </button>
+      </div>
+    }
 
     <!-- Find & Replace Bar (Power BI DAX Query View Bulk Search & Replace) -->
     @if (findReplaceOpen()) {
@@ -320,7 +346,7 @@
           class="form-control form-control-sm rc-find-input"
           placeholder="Find text or table name..."
           [value]="findText()"
-          (input)="findText.set($any($event.target).value)"
+          (input)="findText.set(targetValue($event))"
           aria-label="Find text"
         />
         <input
@@ -328,14 +354,14 @@
           class="form-control form-control-sm rc-find-input"
           placeholder="Replace with..."
           [value]="replaceText()"
-          (input)="replaceText.set($any($event.target).value)"
+          (input)="replaceText.set(targetValue($event))"
           aria-label="Replace with text"
         />
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-primary"
           id="btn-replace-all"
-          (click)="replaceAllInEditor()"
+          (click)="replaceAll()"
           aria-label="Replace all occurrences"
         >
           Replace All
@@ -343,7 +369,7 @@
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-ghost text-muted"
-          (click)="toggleFindReplace()"
+          (click)="toggleReplace()"
           aria-label="Close find and replace bar"
         >
           Close
@@ -381,9 +407,9 @@
             "
             aria-controls="rax-autocomplete-listbox"
             [value]="activeTab().content"
-            (input)="updateActiveContent($any($event.target).value)"
-            (keydown)="onEditorKeydown($event)"
-            (scroll)="syncGutterScroll()"
+            (input)="updateContent(targetValue($event))"
+            (keydown)="editorKeydown($event)"
+            (scroll)="syncGutter()"
             spellcheck="false"
             autocomplete="off"
             autocorrect="off"
@@ -401,7 +427,7 @@
             >
               @for (
                 item of autocompleteSuggestions();
-                track item.label;
+                track item.kind + ":" + item.label;
                 let idx = $index
               ) {
                 <li
@@ -410,12 +436,18 @@
                   [attr.aria-selected]="idx === autocompleteIndex()"
                   class="rc-autocomplete-option d-flex align-items-center justify-content-between px-2 py-1 cursor-pointer"
                   [class.active]="idx === autocompleteIndex()"
+                  [title]="item.signature ? item.signature + ' — ' + (item.doc || '') : item.label"
                   (mousedown)="
-                    $event.preventDefault(); applyAutocompleteSuggestion(item)
+                    $event.preventDefault(); applySuggestion(item)
                   "
                 >
-                  <span class="font-monospace small">{{ item.label }}</span>
-                  <span class="rc-type-tag">{{ item.kind }}</span>
+                  <div class="d-flex flex-column text-truncate me-2">
+                    <span class="font-monospace small">{{ item.label }}</span>
+                    @if (item.signature) {
+                      <span class="text-muted font-monospace text-truncate" style="font-size: 10px;">{{ item.signature }}</span>
+                    }
+                  </div>
+                  <span class="rc-type-tag flex-shrink-0">{{ item.kind }}</span>
                 </li>
               }
             </ul>
@@ -682,7 +714,7 @@
                     <tbody>
                       @for (
                         diag of activeTab().diagnostics;
-                        track diag.message
+                        track $index
                       ) {
                         <tr [class.table-danger]="diag.severity === 'error'">
                           <td>
@@ -876,7 +908,7 @@
         <button
           type="button"
           class="rc-btn rc-btn-sm rc-btn-ghost text-muted p-1 d-inline-flex align-items-center justify-content-center"
-          (click)="toggleCollapseAll()"
+          (click)="toggleAll()"
           [title]="
             isAllCollapsed() ? 'Expand all sections' : 'Collapse all sections'
           "
@@ -929,7 +961,7 @@
             style="font-size: var(--rc-font-size-xs, 12px); color: var(--rc-text-primary);"
             placeholder="Search schema..."
             [value]="sidebarFilter()"
-            (input)="sidebarFilter.set($any($event.target).value)"
+            (input)="sidebarFilter.set(targetValue($event))"
             aria-label="Filter tables and measures"
           />
         </div>
@@ -981,7 +1013,7 @@
                       <button
                         type="button"
                         class="rc-dataset-tree-toggle d-flex align-items-center justify-content-start gap-2 text-truncate min-w-0 flex-grow-1"
-                        (click)="toggleTableExpand(table.name)"
+                        (click)="toggleTable(table.name)"
                         [attr.aria-expanded]="expandedTables()[table.name]"
                         [title]="table.name"
                       >
@@ -1031,7 +1063,7 @@
                         type="button"
                         class="rc-btn rc-btn-ghost rc-btn-xs p-1 text-muted flex-shrink-0 d-inline-flex align-items-center justify-content-center"
                         style="width: 22px; height: 22px;"
-                        (click)="insertTextAtCursor(table.name)"
+                        (click)="insertText(table.name)"
                         title="Insert table name"
                         [attr.aria-label]="'Insert table ' + table.name"
                       >
@@ -1055,14 +1087,14 @@
                         @for (col of table.columns; track col.name) {
                           <div
                             class="d-flex align-items-center justify-content-between p-1 rounded rc-node-hover cursor-pointer"
-                            (click)="insertTableColumn(table, col.name)"
+                            (click)="insertColumn(table, col.name)"
                             (keydown.enter)="
                               $event.preventDefault();
-                              insertTableColumn(table, col.name)
+                              insertColumn(table, col.name)
                             "
                             (keydown.space)="
                               $event.preventDefault();
-                              insertTableColumn(table, col.name)
+                              insertColumn(table, col.name)
                             "
                             title="Click to insert {{ table.name }}[{{
                               col.name
@@ -1133,7 +1165,7 @@
                   type="button"
                   class="rc-btn rc-btn-sm rc-btn-outline flex-fill text-center small py-1 px-2"
                   id="btn-define-all-measures"
-                  (click)="defineAllMeasures($event)"
+                  (click)="defineMeasures($event)"
                   title="Define all measures of this model in the query editor"
                   aria-label="Define all measures of this model"
                 >
@@ -1143,7 +1175,7 @@
                   type="button"
                   class="rc-btn rc-btn-sm rc-btn-outline flex-fill text-center small py-1 px-2"
                   id="btn-generate-tmdl"
-                  (click)="generateModelTmdl($event)"
+                  (click)="generateTmdl($event)"
                   title="Extract TMDL script with descriptions for all measures"
                   aria-label="Extract TMDL script for measures"
                 >
@@ -1177,7 +1209,7 @@
                       type="button"
                       class="rc-btn rc-btn-ghost rc-btn-xs p-1 text-muted flex-shrink-0 d-inline-flex align-items-center justify-content-center"
                       style="width: 22px; height: 22px;"
-                      (click)="quickEvaluateMeasure(measure, $event)"
+                      (click)="evalMeasure(measure, $event)"
                       [title]="'Quick Evaluate ' + measure.label"
                       [attr.aria-label]="'Quick Evaluate ' + measure.label"
                     >
@@ -1234,14 +1266,14 @@
             <span
               class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
             >
-              {{ quickSnippets.length }}
+              {{ quickSnippets().length }}
             </span>
           </button>
 
           @if (expandedSections().Templates) {
             <div class="rc-tools-section-body p-2">
               <div class="d-flex flex-column gap-1">
-                @for (snippet of quickSnippets; track snippet.label) {
+                @for (snippet of quickSnippets(); track snippet.label) {
                   <div
                     class="d-flex flex-column p-2 rounded rc-snippet-card cursor-pointer"
                     (click)="applySnippet(snippet)"
@@ -1309,18 +1341,18 @@
             </div>
             <span
               class="badge bg-secondary-subtle text-secondary-emphasis rounded-pill"
-              >{{ schemaFunctionButtons.length }}</span
+              >{{ schemaFunctions.length }}</span
             >
           </button>
 
           @if (expandedSections().SchemaFunctions) {
             <div class="rc-tools-section-body p-2">
               <div class="d-flex flex-column gap-1">
-                @for (fn of schemaFunctionButtons; track fn) {
+                @for (fn of schemaFunctions; track fn) {
                   <button
                     type="button"
                     class="rc-btn rc-btn-sm rc-btn-outline w-100 text-start font-monospace small py-1 px-2 mb-1"
-                    (click)="insertTextAtCursor('EVALUATE\n' + fn)"
+                    (click)="insertText('EVALUATE\n' + fn)"
                   >
                     {{ fn }}
                   </button>

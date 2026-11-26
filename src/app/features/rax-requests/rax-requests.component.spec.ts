@@ -1,9 +1,12 @@
 import { provideZonelessChangeDetection } from "@angular/core";
 import { provideHttpClient } from "@angular/common/http";
-import { HttpTestingController, provideHttpClientTesting } from "@angular/common/http/testing";
+import {
+  HttpTestingController,
+  provideHttpClientTesting,
+} from "@angular/common/http/testing";
 import { TestBed } from "@angular/core/testing";
 import { provideRouter } from "@angular/router";
-import { describe, expect, it, beforeEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { RaxRequestsComponent } from "./rax-requests.component";
 
 describe("RaxRequestsComponent", () => {
@@ -23,13 +26,30 @@ describe("RaxRequestsComponent", () => {
     httpMock = TestBed.inject(HttpTestingController);
   });
 
-  it("instantiates the component successfully", async () => {
+  afterEach(() => {
+    // Drain optional background init requests (catalog / default model)
+    httpMock.match(() => true);
+  });
+
+  it("instantiates the component successfully and loads catalog", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
+    const catalogReq = httpMock.expectOne("/api/rax/catalog");
+    expect(catalogReq.request.method).toBe("GET");
+    catalogReq.flush([
+      {
+        label: "CALCULATE",
+        signature: "CALCULATE(<expr>)",
+        doc: "Modifies filter context.",
+      },
+    ]);
+
     expect(fixture.componentInstance).toBeDefined();
-    expect(fixture.componentInstance.queryContent()).toContain("INFO.VIEW.TABLES()");
+    expect(fixture.componentInstance.queryContent()).toContain(
+      "INFO.VIEW.TABLES()",
+    );
   });
 
   it("renders workspace action toolbar with query execution controls", async () => {
@@ -50,21 +70,19 @@ describe("RaxRequestsComponent", () => {
     fixture.detectChanges();
 
     const comp = fixture.componentInstance;
-    expect(comp.isSectionExpanded("Tables")).toBe(true);
+    expect(comp.sectionExpanded("Tables")).toBe(true);
 
     comp.toggleSection("Tables");
-    expect(comp.isSectionExpanded("Tables")).toBe(false);
+    expect(comp.sectionExpanded("Tables")).toBe(false);
 
-    // When not all are collapsed, toggleCollapseAll collapses all
-    comp.toggleCollapseAll();
+    comp.toggleAll();
     expect(comp.isAllCollapsed()).toBe(true);
-    expect(comp.isSectionExpanded("Tables")).toBe(false);
+    expect(comp.sectionExpanded("Tables")).toBe(false);
 
-    // When all are collapsed, toggleCollapseAll expands all
-    comp.toggleCollapseAll();
+    comp.toggleAll();
     expect(comp.isAllCollapsed()).toBe(false);
-    expect(comp.isSectionExpanded("Tables")).toBe(true);
-    expect(comp.isSectionExpanded("Measures")).toBe(true);
+    expect(comp.sectionExpanded("Tables")).toBe(true);
+    expect(comp.sectionExpanded("Measures")).toBe(true);
   });
 
   it("manages single editor content and status directly", async () => {
@@ -73,7 +91,7 @@ describe("RaxRequestsComponent", () => {
     fixture.detectChanges();
 
     const comp = fixture.componentInstance;
-    comp.updateActiveContent("EVALUATE 1 + 1");
+    comp.updateContent("EVALUATE 1 + 1");
     expect(comp.queryContent()).toBe("EVALUATE 1 + 1");
 
     comp.clearEditor();
@@ -81,76 +99,43 @@ describe("RaxRequestsComponent", () => {
     expect(comp.diagnostics().length).toBe(0);
   });
 
-  it("executes INFO.VIEW.TABLES metadata query with Description and IsHidden columns", async () => {
+  it("executes INFO.VIEW.TABLES metadata query via POST /api/rax/execute", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
     const comp = fixture.componentInstance;
-    comp["state"].addTable({
-      id: "user-tbl-1",
-      name: "user_sales",
-      role: "FACT",
-      columns: [{ name: "id", dataType: "INT", keyType: "PK" }],
-      rowCount: 1,
-      description: "Order transactions table",
-    });
-    comp.updateActiveContent("EVALUATE INFO.VIEW.TABLES()");
+    comp.updateContent("EVALUATE INFO.VIEW.TABLES()");
     comp.runQuery();
+
+    const execReq = httpMock.expectOne("/api/rax/execute");
+    expect(execReq.request.method).toBe("POST");
+    expect(execReq.request.body.script).toBe("EVALUATE INFO.VIEW.TABLES()");
+    execReq.flush({
+      cacheKey: "meta-info-query",
+      cacheHit: false,
+      routedEngine: "DUCKDB",
+      executionTimeMs: 2,
+      executedSql: "SELECT * FROM information_schema.rax_catalog;",
+      rows: [
+        {
+          ID: 1,
+          Name: "user_sales",
+          Role: "FACT",
+          Description: "Order transactions table",
+        },
+      ],
+    });
 
     const res = comp.activeTab().lastResult;
     expect(res).toBeDefined();
-    expect(res?.rows.length).toBeGreaterThan(0);
+    expect(res?.rows.length).toBe(1);
     expect(res?.routedEngine).toBe("DUCKDB");
     expect(comp.resultColumns()).toContain("Name");
     expect(comp.resultColumns()).toContain("Description");
   });
 
-  it("executes INFO.CALCDEPENDENCY and INFO.STORAGETABLECOLUMNS queries", async () => {
-    const fixture = TestBed.createComponent(RaxRequestsComponent);
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const comp = fixture.componentInstance;
-    comp["state"].addTable({
-      id: "user-tbl-orders",
-      name: "Orders",
-      role: "FACT",
-      columns: [
-        { name: "Quantity", dataType: "INT", keyType: "None" },
-        { name: "Price", dataType: "DOUBLE", keyType: "None" },
-      ],
-      rowCount: 500,
-    });
-    comp["state"].saveMeasure({
-      id: "m-qty",
-      label: "Qty",
-      formula: "SUM('Orders'[Quantity])",
-      table: "Orders",
-    });
-    comp["state"].saveMeasure({
-      id: "m-amt",
-      label: "Amount",
-      formula: "SUMX('Orders', [Qty] * 'Orders'[Price])",
-      table: "Orders",
-    });
-
-    comp.updateActiveContent("EVALUATE INFO.CALCDEPENDENCY()");
-    comp.runQuery();
-    const depRes = comp.activeTab().lastResult;
-    expect(depRes?.rows.length).toBeGreaterThanOrEqual(2);
-    expect(
-      depRes?.rows.some((r) => r["REFERENCED_OBJECT_TYPE"] === "MEASURE"),
-    ).toBe(true);
-
-    comp.updateActiveContent("EVALUATE INFO.STORAGETABLECOLUMNS()");
-    comp.runQuery();
-    const storageRes = comp.activeTab().lastResult;
-    expect(storageRes?.rows.length).toBeGreaterThanOrEqual(2);
-    expect(storageRes?.rows[0]).toHaveProperty("DICTIONARY_SIZE");
-  });
-
-  it("parses TMDL createOrReplace with /// descriptions and updates semantic model measures", async () => {
+  it("applies TMDL createOrReplace measures via POST /api/rax/measures/apply", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
@@ -164,8 +149,25 @@ describe("RaxRequestsComponent", () => {
       '      formatString: "€#,0.00"',
     ].join("\n");
 
-    comp.updateActiveContent(tmdl);
-    comp.runQuery();
+    comp.updateContent(tmdl);
+    comp.applyModel();
+
+    const applyReq = httpMock.expectOne("/api/rax/measures/apply");
+    expect(applyReq.request.method).toBe("POST");
+    expect(applyReq.request.body.script).toBe(tmdl);
+    applyReq.flush({
+      appliedCount: 1,
+      measures: [
+        {
+          id: "m_amount",
+          name: "Amount",
+          tableName: "Order Details",
+          raxExpression: "SUMX('Order Details', [Qty] * 'Order Details'[Price])",
+          description: "The amount multiplies quantity by unit selling price",
+          formatString: "€#,0.00",
+        },
+      ],
+    });
 
     const saved = comp["state"].measures.find((m) => m.label === "Amount");
     expect(saved).toBeDefined();
@@ -175,7 +177,7 @@ describe("RaxRequestsComponent", () => {
     expect(saved?.formatString).toBe("€#,0.00");
   });
 
-  it("defines all measures and supports Find & Replace across the script", async () => {
+  it("defines all measures via POST /api/rax/measures/define and supports Find & Replace", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
@@ -188,36 +190,82 @@ describe("RaxRequestsComponent", () => {
       table: "OldTable",
     });
 
-    comp.defineAllMeasures();
+    comp.defineMeasures();
+    const defineReq = httpMock.expectOne("/api/rax/measures/define");
+    expect(defineReq.request.method).toBe("POST");
+    defineReq.flush({
+      script:
+        "DEFINE\n    MEASURE 'OldTable'[Total Qty] = SUM('OldTable'[Quantity])\nEVALUATE\n    ROW(\"Total Qty\", [Total Qty])",
+    });
+
     expect(comp.activeTab().content).toContain("DEFINE");
     expect(comp.activeTab().content).toContain("'OldTable'[Total Qty]");
 
     comp.findText.set("OldTable");
     comp.replaceText.set("NewTable");
-    comp.replaceAllInEditor();
+    comp.replaceAll();
     expect(comp.activeTab().content).toContain("NewTable");
     expect(comp.activeTab().content).not.toContain("OldTable");
   });
 
-  it("guards syntax linter against blank input without false errors", async () => {
+  it("surfaces RFC 9457 ProblemDetail detail and errorCode in errorBanner on HTTP 400", async () => {
+    const fixture = TestBed.createComponent(RaxRequestsComponent);
+    await fixture.whenStable();
+    fixture.detectChanges();
+
+    const comp = fixture.componentInstance;
+    comp.updateContent("   ");
+    comp.runQuery();
+
+    const execReq = httpMock.expectOne("/api/rax/execute");
+    execReq.flush(
+      {
+        title: "Validation Failed",
+        status: 400,
+        detail: "script: RAX script is required",
+        errorCode: "ERR_VALIDATION_FAILED",
+      },
+      { status: 400, statusText: "Bad Request" },
+    );
+    fixture.detectChanges();
+
+    expect(comp.errorBanner()?.errorCode).toBe("ERR_VALIDATION_FAILED");
+    expect(comp.errorBanner()?.detail).toContain("RAX script is required");
+    const bannerEl: HTMLElement | null =
+      fixture.nativeElement.querySelector("#rax-error-banner");
+    expect(bannerEl).toBeTruthy();
+    expect(bannerEl?.textContent).toContain("ERR_VALIDATION_FAILED");
+    expect(bannerEl?.textContent).toContain("RAX script is required");
+  });
+
+  it("guards syntax validator against blank input without HTTP call or false errors", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
     const comp = fixture.componentInstance;
     comp.clearEditor();
-    const diags = comp.validateQuery();
-    expect(diags.length).toBe(0);
+    comp.validateQuery();
+
+    httpMock.expectNone("/api/rax/diagnostics/validate");
+    expect(comp.diagnostics().length).toBe(0);
+    expect(comp.activeTab().statusText).toBe("Ready");
   });
 
-  it("formats RAX query text properly", async () => {
+  it("formats RAX query text via POST /api/rax/format", async () => {
     const fixture = TestBed.createComponent(RaxRequestsComponent);
     await fixture.whenStable();
     fixture.detectChanges();
 
     const comp = fixture.componentInstance;
-    comp.updateActiveContent("evaluate info.view.tables() order by [name] asc");
+    comp.updateContent("evaluate info.view.tables() order by [name] asc");
     comp.formatQuery();
+
+    const req = httpMock.expectOne("/api/rax/format");
+    expect(req.request.method).toBe("POST");
+    req.flush({
+      formattedScript: "EVALUATE\n    INFO.VIEW.TABLES()\nORDER BY [name] ASC",
+    });
 
     expect(comp.activeTab().content).toContain("EVALUATE");
     expect(comp.activeTab().content).toContain("ORDER BY");
@@ -244,14 +292,14 @@ describe("RaxRequestsComponent", () => {
     await fixture1.whenStable();
     const comp1 = fixture1.componentInstance;
 
-    comp1.updateActiveContent("EVALUATE ROW(\"Check\", 40 + 2)");
+    comp1.updateContent('EVALUATE ROW("Check", 40 + 2)');
     comp1.runQuery();
-    httpMock.expectOne("/api/reports/Untitled%20Project.rcp/query").flush({
+    httpMock.expectOne("/api/rax/execute").flush({
       cacheKey: "rax-check-42",
       cacheHit: false,
       routedEngine: "DUCKDB",
       executionTimeMs: 2,
-      executedSql: "SELECT 42 AS \"Check\"",
+      executedSql: 'SELECT 42 AS "Check"',
       rows: [{ Check: 42 }],
     });
     fixture1.destroy();
@@ -260,100 +308,8 @@ describe("RaxRequestsComponent", () => {
     await fixture2.whenStable();
     const comp2 = fixture2.componentInstance;
 
-    expect(comp2.queryContent()).toBe("EVALUATE ROW(\"Check\", 40 + 2)");
+    expect(comp2.queryContent()).toBe('EVALUATE ROW("Check", 40 + 2)');
     expect(comp2.lastResult()?.rows).toEqual([{ Check: 42 }]);
-  });
-
-  it("evaluates real RAX formulas (SUM, SUMX, DIVIDE, CALCULATE, VAR/RETURN, SUMMARIZECOLUMNS) against loaded table rows", async () => {
-    const fixture = TestBed.createComponent(RaxRequestsComponent);
-    await fixture.whenStable();
-    fixture.detectChanges();
-
-    const comp = fixture.componentInstance;
-    comp["state"].addTable({
-      id: "user-tbl-sales",
-      name: "Orders",
-      role: "FACT",
-      columns: [
-        { name: "Region", dataType: "VARCHAR", keyType: "None" },
-        { name: "Quantity", dataType: "INT", keyType: "None" },
-        { name: "Price", dataType: "DOUBLE", keyType: "None" },
-      ],
-      rowCount: 3,
-    });
-    comp["state"].setRows("Orders", [
-      { Region: "EMEA", Quantity: 2, Price: 50 },
-      { Region: "EMEA", Quantity: 3, Price: 100 },
-      { Region: "AMER", Quantity: 5, Price: 20 },
-    ]);
-
-    // 1. DEFINE MEASURE + SUMX with context transition + DIVIDE + ROW
-    comp.updateActiveContent(
-      [
-        "DEFINE",
-        "  MEASURE 'Orders'[Total Qty] = SUM('Orders'[Quantity])",
-        "  MEASURE 'Orders'[Revenue] = SUMX('Orders', [Total Qty] * 'Orders'[Price])",
-        "  MEASURE 'Orders'[EMEA Revenue] = CALCULATE([Revenue], 'Orders'[Region] = \"EMEA\")",
-        "EVALUATE",
-        "VAR AvgUnitRev = DIVIDE([Revenue], [Total Qty], 0)",
-        "RETURN",
-        "ROW(\"Qty\", [Total Qty], \"Revenue\", [Revenue], \"EMEA Revenue\", [EMEA Revenue], \"Avg Unit\", AvgUnitRev)",
-      ].join("\n"),
-    );
-    comp.runQuery();
-    httpMock.expectOne("/api/reports/Untitled%20Project.rcp/query").flush({
-      cacheKey: "rax-orders-row",
-      cacheHit: false,
-      routedEngine: "DUCKDB",
-      executionTimeMs: 4,
-      executedSql: "SELECT 10 AS \"Qty\", 500 AS \"Revenue\", 400 AS \"EMEA Revenue\", 50 AS \"Avg Unit\"",
-      rows: [
-        {
-          Qty: 10,
-          Revenue: 500,
-          "EMEA Revenue": 400,
-          "Avg Unit": 50,
-        },
-      ],
-    });
-
-    const rowRes = comp.activeTab().lastResult?.rows?.[0];
-    expect(rowRes).toEqual({
-      Qty: 10,
-      Revenue: 500,
-      "EMEA Revenue": 400,
-      "Avg Unit": 50,
-    });
-
-    // 2. SUMMARIZECOLUMNS with ORDER BY DESC
-    comp.updateActiveContent(
-      [
-        "EVALUATE",
-        "SUMMARIZECOLUMNS(",
-        "  'Orders'[Region],",
-        "  \"Region Revenue\", [Revenue],",
-        "  \"Region Qty\", [Total Qty]",
-        ")",
-        "ORDER BY [Region Revenue] DESC",
-      ].join("\n"),
-    );
-    comp.runQuery();
-    httpMock.expectOne("/api/reports/Untitled%20Project.rcp/query").flush({
-      cacheKey: "rax-orders-summarize",
-      cacheHit: false,
-      routedEngine: "DUCKDB",
-      executionTimeMs: 5,
-      executedSql: "SELECT Region, SUM(Price * Quantity) AS \"Region Revenue\", SUM(Quantity) AS \"Region Qty\" FROM Orders GROUP BY Region ORDER BY \"Region Revenue\" DESC",
-      rows: [
-        { Region: "EMEA", "Region Revenue": 400, "Region Qty": 5 },
-        { Region: "AMER", "Region Revenue": 100, "Region Qty": 5 },
-      ],
-    });
-
-    expect(comp.activeTab().lastResult?.rows).toEqual([
-      { Region: "EMEA", "Region Revenue": 400, "Region Qty": 5 },
-      { Region: "AMER", "Region Revenue": 100, "Region Qty": 5 },
-    ]);
   });
 
   it("enforces zero-demo domain-neutral snippets and safe empty model guards", async () => {
@@ -364,22 +320,23 @@ describe("RaxRequestsComponent", () => {
 
     const comp = fixture.componentInstance;
 
-    // Empty model: no synthetic retail fallbacks in snippets or generators
-    const emptySnippetsJson = JSON.stringify(comp.quickSnippets);
+    const emptySnippetsJson = JSON.stringify(comp.quickSnippets());
     expect(emptySnippetsJson).not.toContain("fact_transactions");
     expect(emptySnippetsJson).not.toContain("dim_region");
     expect(emptySnippetsJson).not.toContain("gross_amount");
     expect(emptySnippetsJson).not.toContain("region_name");
-    expect(comp.quickSnippets.every((s) => s.category === "Metadata (INFO)")).toBe(true);
+    expect(
+      comp.quickSnippets().every((s) => s.category === "Metadata (INFO)"),
+    ).toBe(true);
 
-    comp.updateActiveContent("EVALUATE 1");
-    comp.defineAllMeasures();
+    comp.updateContent("EVALUATE 1");
+    comp.defineMeasures();
     expect(comp.activeTab().content).toBe("EVALUATE 1");
 
-    comp.generateModelTmdl();
+    comp.generateTmdl();
+    httpMock.expectNone("/api/rax/tmdl");
     expect(comp.activeTab().content).toBe("EVALUATE 1");
 
-    // Domain-neutral loaded table without FACT role populates dynamic snippets
     comp["state"].addTable({
       id: "tbl-iot",
       name: "telemetry_logs",
@@ -391,10 +348,13 @@ describe("RaxRequestsComponent", () => {
       rowCount: 10,
     });
 
-    const loadedCodes = comp.quickSnippets.map((s) => s.code).join("\n");
+    const loadedCodes = comp
+      .quickSnippets()
+      .map((s) => s.code)
+      .join("\n");
     expect(loadedCodes).toContain("'telemetry_logs'[reading_mv]");
     expect(loadedCodes).toContain("'telemetry_logs'[sensor_id]");
-    expect(comp.quickSnippets.some((s) => s.label.includes("&"))).toBe(false);
+    expect(comp.quickSnippets().some((s) => s.label.includes("&"))).toBe(false);
   });
 
   it("renders 12x12 twisties, single-concept headings, and accessible diagnostic pills", async () => {
@@ -403,15 +363,25 @@ describe("RaxRequestsComponent", () => {
     await fixture.whenStable();
     const comp = fixture.componentInstance;
 
-    comp["state"].addTable({
-      id: "tbl-iot",
-      name: "telemetry_logs",
-      role: "DIMENSION",
-      columns: [{ name: "sensor_id", dataType: "VARCHAR", keyType: "PK" }],
-      rowCount: 5,
-    });
-    comp.updateActiveContent("EVALUATE FILTER(ALL(telemetry_logs), TRUE)");
+    comp.updateContent("EVALUATE FILTER(ALL(telemetry_logs), TRUE)");
     comp.validateQuery();
+    httpMock.expectOne("/api/rax/diagnostics/validate").flush({
+      isValid: true,
+      statusLabel: "Syntax valid with warnings",
+      measureName: null,
+      formulaExpression: "EVALUATE FILTER(ALL(telemetry_logs), TRUE)",
+      diagnostics: [
+        {
+          line: 1,
+          column: 10,
+          length: 25,
+          severity: "WARNING",
+          code: "WARN_INEFFICIENT_TABLE_FILTER",
+          message: "Filter specific column instead of full table.",
+        },
+      ],
+      tokens: [],
+    });
     fixture.detectChanges();
 
     const el: HTMLElement = fixture.nativeElement;

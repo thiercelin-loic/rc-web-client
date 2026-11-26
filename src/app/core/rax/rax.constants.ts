@@ -1,32 +1,12 @@
-import { RaxFunctionSnippet } from "./rax.interface";
-
 export const RAX_DIAGNOSTICS_ENDPOINT = "/api/rax/diagnostics";
 export const RAX_VALIDATE_ENDPOINT = "/api/rax/diagnostics/validate";
+export const RAX_FORMAT_ENDPOINT = "/api/rax/format";
+export const RAX_TMDL_ENDPOINT = "/api/rax/tmdl";
+export const RAX_MEASURES_DEFINE_ENDPOINT = "/api/rax/measures/define";
+export const RAX_EXECUTE_ENDPOINT = "/api/rax/execute";
+export const RAX_MEASURES_APPLY_ENDPOINT = "/api/rax/measures/apply";
+export const RAX_CATALOG_ENDPOINT = "/api/rax/catalog";
+export const RAX_CALCULATED_COLUMN_ENDPOINT = "/api/rax/calculated-column";
+export const RAX_CALCULATED_TABLE_ENDPOINT = "/api/rax/calculated-table";
+export const VISUAL_BATCH_QUERY_ENDPOINT = "/api/reports/visuals/query";
 
-export const RAX_AUTOCOMPLETE_CATALOG: readonly RaxFunctionSnippet[] = [
-  {
-    label: "CALCULATE",
-    signature: "CALCULATE(<Expression>, <Filter1>, <Filter2>...)",
-    doc: "Evaluates an expression in a modified filter context with automatic context transition.",
-  },
-  {
-    label: "USERELATIONSHIP",
-    signature: "USERELATIONSHIP(<ColumnName1>, <ColumnName2>)",
-    doc: "Activates an inactive relationship path (such as DeliveryDate / DueDate) for the duration of CALCULATE.",
-  },
-  {
-    label: "DIVIDE",
-    signature: "DIVIDE(<Numerator>, <Denominator>, [<AlternateResult>])",
-    doc: "Performs safe division with automatic zero-division handling.",
-  },
-  {
-    label: "TOTALYTD",
-    signature: "TOTALYTD(<Expression>, <Dates>, [<Filter>], [<YearEndDate>])",
-    doc: "Evaluates the year-to-date value of the expression in the current evaluation context.",
-  },
-  {
-    label: "SAMEPERIODLASTYEAR",
-    signature: "SAMEPERIODLASTYEAR(<Dates>)",
-    doc: "Shifts the contiguous date dimension selection backward by 1 fiscal year.",
-  },
-];

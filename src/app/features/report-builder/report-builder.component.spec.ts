@@ -12,6 +12,7 @@ import { StateManagerService } from '../../core/state/state.service';
 
 describe('ReportBuilderComponent', () => {
   beforeEach(() => {
+    localStorage.clear();
     TestBed.configureTestingModule({
       imports: [ReportBuilderComponent],
       providers: [
@@ -499,11 +500,31 @@ describe('ReportBuilderComponent', () => {
 
   it('evaluates live dataset rows bound via Field Wells and filters with EQ, NEQ, IN, and BETWEEN Page Filters', async () => {
     const fixture = TestBed.createComponent(ReportBuilderComponent);
+    const httpMock = TestBed.inject(HttpTestingController);
     await fixture.whenStable();
     fixture.detectChanges();
 
     const component = fixture.componentInstance;
     const state = component.state;
+
+    const flushQuery = (
+      rows: Array<Record<string, unknown>>,
+      expectedFilters: Record<string, unknown[]>,
+    ) => {
+      fixture.detectChanges();
+      const req = httpMock.expectOne('/api/reports/Untitled%20Project.rcp/query');
+      expect(req.request.method).toBe('POST');
+      expect(req.request.body.activeFilters).toEqual(expectedFilters);
+      req.flush({
+        cacheKey: 'k1',
+        cacheHit: false,
+        routedEngine: 'DUCKDB',
+        executionTimeMs: 4,
+        executedSql: 'SELECT region, SUM(amount) FROM orders GROUP BY region',
+        rows,
+      });
+      fixture.detectChanges();
+    };
 
     state.syncTables([
       {
@@ -527,15 +548,23 @@ describe('ReportBuilderComponent', () => {
     const barVisual = component.userVisuals()[0];
     component.assignFieldToSlot('category', 'orders.region');
     component.assignFieldToSlot('values', 'orders.amount');
-    fixture.detectChanges();
 
     // Unfiltered aggregation across 3 regions
+    flushQuery(
+      [
+        { region: 'EU', amount: 400 },
+        { region: 'US', amount: 600 },
+        { region: 'APAC', amount: 90 },
+      ],
+      {},
+    );
     const initialChart = component.getVisualChartData(barVisual);
     expect(initialChart.labels).toEqual(['EU', 'US', 'APAC']);
     expect(initialChart.datasets[0].data).toEqual([400, 600, 90]);
 
     // EQ filter
     state.applyFilter('orders.region', 'EQ', ['EU']);
+    flushQuery([{ region: 'EU', amount: 400 }], { 'orders.region:EQ': ['EU'] });
     const eqChart = component.getVisualChartData(barVisual);
     expect(eqChart.labels).toEqual(['EU']);
     expect(eqChart.datasets[0].data).toEqual([400]);
@@ -543,6 +572,13 @@ describe('ReportBuilderComponent', () => {
     // NEQ filter
     state.resetFilters();
     state.applyFilter('orders.region', 'NEQ', ['US']);
+    flushQuery(
+      [
+        { region: 'EU', amount: 400 },
+        { region: 'APAC', amount: 90 },
+      ],
+      { 'orders.region:NEQ': ['US'] },
+    );
     const neqChart = component.getVisualChartData(barVisual);
     expect(neqChart.labels).toEqual(['EU', 'APAC']);
     expect(neqChart.datasets[0].data).toEqual([400, 90]);
@@ -553,6 +589,13 @@ describe('ReportBuilderComponent', () => {
     component.selectedFilterOperator.set('IN');
     component.filterValueInput.set('EU, US');
     component.applyCustomFilter();
+    flushQuery(
+      [
+        { region: 'EU', amount: 400 },
+        { region: 'US', amount: 600 },
+      ],
+      { 'orders.region:IN': ['EU', 'US'] },
+    );
     const inChart = component.getVisualChartData(barVisual);
     expect(inChart.labels).toEqual(['EU', 'US']);
     expect(inChart.datasets[0].data).toEqual([400, 600]);
@@ -563,6 +606,9 @@ describe('ReportBuilderComponent', () => {
     component.selectedFilterOperator.set('BETWEEN');
     component.filterValueInput.set('100, 300');
     component.applyCustomFilter();
+    flushQuery([{ region: 'EU', amount: 400 }], {
+      'orders.amount:BETWEEN': ['100', '300'],
+    });
     const betweenChart = component.getVisualChartData(barVisual);
     expect(betweenChart.labels).toEqual(['EU']);
     expect(betweenChart.datasets[0].data).toEqual([400]);

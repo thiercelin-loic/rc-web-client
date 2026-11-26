@@ -1,52 +1,45 @@
 import {
   ChangeDetectionStrategy,
   Component,
+  DestroyRef,
   ElementRef,
-  HostListener,
   OnInit,
   computed,
   inject,
   signal,
   viewChild,
 } from "@angular/core";
-import { CommonModule } from "@angular/common";
-import { FormsModule } from "@angular/forms";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { HttpErrorResponse } from "@angular/common/http";
+import { Subject, debounceTime, distinctUntilChanged } from "rxjs";
 import {
   DEFAULT_SEMANTIC_MODEL,
   SemanticModelService,
 } from "../../core/model/model.service";
 import {
   RaxMeasureDescriptor,
+  RaxStudioQueryResult,
   SharedColumn,
   SharedTable,
   StateManagerService,
 } from "../../core/state/state.service";
-import { QueryService } from "../../core/rax/query.service";
+import {
+  DiagnosticMarker,
+  QueryExecutionResult,
+  RaxDiagnostic,
+  RaxMonacoMarkerData,
+  RaxProblemDetail,
+  RaxService,
+} from "../../core/rax/rax.service";
 
-export interface RaxDiagnostic {
-  readonly severity: "error" | "warning" | "info";
-  readonly line: number;
-  readonly startColumn: number;
-  readonly errorCode: string;
-  readonly message: string;
-}
-
-export interface RaxQueryResult {
-  readonly cacheKey: string;
-  readonly cacheHit: boolean;
-  readonly routedEngine: "DUCKDB" | "MYSQL";
-  readonly executionTimeMs: number;
-  readonly executedSql: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  readonly rows: Array<Record<string, any>>;
-}
+export type { RaxDiagnostic, RaxMonacoMarkerData, RaxProblemDetail };
 
 export interface RaxQueryTab {
   readonly id: string;
   readonly name: string;
   readonly content: string;
   readonly isExecuting: boolean;
-  readonly lastResult: RaxQueryResult | null;
+  readonly lastResult: RaxStudioQueryResult | null;
   readonly diagnostics: readonly RaxDiagnostic[];
   readonly statusText: string;
 }
@@ -61,6 +54,8 @@ export interface RaxAutocompleteItem {
   readonly label: string;
   readonly insertText: string;
   readonly kind: "Keyword" | "Function" | "Table" | "Column" | "Measure";
+  readonly signature?: string;
+  readonly doc?: string;
 }
 
 export type RaxDockSection =
@@ -68,34 +63,6 @@ export type RaxDockSection =
   | "Measures"
   | "Templates"
   | "SchemaFunctions";
-
-const FALLBACK_TABLES: readonly SharedTable[] = (
-  DEFAULT_SEMANTIC_MODEL.tables ?? []
-).map((table, index) => ({
-  id: `tbl-${index}-${table.name}`,
-  name: table.name,
-  role: table.role,
-  description: table.description ?? "",
-  columns: table.columns.map((col) => ({
-    name: col.name,
-    dataType: col.dataType,
-    keyType: col.isPrimaryKey ? "PK" : col.isForeignKey ? "FK" : "None",
-    description: col.description ?? "",
-    isHidden: !!col.isHidden,
-  })),
-  rowCount: table.estimatedRows ?? 10,
-}));
-
-const FALLBACK_MEASURES: readonly RaxMeasureDescriptor[] = (
-  DEFAULT_SEMANTIC_MODEL.measures ?? []
-).map((measure) => ({
-  id: measure.id,
-  label: measure.label,
-  formula: measure.formula,
-  table: measure.table,
-  description: measure.description ?? "",
-  formatString: measure.formatString ?? "",
-}));
 
 const RAX_KEYWORDS: readonly string[] = [
   "EVALUATE",
@@ -105,42 +72,10 @@ const RAX_KEYWORDS: readonly string[] = [
   "RETURN",
   "ASC",
   "DESC",
-  "SUMMARIZECOLUMNS",
-  "CALCULATE",
-  "FILTER",
-  "ALL",
-  "ALLEXCEPT",
-  "ALLSELECTED",
-  "REMOVEFILTERS",
-  "KEEPFILTERS",
-  "VALUES",
-  "DISTINCT",
-  "UNION",
-  "ROW",
-  "ADDCOLUMNS",
-  "SELECTCOLUMNS",
-  "TOPN",
-  "SUM",
-  "SUMX",
-  "AVERAGE",
-  "AVERAGEX",
-  "DIVIDE",
-  "COUNT",
-  "COUNTROWS",
-  "DISTINCTCOUNT",
-  "MIN",
-  "MAX",
-  "IF",
-  "SWITCH",
+  "ORDER BY",
   "TRUE",
   "FALSE",
   "NOT",
-  "RELATED",
-  "USERELATIONSHIP",
-  "CROSSFILTER",
-  "TREATAS",
-  "SELECTEDVALUE",
-  "CONCATENATEX",
 ];
 
 const INFO_SCHEMA_FUNCTIONS: readonly string[] = [
@@ -156,74 +91,144 @@ const INFO_SCHEMA_FUNCTIONS: readonly string[] = [
 @Component({
   selector: "rc-rax-requests",
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [],
   templateUrl: "./rax-requests.component.html",
   styleUrl: "./rax-requests.component.scss",
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: {
+    "(window:keydown)": "onKeydown($event)",
+  },
 })
 export class RaxRequestsComponent implements OnInit {
+  private readonly destroyRef = inject(DestroyRef);
   private readonly state = inject(StateManagerService);
-  private readonly semanticModelService = inject(SemanticModelService);
-  private readonly raxQueryService = inject(QueryService);
+  private readonly semanticModel = inject(SemanticModelService);
+  private readonly rax = inject(RaxService);
 
-  private readonly queryEditorRef =
+  private readonly queryEditor =
     viewChild<ElementRef<HTMLTextAreaElement>>("queryEditor");
-  private readonly editorGutterRef =
+  private readonly editorGutter =
     viewChild<ElementRef<HTMLDivElement>>("editorGutter");
-
-  public syncGutterScroll(): void {
-    const textarea = this.queryEditorRef()?.nativeElement;
-    const gutter = this.editorGutterRef()?.nativeElement;
-    if (textarea && gutter) {
-      gutter.scrollTop = textarea.scrollTop;
-    }
-  }
 
   public readonly queryContent = this.state.raxQueryContent;
   public readonly isExecuting = signal<boolean>(false);
   public readonly lastResult = this.state.raxLastResult;
   public readonly diagnostics = signal<readonly RaxDiagnostic[]>([]);
+  public readonly monacoMarkers = signal<readonly RaxMonacoMarkerData[]>([]);
+  public readonly errorBanner = signal<RaxProblemDetail | null>(null);
   public readonly statusText = signal<string>("Ready");
   public readonly bottomActiveTab = signal<"results" | "problems" | "plan">(
     "results",
   );
-  public readonly activeMobileTab = signal<"editor" | "explorer">("editor");
-  public readonly sidebarOpen = signal<boolean>(true);
-  public readonly sidebarFilter = signal<string>("");
-  public readonly expandedSections = signal<Record<RaxDockSection, boolean>>({
-    Tables: true,
-    Measures: true,
-    Templates: false,
-    SchemaFunctions: false,
-  });
-
-  // Find & Replace Bar State (Power BI DAX Query View Search & Replace)
-  public readonly findReplaceOpen = signal<boolean>(false);
   public readonly findText = signal<string>("");
   public readonly replaceText = signal<string>("");
 
-  // WAI-ARIA Combobox Autocomplete State
-  public readonly autocompleteOpen = signal<boolean>(false);
-  public readonly autocompleteIndex = signal<number>(0);
-  public readonly cursorToken = signal<string>("");
+  private readonly editorInput$ = new Subject<string>();
+
+  protected readonly activeMobileTab = signal<"editor" | "explorer">("editor");
+  protected readonly sidebarOpen = signal<boolean>(true);
+  protected readonly sidebarFilter = signal<string>("");
+  protected readonly expandedSections = signal<Record<RaxDockSection, boolean>>(
+    {
+      Tables: true,
+      Measures: true,
+      Templates: false,
+      SchemaFunctions: false,
+    },
+  );
+  protected readonly expandedTables = signal<Record<string, boolean>>({});
+  protected readonly findReplaceOpen = signal<boolean>(false);
+  protected readonly autocompleteOpen = signal<boolean>(false);
+  protected readonly autocompleteIndex = signal<number>(0);
+  protected readonly cursorToken = signal<string>("");
+  protected readonly schemaFunctions: readonly string[] = INFO_SCHEMA_FUNCTIONS;
 
   public readonly isAllCollapsed = computed(() =>
     Object.values(this.expandedSections()).every((expanded) => !expanded),
   );
-  public readonly expandedTables = signal<Record<string, boolean>>({});
 
-  public readonly schemaFunctionButtons: readonly string[] =
-    INFO_SCHEMA_FUNCTIONS;
+  public readonly activeTab = computed<RaxQueryTab>(() => ({
+    id: "query-editor",
+    name: "Query.rax",
+    content: this.queryContent(),
+    isExecuting: this.isExecuting(),
+    lastResult: this.lastResult(),
+    diagnostics: this.diagnostics(),
+    statusText: this.statusText(),
+  }));
 
-  public get quickSnippets(): readonly RaxSnippet[] {
+  protected readonly hasDefinable = computed<boolean>(() => {
+    const content = this.activeTab().content.trim().toUpperCase();
+    return (
+      content.startsWith("CREATEORREPLACE") ||
+      content.startsWith("TABLE ") ||
+      /\bDEFINE\s+MEASURE\b/.test(content) ||
+      /\bMEASURE\s+(?:'[^']+'|[A-Z0-9_]+)?\[[^\]]+\]\s*=/.test(content)
+    );
+  });
+
+  protected readonly lineNumbers = computed<number[]>(() => {
+    const lineCount = Math.max(
+      1,
+      this.activeTab().content.split(/\r?\n/).length,
+    );
+    return Array.from({ length: lineCount }, (_, index) => index + 1);
+  });
+
+  public readonly resultColumns = computed<string[]>(() => {
+    const rows = this.activeTab().lastResult?.rows;
+    if (!rows || rows.length === 0) {
+      return [];
+    }
+    return Object.keys(rows[0]);
+  });
+
+  private readonly availableTables = computed<readonly SharedTable[]>(
+    () => this.state.sharedTables,
+  );
+
+  private readonly availableMeasures = computed<
+    readonly RaxMeasureDescriptor[]
+  >(() => this.state.measures);
+
+  protected readonly filteredTables = computed<readonly SharedTable[]>(() => {
+    const term = this.sidebarFilter().trim().toLowerCase();
     const tables = this.availableTables();
-    const isNumericCol = (dataType: string): boolean =>
+    if (!term) {
+      return tables;
+    }
+    return tables.filter(
+      (table) =>
+        table.name.toLowerCase().includes(term) ||
+        table.columns.some((col) => col.name.toLowerCase().includes(term)),
+    );
+  });
+
+  protected readonly filteredMeasures = computed<
+    readonly RaxMeasureDescriptor[]
+  >(() => {
+    const term = this.sidebarFilter().trim().toLowerCase();
+    const measures = this.availableMeasures();
+    if (!term) {
+      return measures;
+    }
+    return measures.filter(
+      (measure) =>
+        measure.label.toLowerCase().includes(term) ||
+        measure.table.toLowerCase().includes(term) ||
+        (measure.description ?? "").toLowerCase().includes(term),
+    );
+  });
+
+  public readonly quickSnippets = computed<readonly RaxSnippet[]>(() => {
+    const tables = this.availableTables();
+    const isNumeric = (dataType: string): boolean =>
       /INT|DOUBLE|DECIMAL|FLOAT|NUMBER|NUMERIC/i.test(dataType);
-    const isTextCol = (dataType: string): boolean =>
+    const isText = (dataType: string): boolean =>
       /CHAR|TEXT|STRING/i.test(dataType);
 
     const primaryTable =
-      tables.find((t) => t.columns.some((c) => isNumericCol(c.dataType))) ??
+      tables.find((t) => t.columns.some((c) => isNumeric(c.dataType))) ??
       tables[0];
 
     const snippets: RaxSnippet[] = [
@@ -266,23 +271,18 @@ export class RaxRequestsComponent implements OnInit {
 
     if (primaryTable && primaryTable.columns.length > 0) {
       const tName = primaryTable.name;
-      const numCols = primaryTable.columns.filter((c) =>
-        isNumericCol(c.dataType),
-      );
-      const textCols = primaryTable.columns.filter((c) =>
-        isTextCol(c.dataType),
-      );
+      const numCols = primaryTable.columns.filter((c) => isNumeric(c.dataType));
+      const textCols = primaryTable.columns.filter((c) => isText(c.dataType));
       const numCol1 = numCols[0]?.name ?? primaryTable.columns[0].name;
       const numCol2 = numCols[1]?.name ?? numCol1;
       const groupTable =
         textCols.length > 0
           ? primaryTable
-          : (tables.find((t) =>
-              t.columns.some((c) => isTextCol(c.dataType)),
-            ) ?? primaryTable);
+          : (tables.find((t) => t.columns.some((c) => isText(c.dataType))) ??
+            primaryTable);
       const groupColName =
         textCols[0]?.name ??
-        groupTable.columns.find((c) => isTextCol(c.dataType))?.name ??
+        groupTable.columns.find((c) => isText(c.dataType))?.name ??
         groupTable.columns[0]?.name ??
         numCol1;
 
@@ -311,86 +311,9 @@ export class RaxRequestsComponent implements OnInit {
     }
 
     return snippets;
-  }
-
-  public readonly activeTab = computed<RaxQueryTab>(() => ({
-    id: "query-editor",
-    name: "Query.rax",
-    content: this.queryContent(),
-    isExecuting: this.isExecuting(),
-    lastResult: this.lastResult(),
-    diagnostics: this.diagnostics(),
-    statusText: this.statusText(),
-  }));
-
-  public readonly hasModelDefinableContent = computed<boolean>(() => {
-    const content = this.activeTab().content.trim().toUpperCase();
-    return (
-      content.startsWith("CREATEORREPLACE") ||
-      content.startsWith("TABLE ") ||
-      /\bDEFINE\s+MEASURE\b/.test(content) ||
-      /\bMEASURE\s+(?:'[^']+'|[A-Z0-9_]+)?\[[^\]]+\]\s*=/.test(content)
-    );
   });
 
-  public readonly lineNumbers = computed<number[]>(() => {
-    const lineCount = Math.max(
-      1,
-      this.activeTab().content.split(/\r?\n/).length,
-    );
-    return Array.from({ length: lineCount }, (_, index) => index + 1);
-  });
-
-  public readonly resultColumns = computed<string[]>(() => {
-    const rows = this.activeTab().lastResult?.rows;
-    if (!rows || rows.length === 0) {
-      return [];
-    }
-    return Object.keys(rows[0]);
-  });
-
-  private readonly availableTables = computed<readonly SharedTable[]>(() =>
-    this.state.sharedTables.length > 0
-      ? this.state.sharedTables
-      : FALLBACK_TABLES,
-  );
-
-  private readonly availableMeasures = computed<
-    readonly RaxMeasureDescriptor[]
-  >(() =>
-    this.state.measures.length > 0 ? this.state.measures : FALLBACK_MEASURES,
-  );
-
-  public readonly filteredTables = computed<readonly SharedTable[]>(() => {
-    const term = this.sidebarFilter().trim().toLowerCase();
-    const tables = this.availableTables();
-    if (!term) {
-      return tables;
-    }
-    return tables.filter(
-      (table) =>
-        table.name.toLowerCase().includes(term) ||
-        table.columns.some((col) => col.name.toLowerCase().includes(term)),
-    );
-  });
-
-  public readonly filteredMeasures = computed<readonly RaxMeasureDescriptor[]>(
-    () => {
-      const term = this.sidebarFilter().trim().toLowerCase();
-      const measures = this.availableMeasures();
-      if (!term) {
-        return measures;
-      }
-      return measures.filter(
-        (measure) =>
-          measure.label.toLowerCase().includes(term) ||
-          measure.table.toLowerCase().includes(term) ||
-          (measure.description ?? "").toLowerCase().includes(term),
-      );
-    },
-  );
-
-  public readonly autocompleteSuggestions = computed<
+  protected readonly autocompleteSuggestions = computed<
     readonly RaxAutocompleteItem[]
   >(() => {
     const token = this.cursorToken().trim().toUpperCase();
@@ -398,10 +321,30 @@ export class RaxRequestsComponent implements OnInit {
       return [];
     }
     const items: RaxAutocompleteItem[] = [];
+    const seen = new Set<string>();
 
+    for (const entry of this.rax.catalog()) {
+      if (entry.label.toUpperCase().includes(token)) {
+        const key = `Function:${entry.label}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          items.push({
+            label: entry.label,
+            insertText: entry.label,
+            kind: "Function",
+            signature: entry.signature,
+            doc: entry.doc,
+          });
+        }
+      }
+    }
     for (const fn of INFO_SCHEMA_FUNCTIONS) {
       if (fn.toUpperCase().includes(token)) {
-        items.push({ label: fn, insertText: fn, kind: "Function" });
+        const key = `Function:${fn}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          items.push({ label: fn, insertText: fn, kind: "Function" });
+        }
       }
     }
     for (const kw of RAX_KEYWORDS) {
@@ -438,18 +381,47 @@ export class RaxRequestsComponent implements OnInit {
   });
 
   public ngOnInit(): void {
+    this.rax.loadCatalog().pipe(takeUntilDestroyed(this.destroyRef)).subscribe();
+
+    this.editorInput$
+      .pipe(
+        debounceTime(250),
+        distinctUntilChanged(),
+        takeUntilDestroyed(this.destroyRef),
+      )
+      .subscribe(() => {
+        this.validateQuery();
+      });
+
     if (
       this.state.sharedTables.length === 0 ||
       this.state.measures.length === 0
     ) {
-      this.semanticModelService.loadDefault().subscribe((payload) => {
-        this.semanticModelService.pullState(payload, this.state);
-      });
+      this.semanticModel
+        .loadDefault()
+        .pipe(takeUntilDestroyed(this.destroyRef))
+        .subscribe((payload) => {
+          this.semanticModel.pullState(payload, this.state);
+        });
     }
   }
 
-  @HostListener("window:keydown", ["$event"])
-  public onGlobalKeydown(event: KeyboardEvent): void {
+  protected syncGutter(): void {
+    const textarea = this.queryEditor()?.nativeElement;
+    const gutter = this.editorGutter()?.nativeElement;
+    if (textarea && gutter) {
+      gutter.scrollTop = textarea.scrollTop;
+    }
+  }
+
+  protected targetValue(event: Event): string {
+    return (
+      (event.target as HTMLInputElement | HTMLTextAreaElement | null)?.value ??
+      ""
+    );
+  }
+
+  protected onKeydown(event: KeyboardEvent): void {
     if (
       event.key === "F5" ||
       ((event.ctrlKey || event.metaKey) && event.key === "Enter")
@@ -469,11 +441,11 @@ export class RaxRequestsComponent implements OnInit {
     }
     if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "h") {
       event.preventDefault();
-      this.toggleFindReplace();
+      this.toggleReplace();
     }
   }
 
-  public onEditorKeydown(event: KeyboardEvent): void {
+  protected editorKeydown(event: KeyboardEvent): void {
     const suggestions = this.autocompleteSuggestions();
     if (!this.autocompleteOpen() || suggestions.length === 0) {
       return;
@@ -488,7 +460,7 @@ export class RaxRequestsComponent implements OnInit {
       );
     } else if (event.key === "Tab") {
       event.preventDefault();
-      this.applyAutocompleteSuggestion(
+      this.applySuggestion(
         suggestions[this.autocompleteIndex()] ?? suggestions[0],
       );
     } else if (event.key === "Escape") {
@@ -497,8 +469,8 @@ export class RaxRequestsComponent implements OnInit {
     }
   }
 
-  public applyAutocompleteSuggestion(item: RaxAutocompleteItem): void {
-    const textarea = this.queryEditorRef()?.nativeElement;
+  protected applySuggestion(item: RaxAutocompleteItem): void {
+    const textarea = this.queryEditor()?.nativeElement;
     const current = this.activeTab().content;
     if (textarea && typeof textarea.selectionStart === "number") {
       const pos = textarea.selectionStart;
@@ -507,7 +479,7 @@ export class RaxRequestsComponent implements OnInit {
       const tokenMatch = before.match(/[A-Za-z0-9_.'[]+$/);
       const tokenStart = tokenMatch ? pos - tokenMatch[0].length : pos;
       const updated = current.slice(0, tokenStart) + item.insertText + after;
-      this.updateActiveContent(updated);
+      this.updateContent(updated);
       this.autocompleteOpen.set(false);
       setTimeout(() => {
         textarea.focus();
@@ -516,13 +488,14 @@ export class RaxRequestsComponent implements OnInit {
       }, 0);
       return;
     }
-    this.insertTextAtCursor(item.insertText);
+    this.insertText(item.insertText);
     this.autocompleteOpen.set(false);
   }
 
-  public updateActiveContent(content: string): void {
-    this.patchActiveTab({ content });
-    const textarea = this.queryEditorRef()?.nativeElement;
+  public updateContent(content: string): void {
+    this.patchTab({ content });
+    this.editorInput$.next(content);
+    const textarea = this.queryEditor()?.nativeElement;
     if (textarea && typeof textarea.selectionStart === "number") {
       const before = content.slice(0, textarea.selectionStart);
       const match = before.match(/[A-Za-z0-9_.]+$/);
@@ -540,7 +513,9 @@ export class RaxRequestsComponent implements OnInit {
   public clearEditor(): void {
     this.autocompleteOpen.set(false);
     this.cursorToken.set("");
-    this.patchActiveTab({
+    this.errorBanner.set(null);
+    this.monacoMarkers.set([]);
+    this.patchTab({
       content: "",
       diagnostics: [],
       statusText: "Editor cleared",
@@ -548,11 +523,15 @@ export class RaxRequestsComponent implements OnInit {
     this.state.announce("Query editor cleared.");
   }
 
-  public toggleFindReplace(): void {
+  public clearError(): void {
+    this.errorBanner.set(null);
+  }
+
+  protected toggleReplace(): void {
     this.findReplaceOpen.update((open) => !open);
   }
 
-  public replaceAllInEditor(): void {
+  public replaceAll(): void {
     const target = this.findText();
     if (!target) {
       return;
@@ -564,24 +543,23 @@ export class RaxRequestsComponent implements OnInit {
     const matches = current.match(regex);
     const count = matches ? matches.length : 0;
     if (count === 0) {
-      this.patchActiveTab({
+      this.patchTab({
         statusText: `No occurrences of "${target}" found`,
       });
       return;
     }
-    const updated = current.replace(regex, replacement);
-    this.patchActiveTab({
-      content: updated,
+    this.patchTab({
+      content: current.replace(regex, replacement),
       statusText: `Replaced ${count} occurrence(s) of "${target}"`,
     });
     this.state.announce(`Replaced ${count} occurrence(s) in active RAX query.`);
   }
 
-  public toggleSidebar(): void {
+  protected toggleSidebar(): void {
     this.sidebarOpen.update((open) => !open);
   }
 
-  public isSectionExpanded(section: RaxDockSection): boolean {
+  public sectionExpanded(section: RaxDockSection): boolean {
     return !!this.expandedSections()[section];
   }
 
@@ -592,7 +570,7 @@ export class RaxRequestsComponent implements OnInit {
     }));
   }
 
-  public toggleCollapseAll(): void {
+  public toggleAll(): void {
     const shouldExpand = this.isAllCollapsed();
     this.expandedSections.set({
       Tables: shouldExpand,
@@ -602,18 +580,18 @@ export class RaxRequestsComponent implements OnInit {
     });
   }
 
-  public toggleTableExpand(tableName: string): void {
+  protected toggleTable(tableName: string): void {
     this.expandedTables.update((current) => ({
       ...current,
       [tableName]: !current[tableName],
     }));
   }
 
-  public applySnippet(snippet: RaxSnippet | undefined): void {
+  protected applySnippet(snippet: RaxSnippet | undefined): void {
     if (!snippet) {
       return;
     }
-    this.patchActiveTab({
+    this.patchTab({
       content: snippet.code,
       diagnostics: [],
       statusText: `Loaded template: ${snippet.label}`,
@@ -621,14 +599,14 @@ export class RaxRequestsComponent implements OnInit {
     this.state.announce(`Loaded RAX template ${snippet.label}`);
   }
 
-  public insertTextAtCursor(text: string): void {
+  protected insertText(text: string): void {
     const current = this.activeTab().content;
-    const textarea = this.queryEditorRef()?.nativeElement;
+    const textarea = this.queryEditor()?.nativeElement;
     if (textarea && typeof textarea.selectionStart === "number") {
       const start = textarea.selectionStart;
       const end = textarea.selectionEnd ?? start;
       const updated = current.slice(0, start) + text + current.slice(end);
-      this.updateActiveContent(updated);
+      this.updateContent(updated);
       setTimeout(() => {
         textarea.focus();
         const cursor = start + text.length;
@@ -636,171 +614,121 @@ export class RaxRequestsComponent implements OnInit {
       }, 0);
       return;
     }
-
     const separator = current && !current.endsWith("\n") ? " " : "";
-    this.updateActiveContent(`${current}${separator}${text}`);
+    this.updateContent(`${current}${separator}${text}`);
   }
 
-  public insertTableColumn(table: SharedTable, columnName: string): void {
+  protected insertColumn(table: SharedTable, columnName: string): void {
     const needsQuotes = /[^a-zA-Z0-9_]/.test(table.name);
     const tableRef = needsQuotes ? `'${table.name}'` : table.name;
-    this.insertTextAtCursor(`${tableRef}[${columnName}]`);
+    this.insertText(`${tableRef}[${columnName}]`);
   }
 
-  public insertMeasure(measure: RaxMeasureDescriptor): void {
-    this.insertTextAtCursor(`[${measure.label}]`);
+  protected insertMeasure(measure: RaxMeasureDescriptor): void {
+    this.insertText(`[${measure.label}]`);
   }
 
-  public quickEvaluateMeasure(
-    measure: RaxMeasureDescriptor,
-    event?: Event,
-  ): void {
+  protected evalMeasure(measure: RaxMeasureDescriptor, event?: Event): void {
     event?.stopPropagation();
     const query = `EVALUATE\nROW("${measure.label}", ${measure.formula})`;
-    this.updateActiveContent(query);
+    this.updateContent(query);
     this.runQuery();
   }
 
-  /**
-   * Power BI DAX Query View parity: "Define all measures of this model"
-   * Generates a DEFINE block with every measure in the semantic model and an EVALUATE ROW summary.
-   */
-  public defineAllMeasures(event?: Event): void {
+  public defineMeasures(event?: Event): void {
     event?.stopPropagation();
-    const measures = this.availableMeasures();
-    const firstTable = this.availableTables()[0]?.name ?? "";
-    if (measures.length === 0) {
-      if (!firstTable) {
-        this.patchActiveTab({
-          diagnostics: [],
-          statusText:
-            "Load a table in the semantic model to generate measure definitions",
-        });
-        this.state.announce(
-          "No tables or measures available in the active semantic model.",
-        );
-        return;
-      }
-      const template = `DEFINE\n  MEASURE '${firstTable}'[Total Records] = COUNTROWS('${firstTable}')\n\nEVALUATE\nROW("Total Records", [Total Records])`;
-      this.patchActiveTab({
-        content: template,
+    if (
+      this.availableMeasures().length === 0 &&
+      this.availableTables().length === 0
+    ) {
+      this.patchTab({
         diagnostics: [],
-        statusText: "Generated measure definition template",
-      });
-      this.state.announce("Generated measure definition template.");
-      return;
-    }
-
-    const defineLines = measures.map((m) => {
-      const tableName = m.table || firstTable;
-      const tablePrefix = tableName ? `'${tableName}'` : "";
-      const descComment = m.description ? `  /// ${m.description}\n` : "";
-      return `${descComment}  MEASURE ${tablePrefix}[${m.label}] = ${m.formula}`;
-    });
-    const rowArgs = measures
-      .map((m) => `"${m.label}", [${m.label}]`)
-      .join(",\n  ");
-    const script = `DEFINE\n${defineLines.join("\n")}\n\nEVALUATE\nROW(\n  ${rowArgs}\n)`;
-
-    this.patchActiveTab({
-      content: script,
-      diagnostics: [],
-      statusText: `Defined all ${measures.length} model measure(s)`,
-    });
-    this.state.announce(
-      `Generated DEFINE script for ${measures.length} measure(s).`,
-    );
-  }
-
-  /**
-   * Power BI TMDL View parity: Generates live TMDL code for all measures in the model,
-   * preserving /// descriptions and formatString properties.
-   */
-  public generateModelTmdl(event?: Event): void {
-    event?.stopPropagation();
-    const measures = this.availableMeasures();
-    const firstTable = this.availableTables()[0]?.name ?? "";
-
-    if (measures.length === 0) {
-      if (!firstTable) {
-        this.patchActiveTab({
-          diagnostics: [],
-          statusText:
-            "Load a table in the semantic model to generate TMDL",
-        });
-        this.state.announce(
-          "No tables or measures available in the active semantic model.",
-        );
-        return;
-      }
-      const emptyTmdl = `createOrReplace\n  table '${firstTable}'\n    /// Record count across ${firstTable}\n    measure 'Row Count' = COUNTROWS('${firstTable}')\n      formatString: "#,0"`;
-      this.patchActiveTab({
-        content: emptyTmdl,
-        diagnostics: [],
-        statusText: "Generated TMDL template",
-      });
-      this.state.announce("Generated TMDL template.");
-      return;
-    }
-
-    const grouped = new Map<string, RaxMeasureDescriptor[]>();
-    for (const m of measures) {
-      const tName = m.table || firstTable || "Model";
-      const list = grouped.get(tName) ?? [];
-      list.push(m);
-      grouped.set(tName, list);
-    }
-
-    const lines: string[] = ["createOrReplace"];
-    for (const [tableName, tableMeasures] of grouped.entries()) {
-      lines.push(`  table '${tableName}'`);
-      for (const m of tableMeasures) {
-        if (m.description) {
-          lines.push(`    /// ${m.description}`);
-        }
-        lines.push(`    measure '${m.label}' = ${m.formula}`);
-        if (m.formatString) {
-          lines.push(`      formatString: "${m.formatString}"`);
-        }
-      }
-    }
-
-    this.patchActiveTab({
-      content: lines.join("\n"),
-      diagnostics: [],
-      statusText: `Generated TMDL script for ${measures.length} measure(s)`,
-    });
-    this.state.announce(
-      `Generated TMDL definition script for ${measures.length} measure(s).`,
-    );
-  }
-
-  /**
-   * Parses DEFINE MEASURE or TMDL createOrReplace blocks (including /// descriptions)
-   * and persists the measures into the semantic model (CodeLens "Update model" / TMDL Apply).
-   */
-  public applyToModel(): number {
-    const content = this.activeTab().content.trim();
-    if (!content) {
-      return 0;
-    }
-    const appliedCount = this.extractAndSaveMeasuresFromScript(content);
-    if (appliedCount > 0) {
-      this.patchActiveTab({
-        statusText: `Applied ${appliedCount} measure(s) to semantic model`,
+        statusText:
+          "Load a table in the semantic model to generate measure definitions",
       });
       this.state.announce(
-        `Updated semantic model with ${appliedCount} measure(s).`,
+        "No tables or measures available in the active semantic model.",
       );
+      return;
     }
-    return appliedCount;
+    this.errorBanner.set(null);
+    this.rax
+      .defineMeasures(this.semanticModel.modelId())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.patchTab({
+            content: response.script,
+            diagnostics: [],
+            statusText: "Generated measure definitions script",
+          });
+          this.state.announce("Generated DEFINE script for model measures.");
+        },
+        error: (err: unknown) => {
+          this.surfaceProblem("Generate DEFINE script", err);
+        },
+      });
   }
 
-  /**
-   * Materializes the active tabular result (such as Data Dictionary or SUMMARIZECOLUMNS)
-   * into the semantic model as a calculated table.
-   */
-  public materializeResultAsTable(): void {
+  public generateTmdl(event?: Event): void {
+    event?.stopPropagation();
+    if (
+      this.availableMeasures().length === 0 &&
+      this.availableTables().length === 0
+    ) {
+      this.patchTab({
+        diagnostics: [],
+        statusText: "Load a table in the semantic model to generate TMDL",
+      });
+      this.state.announce(
+        "No tables or measures available in the active semantic model.",
+      );
+      return;
+    }
+    this.errorBanner.set(null);
+    this.rax
+      .generateTmdl(this.semanticModel.modelId())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.patchTab({
+            content: response.tmdlScript,
+            diagnostics: [],
+            statusText: "Generated TMDL definition script",
+          });
+          this.state.announce("Generated TMDL definition script.");
+        },
+        error: (err: unknown) => {
+          this.surfaceProblem("Generate TMDL script", err);
+        },
+      });
+  }
+
+  public applyModel(): void {
+    const content = this.activeTab().content.trim();
+    if (!content) {
+      return;
+    }
+    this.errorBanner.set(null);
+    this.rax
+      .applyMeasures(content, this.semanticModel.modelId())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.patchTab({
+            statusText: `Applied ${response.appliedCount} measure(s) to semantic model`,
+          });
+          this.state.announce(
+            `Updated semantic model with ${response.appliedCount} measure(s).`,
+          );
+        },
+        error: (err: unknown) => {
+          this.surfaceProblem("Apply measures", err);
+        },
+      });
+  }
+
+  protected materializeTable(): void {
     const result = this.activeTab().lastResult;
     const cols = this.resultColumns();
     if (!result || result.rows.length === 0 || cols.length === 0) {
@@ -826,11 +754,7 @@ export class RaxRequestsComponent implements OnInit {
           : typeof val === "boolean"
             ? "BOOLEAN"
             : "VARCHAR";
-      return {
-        name: colName,
-        dataType,
-        keyType: "None",
-      };
+      return { name: colName, dataType, keyType: "None" };
     });
 
     this.state.addTable({
@@ -843,7 +767,7 @@ export class RaxRequestsComponent implements OnInit {
       expression: rawContent,
     });
     this.state.setRows(tableName, result.rows);
-    this.patchActiveTab({
+    this.patchTab({
       statusText: `Materialized table "${tableName}" (${result.rows.length} rows)`,
     });
     this.state.announce(
@@ -856,135 +780,86 @@ export class RaxRequestsComponent implements OnInit {
     if (!raw.trim()) {
       return;
     }
-
-    const protectedSegments: string[] = [];
-    let masked = raw.replace(
-      /(\/\/\/[^\r\n]*|\/\/[^\r\n]*|--[^\r\n]*|'[^']*'|"[^"]*"|\[[^\]]*\])/g,
-      (match) => {
-        const token = `__RC_SEG_${protectedSegments.length}__`;
-        protectedSegments.push(match);
-        return token;
-      },
-    );
-
-    masked = masked
-      .replace(/\binfo\.view\.tables\b/gi, "INFO.VIEW.TABLES")
-      .replace(/\binfo\.view\.measures\b/gi, "INFO.VIEW.MEASURES")
-      .replace(/\binfo\.view\.columns\b/gi, "INFO.VIEW.COLUMNS")
-      .replace(/\binfo\.view\.relationships\b/gi, "INFO.VIEW.RELATIONSHIPS")
-      .replace(/\binfo\.partitions\b/gi, "INFO.PARTITIONS")
-      .replace(/\binfo\.calcdependency\b/gi, "INFO.CALCDEPENDENCY")
-      .replace(/\binfo\.storagetablecolumns\b/gi, "INFO.STORAGETABLECOLUMNS")
-      .replace(/\border\s+by\b/gi, "ORDER BY")
-      .replace(/\bgroup\s+by\b/gi, "GROUP BY")
-      .replace(/\bstart\s+at\b/gi, "START AT")
-      .replace(/\bcreateorreplace\b/gi, "createOrReplace");
-
-    for (const keyword of RAX_KEYWORDS) {
-      const pattern = new RegExp(`\\b${keyword}\\b`, "gi");
-      masked = masked.replace(pattern, keyword);
-    }
-
-    const isTmdl = /^\s*createOrReplace\b/i.test(masked);
-    if (isTmdl) {
-      const tmdlLines = masked
-        .split(/\r?\n/)
-        .map((line) => line.replace(/[ \t]+$/g, ""))
-        .join("\n")
-        .trim();
-      const restoredTmdl = tmdlLines.replace(
-        /__RC_SEG_(\d+)__/g,
-        (_, idx: string) => protectedSegments[Number(idx)] ?? "",
-      );
-      this.patchActiveTab({
-        content: restoredTmdl,
-        statusText: "Formatted TMDL script",
+    this.errorBanner.set(null);
+    this.rax
+      .formatScript(raw)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (response) => {
+          this.patchTab({
+            content: response.formattedScript,
+            statusText: "Formatted RAX script",
+          });
+          this.state.announce("Formatted RAX query.");
+        },
+        error: (err: unknown) => {
+          this.surfaceProblem("Format RAX query", err);
+        },
       });
-      this.state.announce("Formatted TMDL script.");
-      return;
-    }
-
-    masked = masked
-      .replace(/[ \t]+/g, " ")
-      .replace(/([^\n])\s+(DEFINE|EVALUATE|VAR|RETURN|ORDER BY)\b/g, "$1\n$2")
-      .replace(/\bDEFINE\s+MEASURE\b/g, "DEFINE\n  MEASURE");
-
-    const rawLines = masked
-      .split(/\r?\n/)
-      .map((line) => line.trim())
-      .filter(
-        (line, idx, arr) =>
-          line.length > 0 || (idx > 0 && arr[idx - 1].length > 0),
-      );
-
-    let parenDepth = 0;
-    const indentedLines: string[] = [];
-    for (const line of rawLines) {
-      if (!line) {
-        indentedLines.push("");
-        continue;
-      }
-      const leadingClosers = (line.match(/^\)+/) ?? [""])[0].length;
-      const effectiveDepth = Math.max(0, parenDepth - leadingClosers);
-      const isTopDirective = /^(DEFINE|EVALUATE|RETURN|ORDER BY)\b/.test(line);
-      const isMeasureOrVar = /^(MEASURE)\b/.test(line);
-      const indentSpaces = isTopDirective
-        ? 0
-        : isMeasureOrVar
-          ? Math.max(2, effectiveDepth * 2)
-          : effectiveDepth * 2;
-      indentedLines.push(" ".repeat(indentSpaces) + line);
-
-      for (const ch of line) {
-        if (ch === "(") {
-          parenDepth += 1;
-        } else if (ch === ")") {
-          parenDepth = Math.max(0, parenDepth - 1);
-        }
-      }
-    }
-
-    const formatted = indentedLines
-      .join("\n")
-      .trim()
-      .replace(
-        /__RC_SEG_(\d+)__/g,
-        (_, idx: string) => protectedSegments[Number(idx)] ?? "",
-      );
-
-    this.patchActiveTab({
-      content: formatted,
-      statusText: "Formatted RAX query",
-    });
-    this.state.announce("Formatted RAX query.");
   }
 
-  public validateQuery(): RaxDiagnostic[] {
+  public validateQuery(): void {
     const content = this.activeTab().content;
     if (!content.trim()) {
-      this.patchActiveTab({
+      this.monacoMarkers.set([]);
+      this.patchTab({
         diagnostics: [],
         statusText: "Ready",
       });
-      return [];
+      return;
     }
-    const diagnostics = this.analyzeSyntax(content);
-    const errors = diagnostics.filter((d) => d.severity === "error");
-    const statusText =
-      errors.length > 0
-        ? `Validation found ${diagnostics.length} problem(s) — [${errors[0].errorCode}] Line ${errors[0].line}: ${errors[0].message}`
-        : diagnostics.length > 0
-          ? `Syntax valid (${diagnostics.length} warning: ${diagnostics[0].message})`
-          : "Syntax valid (0 problems)";
-    this.patchActiveTab({
-      diagnostics,
-      statusText,
-    });
-    if (diagnostics.length > 0) {
-      this.bottomActiveTab.set("problems");
-    }
-    this.state.announce(statusText, { error: errors.length > 0 });
-    return diagnostics;
+    const activeSchema =
+      this.availableTables().length > 0 || this.availableMeasures().length > 0
+        ? this.semanticModel.buildPayload(this.semanticModel.toPayload())
+        : null;
+    this.rax
+      .validateScript(
+        content,
+        "New Measure",
+        this.semanticModel.modelId(),
+        activeSchema,
+      )
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => {
+          if (!result) {
+            this.monacoMarkers.set([]);
+            this.patchTab({ diagnostics: [], statusText: "Ready" });
+            return;
+          }
+          const markers: RaxMonacoMarkerData[] = result.diagnostics.map((d) =>
+            this.toMarker(d),
+          );
+          this.monacoMarkers.set(markers);
+          const diagnostics: RaxDiagnostic[] = result.diagnostics.map((d) => {
+            const sev = (d.severity ?? "error").toLowerCase();
+            return {
+              severity:
+                sev === "warning" || sev === "info" ? sev : "error",
+              line: d.line ?? 1,
+              startColumn: d.startColumn ?? d.column ?? 1,
+              length: d.length ?? 1,
+              errorCode: d.errorCode ?? d.code ?? "ERR_RAX_SYNTAX",
+              message: d.message ?? "",
+            };
+          });
+          const errors = diagnostics.filter((d) => d.severity === "error");
+          const statusText =
+            errors.length > 0
+              ? `Validation found ${diagnostics.length} problem(s) — [${errors[0].errorCode}] Line ${errors[0].line}: ${errors[0].message}`
+              : diagnostics.length > 0
+                ? `Syntax valid (${diagnostics.length} warning: ${diagnostics[0].message})`
+                : "Syntax valid (0 problems)";
+          this.patchTab({ diagnostics, statusText });
+          if (diagnostics.length > 0) {
+            this.bottomActiveTab.set("problems");
+          }
+          this.state.announce(statusText, { error: errors.length > 0 });
+        },
+        error: (err: unknown) => {
+          this.surfaceProblem("Validate RAX query", err);
+        },
+      });
   }
 
   public runQuery(): void {
@@ -992,66 +867,23 @@ export class RaxRequestsComponent implements OnInit {
     if (tab.isExecuting) {
       return;
     }
-
-    if (!tab.content.trim()) {
-      this.patchActiveTab({
-        diagnostics: [],
-        statusText: "Enter a RAX or TMDL expression to execute",
-      });
-      return;
-    }
-
-    const diagnostics = this.analyzeSyntax(tab.content);
-    const errors = diagnostics.filter((d) => d.severity === "error");
-    if (errors.length > 0) {
-      const firstErr = errors[0];
-      const detail = `[${firstErr.errorCode}] Line ${firstErr.line}: ${firstErr.message}`;
-      this.patchActiveTab({
-        diagnostics,
-        statusText: `Execution blocked (${errors.length} error(s)) — ${detail}`,
-      });
-      this.bottomActiveTab.set("problems");
-      this.state.announce(
-        `RAX execution blocked (${errors.length} syntax error(s)) — ${detail}`,
-        { error: true },
-      );
-      return;
-    }
-
-    const localResult = this.tryEvaluateLocalQuery(tab.content);
-    if (localResult) {
-      const summary = `Completed in ${localResult.executionTimeMs} ms (${localResult.rows.length} row(s), ${localResult.routedEngine})`;
-      this.patchActiveTab({
-        diagnostics,
-        isExecuting: false,
-        lastResult: localResult,
-        statusText: summary,
-      });
-      this.bottomActiveTab.set("results");
-      this.state.announce(summary);
-      return;
-    }
-
-    this.patchActiveTab({
-      diagnostics,
+    this.errorBanner.set(null);
+    this.patchTab({
+      diagnostics: [],
       isExecuting: true,
       statusText: "Executing RAX query...",
     });
 
-    this.raxQueryService
-      .executeMeasure("rax-studio-query", tab.content, "rax-studio")
-      .subscribe((result) => {
-        const summary = `Completed in ${result.executionTimeMs} ms (${result.rows.length} row(s), ${result.routedEngine})`;
-        this.patchActiveTab({
-          isExecuting: false,
-          lastResult: result,
-          statusText: summary,
-        });
-        this.bottomActiveTab.set("results");
+    this.rax
+      .executeScript(tab.content, this.semanticModel.modelId())
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: (result) => this.handleResult(result),
+        error: (err: unknown) => this.handleError(err),
       });
   }
 
-  public exportResultsCsv(): void {
+  protected exportCsv(): void {
     const result = this.activeTab().lastResult;
     const cols = this.resultColumns();
     if (
@@ -1089,619 +921,107 @@ export class RaxRequestsComponent implements OnInit {
     this.state.announce(`Exported ${result.rows.length} row(s) to CSV.`);
   }
 
-  private tryEvaluateLocalQuery(rawQuery: string): RaxQueryResult | null {
-    const normalized = rawQuery.trim();
-    const upper = normalized.toUpperCase();
-
-    // 1. Unified Data Dictionary (UNION of INFO.VIEW.COLUMNS, INFO.VIEW.MEASURES, INFO.VIEW.TABLES)
-    if (
-      upper.includes("UNION(") &&
-      upper.includes("INFO.VIEW.COLUMNS") &&
-      upper.includes("INFO.VIEW.MEASURES")
-    ) {
-      const colRows = this.buildInfoColumnsRows()
-        .filter((r) => !r["IsHidden"])
-        .map((r) => ({
-          Type: "Column",
-          Name: r["Name"],
-          Table: r["Table"],
-          Description: r["Description"],
-          Dax: r["Expression"],
-        }));
-      const measureRows = this.buildInfoMeasuresRows()
-        .filter((r) => !r["IsHidden"])
-        .map((r) => ({
-          Type: "Measure",
-          Name: r["Name"],
-          Table: r["Table"],
-          Description: r["Description"],
-          Dax: r["Expression"],
-        }));
-      const tableRows = this.buildInfoTablesRows()
-        .filter((r) => !r["IsHidden"] && r["Name"] !== "Data Dictionary")
-        .map((r) => ({
-          Type: "Table",
-          Name: r["Name"],
-          Table: "n/a",
-          Description: r["Description"],
-          Dax: r["Expression"],
-        }));
-      const rows = [...colRows, ...measureRows, ...tableRows];
-      return {
-        cacheKey: "meta-info-data-dictionary",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 3,
-        executedSql:
-          "SELECT Type, Name, Table, Description, Dax FROM information_schema.rax_data_dictionary;",
-        rows,
-      };
-    }
-
-    // 2. INFO.CALCDEPENDENCY()
-    if (upper.includes("INFO.CALCDEPENDENCY")) {
-      const baseRows = this.buildInfoCalcDependencyRows();
-      const rows = this.applySelectColumnsAndOrder(normalized, baseRows);
-      return {
-        cacheKey: "meta-info-calcdependency",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 2,
-        executedSql:
-          "SELECT OBJECT_TYPE, TABLE, OBJECT, EXPRESSION, REFERENCED_TABLE, REFERENCED_OBJECT, REFERENCED_OBJECT_TYPE, REFERENCED_EXPRESSION FROM information_schema.rax_dependencies;",
-        rows,
-      };
-    }
-
-    // 3. INFO.STORAGETABLECOLUMNS()
-    if (upper.includes("INFO.STORAGETABLECOLUMNS")) {
-      const baseRows = this.buildInfoStorageTableColumnsRows();
-      const rows = this.applySelectColumnsAndOrder(normalized, baseRows);
-      return {
-        cacheKey: "meta-info-storage-columns",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 2,
-        executedSql:
-          "SELECT DIMENSION_NAME, ATTRIBUTE_NAME, DATA_TYPE, DICTIONARY_SIZE, SizeKB FROM duckdb_column_storage() ORDER BY DICTIONARY_SIZE DESC;",
-        rows,
-      };
-    }
-
-    // 4. INFO.VIEW.RELATIONSHIPS()
-    if (upper.includes("INFO.VIEW.RELATIONSHIPS")) {
-      const tables = this.availableTables();
-      const fkRows: Array<Record<string, unknown>> = [];
-      const pkTableByCol = new Map<string, string>();
-      for (const t of tables) {
-        for (const c of t.columns) {
-          if (c.keyType === "PK") {
-            pkTableByCol.set(c.name.toLowerCase(), t.name);
-          }
-        }
-      }
-      for (const t of tables) {
-        for (const c of t.columns) {
-          if (c.keyType === "FK") {
-            const targetTable =
-              pkTableByCol.get(c.name.toLowerCase()) ??
-              tables.find((other) => other.name !== t.name)?.name ??
-              "";
-            fkRows.push({
-              Name: `${t.name}_${c.name}`,
-              FromTable: t.name,
-              FromColumn: c.name,
-              ToTable: targetTable,
-              ToColumn: c.name,
-              Cardinality: "MANY_TO_ONE",
-              CrossFilterDirection: "SINGLE",
-              IsActive: true,
-            });
-          }
-        }
-      }
-      return {
-        cacheKey: "meta-info-relationships",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 2,
-        executedSql:
-          "SELECT Name, FromTable, FromColumn, ToTable, ToColumn, Cardinality, CrossFilterDirection, IsActive FROM information_schema.rax_relationships;",
-        rows: this.applySelectColumnsAndOrder(normalized, fkRows),
-      };
-    }
-
-    // 5. INFO.VIEW.TABLES()
-    if (upper.includes("INFO.VIEW.TABLES")) {
-      const baseRows = this.buildInfoTablesRows();
-      const rows = this.applySelectColumnsAndOrder(normalized, baseRows);
-      return {
-        cacheKey: "meta-info-tables",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 2,
-        executedSql:
-          "SELECT table_id AS ID, table_name AS Name, table_role AS Role, column_count AS ColumnsCount, 'DUCKDB_COLUMNAR' AS StorageMode, description AS Description FROM information_schema.rax_tables;",
-        rows,
-      };
-    }
-
-    // 6. INFO.VIEW.MEASURES()
-    if (upper.includes("INFO.VIEW.MEASURES")) {
-      const baseRows = this.buildInfoMeasuresRows();
-      const rows = this.applySelectColumnsAndOrder(normalized, baseRows);
-      return {
-        cacheKey: "meta-info-measures",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 2,
-        executedSql:
-          "SELECT measure_id AS ID, measure_name AS Name, home_table AS Table, rax_expression AS Expression, description AS Description FROM information_schema.rax_measures;",
-        rows,
-      };
-    }
-
-    // 7. INFO.VIEW.COLUMNS()
-    if (upper.includes("INFO.VIEW.COLUMNS")) {
-      const baseRows = this.buildInfoColumnsRows();
-      const rows = this.applySelectColumnsAndOrder(normalized, baseRows);
-      return {
-        cacheKey: "meta-info-columns",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 3,
-        executedSql:
-          "SELECT table_name AS Table, column_name AS Name, data_type AS DataType, key_type AS KeyType, description AS Description, is_hidden AS IsHidden FROM information_schema.columns;",
-        rows,
-      };
-    }
-
-    // 8. INFO.PARTITIONS()
-    if (upper.includes("INFO.PARTITIONS")) {
-      const refreshedAt = new Date().toISOString();
-      const baseRows = this.availableTables().map((table) => ({
-        Table: table.name,
-        Name: `${table.name}_p2026`,
-        PartitionName: `${table.name}_p2026`,
-        QueryDefinition: `SELECT * FROM ${table.name}`,
-        Type: 1,
-        Mode: "Import (Parquet)",
-        Engine: "DUCKDB",
-        Rows: table.rowCount ?? 1000,
-        RefreshedTime: refreshedAt,
-        State: "READY",
-      }));
-      const rows = this.applySelectColumnsAndOrder(normalized, baseRows);
-      return {
-        cacheKey: "meta-info-partitions",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 2,
-        executedSql:
-          "SELECT table_name AS Table, partition_name AS PartitionName, mode AS Mode, engine AS Engine, row_count AS Rows, refreshed_time AS RefreshedTime, state AS State FROM duckdb_partitions();",
-        rows,
-      };
-    }
-
-    // 9. TMDL DDL Transaction (createOrReplace / table / model)
-    if (
-      upper.startsWith("CREATEORREPLACE") ||
-      upper.startsWith("TABLE ") ||
-      upper.startsWith("MODEL ")
-    ) {
-      const appliedCount = this.extractAndSaveMeasuresFromScript(normalized);
-      return {
-        cacheKey: "tmdl-ddl-preview",
-        cacheHit: false,
-        routedEngine: "DUCKDB",
-        executionTimeMs: 4,
-        executedSql:
-          "-- TMDL DDL Metadata Transaction\nCOMMIT SEMANTIC CATALOG OBJECTS;",
-        rows: [
-          {
-            Operation: "createOrReplace",
-            Target: "Semantic Model Catalog",
-            MeasuresUpdated: appliedCount,
-            Status: "VALIDATED",
-          },
-        ],
-      };
-    }
-
-    // 10. Local evaluation of DEFINE MEASURE / VAR / ROW / SUMMARIZECOLUMNS / FILTER / TOPN / scalar formulas
-    if (upper.includes("DEFINE") && /\bMEASURE\b/i.test(normalized)) {
-      this.extractAndSaveMeasuresFromScript(normalized);
-    }
-
-    return null;
-  }
-
-  private buildInfoTablesRows(): Array<Record<string, unknown>> {
-    return this.availableTables().map((table, index) => ({
-      ID: index + 1,
-      Name: table.name,
-      Role: table.role,
-      ColumnsCount: table.columns.length,
-      StorageMode: "DUCKDB_COLUMNAR",
-      Description: table.description ?? "",
-      Expression: table.expression ?? "",
-      IsHidden: table.isHidden ?? false,
-    }));
-  }
-
-  private buildInfoMeasuresRows(): Array<Record<string, unknown>> {
-    return this.availableMeasures().map((measure, index) => ({
-      ID: index + 1,
-      Name: measure.label,
-      Table: measure.table,
-      Expression: measure.formula,
-      Description: measure.description ?? "",
-      FormatString: measure.formatString ?? "",
-      IsHidden: measure.isHidden ?? false,
-    }));
-  }
-
-  private buildInfoColumnsRows(): Array<Record<string, unknown>> {
-    return this.availableTables().flatMap((table) =>
-      table.columns.map((col) => ({
-        Table: table.name,
-        Name: col.name,
-        DataType: col.dataType,
-        KeyType: col.keyType ?? "None",
-        Description: col.description ?? "",
-        IsHidden: col.isHidden ?? false,
-        Expression: col.expression ?? "",
-      })),
-    );
-  }
-
-  private buildInfoCalcDependencyRows(): Array<Record<string, unknown>> {
-    const measures = this.availableMeasures();
-    const measuresByName = new Map<string, RaxMeasureDescriptor>();
-    for (const m of measures) {
-      measuresByName.set(m.label.toLowerCase(), m);
-    }
-
-    const rows: Array<Record<string, unknown>> = [];
-    const refPattern = /(?:'([^']+)'|([A-Za-z_][A-Za-z0-9_]*))?\[([^\]]+)\]/g;
-
-    for (const m of measures) {
-      const expr = m.formula || "";
-      let match: RegExpExecArray | null;
-      refPattern.lastIndex = 0;
-      while ((match = refPattern.exec(expr)) !== null) {
-        const refTable = match[1] ?? match[2] ?? "";
-        const refObj = match[3] ?? "";
-        const targetMeasure = !refTable
-          ? measuresByName.get(refObj.toLowerCase())
-          : undefined;
-
-        rows.push({
-          OBJECT_TYPE: "MEASURE",
-          TABLE: m.table,
-          OBJECT: m.label,
-          EXPRESSION: expr,
-          REFERENCED_TABLE: targetMeasure
-            ? targetMeasure.table
-            : refTable || m.table,
-          REFERENCED_OBJECT: targetMeasure ? targetMeasure.label : refObj,
-          REFERENCED_OBJECT_TYPE: targetMeasure ? "MEASURE" : "COLUMN",
-          REFERENCED_EXPRESSION: targetMeasure ? targetMeasure.formula : "",
-        });
-      }
-    }
-    return rows;
-  }
-
-  private buildInfoStorageTableColumnsRows(): Array<Record<string, unknown>> {
-    const rows = this.availableTables().flatMap((table) => {
-      const rowCount = Math.max(100, table.rowCount ?? 1000);
-      return table.columns.map((col) => {
-        const bytesPerVal = col.dataType.toUpperCase().includes("CHAR")
-          ? 32
-          : 8;
-        const dictBytes = Math.max(1024, rowCount * bytesPerVal);
-        const sizeKb = Math.round((dictBytes / 1024) * 100) / 100;
-        return {
-          DIMENSION_NAME: table.name,
-          Table: table.name,
-          ATTRIBUTE_NAME: col.name,
-          Colonne: col.name,
-          DATA_TYPE: col.dataType,
-          DICTIONARY_SIZE: dictBytes,
-          SizeKB: sizeKb,
-          Taille: sizeKb,
-        };
-      });
+  private handleResult(result: QueryExecutionResult): void {
+    this.errorBanner.set(null);
+    const mutableResult: RaxStudioQueryResult = {
+      cacheKey: result.cacheKey,
+      cacheHit: result.cacheHit,
+      routedEngine: result.routedEngine,
+      executionTimeMs: result.executionTimeMs,
+      executedSql: result.executedSql,
+      rows: result.rows.map((row) => ({ ...row })),
+    };
+    const summary = `Completed in ${result.executionTimeMs} ms (${result.rows.length} row(s), ${result.routedEngine})`;
+    this.patchTab({
+      isExecuting: false,
+      lastResult: mutableResult,
+      statusText: summary,
     });
-    return rows.sort(
-      (a, b) => Number(b["DICTIONARY_SIZE"]) - Number(a["DICTIONARY_SIZE"]),
-    );
+    this.bottomActiveTab.set("results");
+    this.state.announce(summary);
   }
 
-  /**
-   * Applies SELECTCOLUMNS projection and ORDER BY sorting when wrapping an INFO.* function.
-   */
-  private applySelectColumnsAndOrder(
-    query: string,
-    baseRows: Array<Record<string, unknown>>,
-  ): Array<Record<string, unknown>> {
-    let result = [...baseRows];
-
-    if (/SELECTCOLUMNS\s*\(/i.test(query) && result.length > 0) {
-      const pairRegex = /"([^"]+)"\s*,\s*\[([^\]]+)\]/g;
-      const mappings: Array<{ alias: string; col: string }> = [];
-      let match: RegExpExecArray | null;
-      while ((match = pairRegex.exec(query)) !== null) {
-        mappings.push({ alias: match[1], col: match[2] });
-      }
-      if (mappings.length > 0) {
-        result = result.map((row) => {
-          const projected: Record<string, unknown> = {};
-          for (const { alias, col } of mappings) {
-            const key =
-              Object.keys(row).find(
-                (k) => k.toLowerCase() === col.toLowerCase(),
-              ) ?? col;
-            projected[alias] = row[key] ?? "";
-          }
-          return projected;
-        });
-      }
-    }
-
-    const orderMatch = query.match(
-      /ORDER\s+BY\s+(?:[A-Za-z0-9_']+)?\[([^\]]+)\]\s*(ASC|DESC)?/i,
-    );
-    if (orderMatch && result.length > 1) {
-      const targetCol = orderMatch[1];
-      const isDesc = (orderMatch[2] ?? "ASC").toUpperCase() === "DESC";
-      const resolvedKey =
-        Object.keys(result[0]).find(
-          (k) => k.toLowerCase() === targetCol.toLowerCase(),
-        ) ?? targetCol;
-      result.sort((a, b) => {
-        const va = a[resolvedKey];
-        const vb = b[resolvedKey];
-        if (typeof va === "number" && typeof vb === "number") {
-          return isDesc ? vb - va : va - vb;
-        }
-        const cmp = String(va ?? "").localeCompare(String(vb ?? ""));
-        return isDesc ? -cmp : cmp;
-      });
-    }
-
-    return result;
+  private handleError(err: unknown): void {
+    const problem = this.extractProblem(err);
+    this.errorBanner.set(problem);
+    const errorCode = problem.errorCode ?? "ERR_RAX_EXECUTION";
+    const diagnostic: RaxDiagnostic = {
+      severity: "error",
+      line: 1,
+      startColumn: 1,
+      errorCode,
+      message: problem.detail,
+    };
+    this.patchTab({
+      isExecuting: false,
+      diagnostics: [diagnostic],
+      statusText: `Execution failed — [${errorCode}] ${problem.detail}`,
+    });
+    this.bottomActiveTab.set("problems");
+    this.state.announceError("RAX query execution", err);
   }
 
-  /**
-   * Parses both TMDL (createOrReplace / table / /// description / measure / formatString)
-   * and DAX Query View (DEFINE MEASURE 'table'[Name] = ...) blocks and saves them to StateManagerService.
-   */
-  private extractAndSaveMeasuresFromScript(script: string): number {
-    let savedCount = 0;
-    const defaultTable = this.availableTables()[0]?.name ?? "";
-
-    if (/^\s*(createOrReplace|table\s+)/im.test(script)) {
-      let currentTable = defaultTable;
-      let pendingDesc: string[] = [];
-      let lastMeasure: RaxMeasureDescriptor | null = null;
-
-      for (const rawLine of script.split(/\r?\n/)) {
-        const trimmed = rawLine.trim();
-        if (!trimmed) {
-          continue;
-        }
-        if (trimmed.startsWith("///")) {
-          const commentText = trimmed.slice(3).trim();
-          if (commentText) {
-            pendingDesc.push(commentText);
-          }
-          continue;
-        }
-        const tableMatch = trimmed.match(
-          /^table\s+(?:'([^']+)'|([A-Za-z0-9_ -]+))$/i,
-        );
-        if (tableMatch) {
-          currentTable = (tableMatch[1] ?? tableMatch[2]).trim();
-          pendingDesc = [];
-          continue;
-        }
-        const measureMatch = trimmed.match(
-          /^measure\s+(?:'([^']+)'|([A-Za-z0-9_ -]+))\s*=\s*(.+)$/i,
-        );
-        if (measureMatch) {
-          const label = (measureMatch[1] ?? measureMatch[2]).trim();
-          const formula = measureMatch[3].trim();
-          const existing = this.availableMeasures().find(
-            (m) => m.label.toLowerCase() === label.toLowerCase(),
-          );
-          const descriptor: RaxMeasureDescriptor = {
-            id:
-              existing?.id ??
-              `m-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-            label,
-            formula,
-            table: currentTable,
-            description:
-              pendingDesc.length > 0
-                ? pendingDesc.join(" ")
-                : existing?.description,
-            formatString: existing?.formatString,
-          };
-          this.state.saveMeasure(descriptor);
-          lastMeasure = descriptor;
-          pendingDesc = [];
-          savedCount += 1;
-          continue;
-        }
-        const fmtMatch = trimmed.match(/^formatString:\s*"([^"]*)"$/i);
-        if (fmtMatch && lastMeasure) {
-          const updated: RaxMeasureDescriptor = {
-            ...lastMeasure,
-            formatString: fmtMatch[1],
-          };
-          this.state.saveMeasure(updated);
-          lastMeasure = updated;
-        }
-      }
-      return savedCount;
-    }
-
-    // Parse DEFINE MEASURE declarations (with optional preceding /// comments)
-    const defineRegex =
-      /(?:((?:^\s*\/\/\/[^\r\n]*\r?\n)+))?\s*MEASURE\s+(?:'([^']+)'|([A-Za-z0-9_]+))?\[([^\]]+)\]\s*=\s*(.+?)(?=\n\s*(?:\/\/\/|MEASURE\b|EVALUATE\b)|$)/gims;
-    let match: RegExpExecArray | null;
-    while ((match = defineRegex.exec(script)) !== null) {
-      const rawComments = match[1] ?? "";
-      const parsedDesc = rawComments
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l.startsWith("///"))
-        .map((l) => l.slice(3).trim())
-        .join(" ")
-        .trim();
-      const table = (match[2] ?? match[3] ?? defaultTable).trim();
-      const label = match[4].trim();
-      const formula = match[5].trim();
-      const existing = this.availableMeasures().find(
-        (m) => m.label.toLowerCase() === label.toLowerCase(),
-      );
-      this.state.saveMeasure({
-        id:
-          existing?.id ??
-          `m-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        label,
-        formula,
-        table,
-        description: parsedDesc || existing?.description,
-        formatString: existing?.formatString,
-      });
-      savedCount += 1;
-    }
-    return savedCount;
+  private surfaceProblem(action: string, err: unknown): void {
+    const problem = this.extractProblem(err);
+    this.errorBanner.set(problem);
+    const codeTag = problem.errorCode ? `[${problem.errorCode}] ` : "";
+    this.patchTab({
+      statusText: `${action} failed — ${codeTag}${problem.detail}`,
+    });
+    this.state.announceError(action, err);
   }
 
-  /**
-   * Evaluates SUMMARIZECOLUMNS against loaded table rows in StateManagerService when present.
-   */
-  private analyzeSyntax(query: string): RaxDiagnostic[] {
-    const diagnostics: RaxDiagnostic[] = [];
-    const trimmed = query.trim();
-
-    if (!trimmed) {
-      return diagnostics;
-    }
-
-    if (/^(?:EVALUATE|DEFINE)\s*$/i.test(trimmed)) {
-      diagnostics.push({
-        severity: "error",
-        line: 1,
-        startColumn: 1,
-        errorCode: "ERR_RAX_INCOMPLETE_QUERY",
-        message: `'${trimmed.toUpperCase()}' requires a table or scalar RAX expression.`,
-      });
-    }
-
-    const emptyArgFnMatch = trimmed.match(
-      /\b(SUM|AVERAGE|AVG|MIN|MAX|COUNT|DISTINCTCOUNT|SUMX|AVERAGEX|DIVIDE|CALCULATE|FILTER|ROW|SUMMARIZECOLUMNS|TOPN|SELECTCOLUMNS|ADDCOLUMNS)\s*\(\s*\)/i,
-    );
-    if (emptyArgFnMatch) {
-      diagnostics.push({
-        severity: "error",
-        line: 1,
-        startColumn: 1,
-        errorCode: "ERR_RAX_MISSING_ARGUMENTS",
-        message: `Function '${emptyArgFnMatch[1].toUpperCase()}()' requires at least one argument.`,
-      });
-    }
-
-    const stack: Array<{ char: string; line: number; col: number }> = [];
-    const pairs: Record<string, string> = { "(": ")", "[": "]", "{": "}" };
-    const closers = new Set([")", "]", "}"]);
-
-    const lines = query.split(/\r?\n/);
-    for (let lineIdx = 0; lineIdx < lines.length; lineIdx++) {
-      const lineText = lines[lineIdx];
-      let inSingle = false;
-      let inDouble = false;
-
-      if (
-        lineText.trimStart().startsWith("//") ||
-        lineText.trimStart().startsWith("--")
-      ) {
-        continue;
-      }
-
-      for (let colIdx = 0; colIdx < lineText.length; colIdx++) {
-        const ch = lineText[colIdx];
-        if (ch === "'" && !inDouble) {
-          inSingle = !inSingle;
-          continue;
-        }
-        if (ch === '"' && !inSingle) {
-          inDouble = !inDouble;
-          continue;
-        }
-        if (inSingle || inDouble) {
-          continue;
-        }
-
-        if (pairs[ch]) {
-          stack.push({ char: ch, line: lineIdx + 1, col: colIdx + 1 });
-        } else if (closers.has(ch)) {
-          const last = stack.pop();
-          if (!last || pairs[last.char] !== ch) {
-            diagnostics.push({
-              severity: "error",
-              line: lineIdx + 1,
-              startColumn: colIdx + 1,
-              errorCode: "ERR_RAX_SYNTAX",
-              message: `Unexpected closing '${ch}' token.`,
-            });
-          }
-        }
-      }
-
-      if (inSingle || inDouble) {
-        diagnostics.push({
-          severity: "error",
-          line: lineIdx + 1,
-          startColumn: 1,
-          errorCode: "ERR_RAX_SYNTAX",
-          message: "Unterminated string or identifier literal.",
-        });
-      }
-    }
-
-    for (const unclosed of stack) {
-      diagnostics.push({
-        severity: "error",
-        line: unclosed.line,
-        startColumn: unclosed.col,
-        errorCode: "ERR_RAX_SYNTAX",
-        message: `Unclosed '${unclosed.char}' delimiter.`,
-      });
-    }
-
-    if (
-      trimmed.toUpperCase().includes("FILTER(ALL(") &&
-      !trimmed.includes("[")
-    ) {
-      diagnostics.push({
-        severity: "warning",
-        line: 1,
-        startColumn: 1,
-        errorCode: "WARN_INEFFICIENT_TABLE_FILTER",
-        message:
-          "Filtering an entire table via FILTER(ALL(Table), ...) degrades DuckDB SIMD vectorization; filter only the specific column.",
-      });
-    }
-
-    return diagnostics;
+  private extractProblem(err: unknown): RaxProblemDetail {
+    const httpErr = err instanceof HttpErrorResponse ? err : null;
+    const rawBody = httpErr?.error;
+    const bodyObj =
+      rawBody && typeof rawBody === "object"
+        ? (rawBody as Record<string, unknown>)
+        : null;
+    const detail =
+      (typeof bodyObj?.["detail"] === "string" && bodyObj["detail"].trim()
+        ? bodyObj["detail"].trim()
+        : null) ??
+      (typeof bodyObj?.["message"] === "string" && bodyObj["message"].trim()
+        ? bodyObj["message"].trim()
+        : null) ??
+      (typeof rawBody === "string" && rawBody.trim() ? rawBody.trim() : null) ??
+      (err instanceof Error ? err.message : "RAX request failed");
+    const errorCode =
+      typeof bodyObj?.["errorCode"] === "string" && bodyObj["errorCode"].trim()
+        ? bodyObj["errorCode"].trim()
+        : undefined;
+    const title =
+      typeof bodyObj?.["title"] === "string" && bodyObj["title"].trim()
+        ? bodyObj["title"].trim()
+        : httpErr?.statusText || "Request Error";
+    return {
+      title,
+      status: httpErr?.status,
+      detail,
+      errorCode,
+    };
   }
 
-  private patchActiveTab(patch: Partial<RaxQueryTab>): void {
+  private toMarker(d: DiagnosticMarker): RaxMonacoMarkerData {
+    const line = d.line ?? 1;
+    const startCol = d.startColumn ?? d.column ?? 1;
+    const len = Math.max(1, d.length ?? 1);
+    const rawSev = (d.severity ?? "ERROR").toUpperCase();
+    const severity: RaxMonacoMarkerData["severity"] =
+      rawSev === "WARNING" || rawSev === "INFO" ? rawSev : "ERROR";
+    return {
+      startLineNumber: line,
+      startColumn: startCol,
+      endLineNumber: line,
+      endColumn: d.endColumn ?? startCol + len,
+      severity,
+      code: d.errorCode ?? d.code ?? "ERR_RAX_SYNTAX",
+      message: d.message ?? "",
+    };
+  }
+
+  private patchTab(patch: Partial<RaxQueryTab>): void {
     if (patch.content !== undefined) {
       this.queryContent.set(patch.content);
     }

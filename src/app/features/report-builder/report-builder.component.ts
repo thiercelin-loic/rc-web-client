@@ -1374,6 +1374,11 @@ export class ReportBuilderComponent implements OnInit {
 
     const slots = this.resolveWellsForVisual(visual);
     const valueField = slots["values"]?.[0] ?? slots["measure"]?.[0];
+    const bareVal = valueField
+      ? valueField.includes(".")
+        ? valueField.split(".")[1]
+        : valueField
+      : "";
     const resolvedMeasure = this.resolveMeasureField(valueField);
     const dimField =
       slots["category"]?.[0] ??
@@ -1397,7 +1402,12 @@ export class ReportBuilderComponent implements OnInit {
           (dimField ? row[dimField] : undefined) ??
           Object.entries(row).find(([k]) => k !== "measure_value")?.[1] ??
           resolvedMeasure.label;
-        const rawVal = Number(row["measure_value"] ?? 0);
+        const rawVal = Number(
+          row["measure_value"] ??
+            (bareVal ? row[bareVal] : undefined) ??
+            (valueField ? row[valueField] : undefined) ??
+            0,
+        );
         labels.push(String(rawLabel));
         data.push(Number.isNaN(rawVal) ? 0 : rawVal);
       }
